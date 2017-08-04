@@ -1,15 +1,15 @@
 # Functions to pull data from MDSplus collector probe tree. The
-# user functions are at the bottom. These return all the above 
+# user functions are at the bottom. These return all the above
 # info as a dictionary.
 
 
 
 import MDSplus as mds
 
-def thin_connect(shot, tree='dp_probes'):
-	conn = mds.Connection('r2d2.gat.com')
+
+def thin_connect(shot, tree='dp_probes', server='r2d2.gat.com'):
+	conn = mds.Connection(server)
 	conn.openTree(tree, shot)
-	tree = mds.Tree(tree, shot)
 	return conn
 
 def get_tree(shot, tree='dp_probes'):
@@ -156,7 +156,7 @@ def pull_icpms_signal(tree, probe, spectrum, loc):
 
 def pull_standard_data(tree, probe, loc, stan):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
-		path = '\\DP_PROBES::TOP.' + probe[0] + '.' + probe + '.ICPMS.LOC' + str(loc) + '.STANDARD:STANDARD' + str(stan)	
+		path = '\\DP_PROBES::TOP.' + probe[0] + '.' + probe + '.ICPMS.LOC' + str(loc) + '.STANDARD:STANDARD' + str(stan)
 		sig_node = tree.getNode(path)
 		raw_sig = sig_node.getData().raw_of()
 		return raw_sig
@@ -171,15 +171,15 @@ def pull_standard_data(tree, probe, loc, stan):
 #	probe_number - 1-37 (not all probes have data though)
 # 	run          - 1-21 (not all runs have data)
 
-def rbs_dict(probe, probe_number, run):
+def rbs_dict(probe, probe_number, run, server='r2d2.gat.com'):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
-		tree = get_tree(probe_number)
-		conn = thin_connect(probe_number)
+		#tree = get_tree(probe_number)
+		conn = thin_connect(probe_number, server=server)
 		rbs_dict = {'probe': probe, 'probe number': probe_number}
 
 		# Which shots was the probe inserted for.
 		rbs_dict['shots in for'] = pull_shots(conn, probe)
-	
+
 		# What is the location along the probe, in mm from the tip.
 		rbs_dict['location'] = pull_rbs_loc(conn, probe, run)
 
@@ -187,13 +187,13 @@ def rbs_dict(probe, probe_number, run):
 		rbs_dict['w_areal'] = pull_rbs_areal(conn, probe, run)
 
 		# The raw rbs spectrum of how many counts per channel.
-		rbs_dict['rbs raw spectrum'] = pull_rbs_raw(tree, probe, run)
+		#rbs_dict['rbs raw spectrum'] = pull_rbs_raw(tree, probe, run)
 
 		# The sum of channels 420-440, assumed to correspond to W.
 		rbs_dict['rbs w counts'] = pull_rbs_wCounts(conn, probe, run)
 
 		return rbs_dict
-	
+
 	else:
 		print "Incorrect probe entry."
 
@@ -231,3 +231,38 @@ def icpms_dict(probe, probe_number, loc_number, spectrum_number, stan_number):
 		print "Incorrect probe entry."
 
 
+def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
+	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
+		#tree = get_tree(probe_number)
+		conn = thin_connect(probe_number, server=server)
+		rbs_dict = {'probe': probe, 'probe number': probe_number}
+
+		# Which shots was the probe inserted for.
+		rbs_dict['shots in for'] = pull_shots(conn, probe)
+
+
+		# What is the location along the probe, in mm from the tip.
+		rbs_dict['location'] = []
+		# W areal density in W/cm^2.
+		rbs_dict['w_areal'] = []
+		# The sum of channels 420-440, assumed to correspond to W.
+		rbs_dict['rbs w counts'] = []
+
+		for run in range(1,1000):
+			try:
+				tmp1 = pull_rbs_loc(conn,probe,run)
+				tmp2 = pull_rbs_areal(conn,probe,run)
+				tmp3 = pull_rbs_wCounts(conn,probe,run)
+				rbs_dict['location'].append(tmp1)
+				rbs_dict['w_areal'].append(tmp2)
+				rbs_dict['rbs w counts'].append(tmp3)
+			except:
+				break
+
+		# The raw rbs spectrum of how many counts per channel.
+		#rbs_dict['rbs raw spectrum'] = pull_rbs_raw(tree, probe, run)
+
+		return rbs_dict
+
+	else:
+			print "Incorrect probe entry."

@@ -3,15 +3,14 @@
 # info as a dictionary.
 
 
-import MDSplus as mds
-import Collector_Probes.get_Rsep as get
 
+import MDSplus as mds
+import get_Rsep as get
 
 def thin_connect(shot, tree='dp_probes', server='r2d2.gat.com'):
 	conn = mds.Connection(server)
 	conn.openTree(tree, shot)
 	return conn
-
 
 def get_tree(shot, tree='dp_probes'):
 	tree = mds.Tree(tree, shot)
@@ -33,7 +32,6 @@ def pull_rbs_raw(tree, probe, run):
 		raw_data = sig_node.getData().raw_of()
 		return raw_data
 
-
 def pull_rbs_wCounts(conn, probe, run):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
 		if run < 10:
@@ -46,13 +44,11 @@ def pull_rbs_wCounts(conn, probe, run):
 	else:
 		print "Incorrect probe entry."
 
-
 def pull_shots(conn, probe):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
 		path = '\\DP_PROBES::TOP.' + probe[0] + ':shots'
 		shots = conn.get(path).data()
 		return shots
-
 
 def pull_rbs_loc(conn, probe, run):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
@@ -274,6 +270,7 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 		for run in range(1,1000):
 			try:
 				print "Run " + str(run)
+				# Read location, then convert from mm to cm.
 				loc = pull_rbs_loc(conn,probe,run) / 10.0
 				areal = pull_rbs_areal(conn,probe,run)
 				areal_err = pull_rbs_areal_err(conn,probe,run)
@@ -289,11 +286,72 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 
 		# Use loc to get corresponding r-rsep value.
 		raw_input("Now ssh into atlas. Press any key to continue...")
-		print rbs_dict['shots in for'][3]
 		for loc in rbs_dict['location']:
-			avg_rsep_dict = get.avg_Rsep(shots=[rbs_dict['shots in for'][3]], r_probe=r_probe, location=loc)
+			avg_rsep_dict = get.avg_Rsep(shots=rbs_dict['shots in for'], r_probe=r_probe, location=loc)
 			rminrsep = avg_rsep_dict[probe.lower()]
 			rminrsep_error = avg_rsep_dict[probe.lower() + '_err']
+			rbs_dict['rminrsep'].append(rminrsep)
+			rbs_dict['rminrsep_err'].append(rminrsep_error)
+
+
+
+
+		# The raw rbs spectrum of how many counts per channel.
+		#rbs_dict['rbs raw spectrum'] = pull_rbs_raw(tree, probe, run)
+
+		return rbs_dict
+
+	else:
+			print "Incorrect probe entry."
+
+
+def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
+	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
+		raw_input("Make sure you have ssh'd into r2d2. Press any key to continue...")
+		r_probe = float(raw_input("Radial location of probe tip (from collector probe spreadsheet): "))
+		#tree = get_tree(probe_number)
+		conn = thin_connect(probe_number, server=server)
+		rbs_dict = {'probe': probe, 'probe number': probe_number}
+
+		# Which shots was the probe inserted for.
+		rbs_dict['shots in for'] = pull_shots(conn, probe)
+		# What is the location along the probe, in mm from the tip.
+		rbs_dict['location'] = []
+		# W areal density in W/cm^2, and its error.
+		rbs_dict['w_areal'] = []
+		rbs_dict['w_areal_err'] = []
+		# The sum of channels 420-440, assumed to correspond to W.
+		rbs_dict['rbs w counts'] = []
+		# Average R-Rsep of the probe and its error.
+		rbs_dict['rminrsep'] = []
+		rbs_dict['rminrsep_err'] = []
+
+		for run in range(1,1000):
+			try:
+				print "Run " + str(run)
+				#Convert mm to cm.
+				loc = pull_rbs_loc(conn,probe,run) / 10.0
+				print "Loc: " + str(loc)
+				areal = pull_rbs_areal(conn,probe,run)
+				areal_err = pull_rbs_areal_err(conn,probe,run)
+				counts = pull_rbs_wCounts(conn,probe,run)
+				rbs_dict['location'].append(loc)
+				rbs_dict['w_areal'].append(areal)
+				rbs_dict['w_areal_err'].append(areal_err)
+				rbs_dict['rbs w counts'].append(counts)
+
+			except:
+				print "Broke at run " + str(run)
+				break
+
+		# Use loc to get corresponding r-rsep value.
+		raw_input("Now ssh into atlas. Press any key to continue...")
+		avg_rsep_dict = get.avg_Rsep_all(shots=rbs_dict['shots in for'], r_probe=r_probe, locations=rbs_dict['location'])
+
+		for loc in reversed(sorted(avg_rsep_dict)):
+			rminrsep = avg_rsep_dict[loc][probe.lower()]
+			#print "Rminrsep: " + str(rminrsep)
+			rminrsep_error = avg_rsep_dict[loc][probe.lower() + '_err']
 			rbs_dict['rminrsep'].append(rminrsep)
 			rbs_dict['rminrsep_err'].append(rminrsep_error)
 

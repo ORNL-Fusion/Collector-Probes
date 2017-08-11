@@ -28,15 +28,15 @@ def plot_EFIT_helper(shot, time, probe_tip, levs=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 
     f_Romp = scinter.interp2d(parmDICT['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
 
     # remap each array from probe location to mag. axis midplane
-    psiN_A = f_psiN([2.26,2.27], -0.18)
-    #psiN_B = f_psiN(Rs, -0.1546)
-    #psiN_C = f_psiN(Rs, -0.2054)
+    psiN_AU = f_psiN([2.26, 2.27], -0.18)
+    # psiN_B = f_psiN(Rs, -0.1546)
+    # psiN_C = f_psiN(Rs, -0.2054)
 
     R_omp_AU = f_Romp(psiN_AU, Z_axis)
 
     print f_Rs(Z_axis)
-    print psiN_A
-    print R_omp_A
+    print psiN_AU
+    print R_omp_AU
     print "A probe R_sep: {:.6}".format(f_Rs(-0.18))
     print "B probe R_sep: {:.6}".format(f_Rs(-0.1546))
     print "C probe R_sep: {:.6}".format(f_Rs(-0.2054))
@@ -53,15 +53,18 @@ def plot_EFIT_helper(shot, time, probe_tip, levs=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 
         plt.plot(parmDICT['wall'][:, 0], parmDICT['wall'][:, 1], 'k', linewidth=3)
         plt.plot(pvc.RVVIN, pvc.ZVVIN, 'k', linewidth=1)
         plt.plot(pvc.RVVOUT, pvc.ZVVOUT, 'k', linewidth=1)
-        plt.contour(Rs, Zs, parmDICT['psiRZn'], levs, colors='b', label='EFIT', linestyles='dashed')
+        plt.contour(Rs, Zs, parmDICT['psiRZn'], levs, colors='b', label='EFIT',
+                    linestyles='dashed')
         plt.contour(Rs, Zs, parmDICT['psiRZn'], SOLlevs, colors='b', linestyles='solid')
         plt.contour(Rs, Zs, parmDICT['psiRZn'], [0.9996], colors='b', linewidths=2)
         plt.plot(parmDICT['lcfs'][:, 0], parmDICT['lcfs'][:, 1], 'b', linewidth=2)
-        plt.plot(parmDICT['RmAxis'], parmDICT['ZmAxis'], 'b', linewidth=1, marker='+', markersize=10)
+        plt.plot(parmDICT['RmAxis'], parmDICT['ZmAxis'], 'b', linewidth=1, marker='+',
+                 markersize=10)
         plt.show()
 
     dict = {'R_sepA': f_Rs(-0.18), 'R_sepB': f_Rs(-0.1546), 'R_sepC': f_Rs(-0.2054)}
     return dict
+
 
 def find_closest(A, target):
     # A must be sorted

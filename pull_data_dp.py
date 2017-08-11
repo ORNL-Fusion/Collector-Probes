@@ -3,14 +3,15 @@
 # info as a dictionary.
 
 
-
 import MDSplus as mds
-import get_Rsep as get
+import Collector_Probes.get_Rsep as get
+
 
 def thin_connect(shot, tree='dp_probes', server='r2d2.gat.com'):
 	conn = mds.Connection(server)
 	conn.openTree(tree, shot)
 	return conn
+
 
 def get_tree(shot, tree='dp_probes'):
 	tree = mds.Tree(tree, shot)
@@ -32,6 +33,7 @@ def pull_rbs_raw(tree, probe, run):
 		raw_data = sig_node.getData().raw_of()
 		return raw_data
 
+
 def pull_rbs_wCounts(conn, probe, run):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
 		if run < 10:
@@ -44,11 +46,13 @@ def pull_rbs_wCounts(conn, probe, run):
 	else:
 		print "Incorrect probe entry."
 
+
 def pull_shots(conn, probe):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
 		path = '\\DP_PROBES::TOP.' + probe[0] + ':shots'
 		shots = conn.get(path).data()
 		return shots
+
 
 def pull_rbs_loc(conn, probe, run):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
@@ -270,7 +274,7 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 		for run in range(1,1000):
 			try:
 				print "Run " + str(run)
-				loc = pull_rbs_loc(conn,probe,run)
+				loc = pull_rbs_loc(conn,probe,run) / 10.0
 				areal = pull_rbs_areal(conn,probe,run)
 				areal_err = pull_rbs_areal_err(conn,probe,run)
 				counts = pull_rbs_wCounts(conn,probe,run)
@@ -285,8 +289,9 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 
 		# Use loc to get corresponding r-rsep value.
 		raw_input("Now ssh into atlas. Press any key to continue...")
+		print rbs_dict['shots in for'][3]
 		for loc in rbs_dict['location']:
-			avg_rsep_dict = get.avg_Rsep(shots=rbs_dict['shots in for'], r_probe=r_probe, location=loc)
+			avg_rsep_dict = get.avg_Rsep(shots=[rbs_dict['shots in for'][3]], r_probe=r_probe, location=loc)
 			rminrsep = avg_rsep_dict[probe.lower()]
 			rminrsep_error = avg_rsep_dict[probe.lower() + '_err']
 			rbs_dict['rminrsep'].append(rminrsep)

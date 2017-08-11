@@ -184,8 +184,8 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False, filename="IDidNot
 				rminrsep_values['cd'].append(rad_pos['cd'] - rSep['c'])
 				rminrsep_values['cu'].append(rad_pos['cu'] - rSep['c'])
 
-				print "Here you are."
-				print "Rminrsep_values: " + str(rminrsep_values)
+				#print "Here you are."
+				#print "Rminrsep_values: " + str(rminrsep_values)
 
 
 

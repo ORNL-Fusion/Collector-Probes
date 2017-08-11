@@ -347,7 +347,8 @@ def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
 		# Use loc to get corresponding r-rsep value.
 		raw_input("Now ssh into atlas. Press any key to continue...")
 		avg_rsep_dict = get.avg_Rsep_all(shots=rbs_dict['shots in for'], r_probe=r_probe, locations=rbs_dict['location'])
-		for loc in avg_rsep_dict:
+
+		for loc in reversed(sorted(avg_rsep_dict)):
 			rminrsep = avg_rsep_dict[loc][probe.lower()]
 			#print "Rminrsep: " + str(rminrsep)
 			rminrsep_error = avg_rsep_dict[loc][probe.lower() + '_err']

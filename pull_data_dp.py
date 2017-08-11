@@ -5,11 +5,11 @@
 
 
 import MDSplus as mds
-
+import get_Rsep as get
 
 def thin_connect(shot, tree='dp_probes', server='r2d2.gat.com'):
 	conn = mds.Connection(server)
-	conn.openTree(tree, shot)
+	#conn.openTree(tree, shot)
 	return conn
 
 def get_tree(shot, tree='dp_probes'):
@@ -19,7 +19,8 @@ def get_tree(shot, tree='dp_probes'):
 
 # RBS relevant data.
 
-# Note this requires the tree, not the connection.
+# Note this requires the tree, not the connection. Note that only pull_rbs_raw
+# uses a thick connect. All other use thin connects.
 def pull_rbs_raw(tree, probe, run):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
 		if run < 10:
@@ -230,32 +231,46 @@ def icpms_dict(probe, probe_number, loc_number, spectrum_number, stan_number):
 	else:
 		print "Incorrect probe entry."
 
+# Get a dict involving the relevant rbs data for plotting. Only uses thin
+# connection.
 
 def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
+		r_probe = raw_input("Radial location of probe tip (from collector probe spreadsheet): ")
 		#tree = get_tree(probe_number)
 		conn = thin_connect(probe_number, server=server)
 		rbs_dict = {'probe': probe, 'probe number': probe_number}
 
 		# Which shots was the probe inserted for.
 		rbs_dict['shots in for'] = pull_shots(conn, probe)
-
-
 		# What is the location along the probe, in mm from the tip.
 		rbs_dict['location'] = []
-		# W areal density in W/cm^2.
+		# W areal density in W/cm^2, and its error.
 		rbs_dict['w_areal'] = []
+		#rbs_dict['w_areal_err'] = []
 		# The sum of channels 420-440, assumed to correspond to W.
 		rbs_dict['rbs w counts'] = []
+		# Average R-Rsep of the probe and its error.
+		rbs_dict['rminrsep'] = []
+		rbs_dict['rminrsep_err'] = []
 
 		for run in range(1,1000):
 			try:
-				tmp1 = pull_rbs_loc(conn,probe,run)
-				tmp2 = pull_rbs_areal(conn,probe,run)
-				tmp3 = pull_rbs_wCounts(conn,probe,run)
-				rbs_dict['location'].append(tmp1)
-				rbs_dict['w_areal'].append(tmp2)
-				rbs_dict['rbs w counts'].append(tmp3)
+				loc = pull_rbs_loc(conn,probe,run)
+				areal = pull_rbs_areal(conn,probe,run)
+				counts = pull_rbs_wCounts(conn,probe,run)
+				rbs_dict['location'].append(loc)
+				rbs_dict['w_areal'].append(areal)
+				rbs_dict['rbs w counts'].append(counts)
+
+				# Use loc to get corresponding r-rsep value.
+				avg_rsep_dict = get.avg_Rsep(shots=rbs_dict['shots in for'], r_probe=r_probe, location=loc)
+				rminrsep = avg_rsep_dict[probe.lower()]
+				rminrsep_error = avg_rsep_dict[probe.lower() + '_err']
+				rbs_dict['rminrsep'].append(rminrsep)
+				rbs_dict['rminrsep_err'].append(rminrsep_error)
+
+
 			except:
 				break
 

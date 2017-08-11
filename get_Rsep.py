@@ -6,8 +6,8 @@ import numpy as np
 import scipy.interpolate as scinter
 
 # Normal load_gfile_d3d except needed to cast 'g['lcfs']' as an int.
-import load_gfile_d3d_sz as loadg
-import meas_locations as geo
+import EFIT.load_gfile_d3d as loadg
+import Collector_Probes.meas_locations as geo
 
 # Return dictionary of average R - Rsep value for each of the probes.
 #
@@ -17,12 +17,14 @@ import meas_locations as geo
 # startTime = start of time range to be averaged over (ms).
 # endTime   = end of time range (ms).
 
-def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnterAFilename.txt", startTime=2500, endTime=5000):
+
+def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnterAFilename.txt",
+             startTime=2500, endTime=5000):
 	time = startTime
 	count = 0
 
 	# Dict to hold each r-rsep value for calculating statistical values later.
-	rminrsep_values = {'ad':[], 'au':[], 'bd':[], 'bu':[], 'cd':[], 'cu':[]}
+	rminrsep_values = {'ad': [], 'au': [], 'bd': [], 'bu': [], 'cd': [], 'cu': []}
 
 	#sums = {'ad':0, 'au':0, 'bd':0, 'bu':0, 'cd':0, 'cu':0}
 
@@ -122,6 +124,5 @@ def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnter
 			f.write("\n")
 		f.write("\n")
 		f.close()
-
 
 	return avg_rminrsep

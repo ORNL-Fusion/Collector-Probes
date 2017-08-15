@@ -6,6 +6,7 @@
 
 import MDSplus as mds
 import get_Rsep as get
+import numpy as np
 
 def thin_connect(shot, tree='dp_probes', server='r2d2.gat.com'):
 	conn = mds.Connection(server)
@@ -315,6 +316,12 @@ def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
 
 		# Which shots was the probe inserted for.
 		rbs_dict['shots in for'] = pull_shots(conn, probe)
+
+		# Special cases where the shots don't have data.
+		if probe_number == 2:
+			# This would be shot 167206.
+			rbs_dict['shots in for'] = np.delete(rbs_dict['shots in for'], 10)
+
 		# What is the location along the probe, in mm from the tip.
 		rbs_dict['location'] = []
 		# W areal density in W/cm^2, and its error.
@@ -325,6 +332,8 @@ def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
 		# Average R-Rsep of the probe and its error.
 		rbs_dict['rminrsep'] = []
 		rbs_dict['rminrsep_err'] = []
+		rbs_dict['rminrsep_omp'] = []
+		rbs_dict['rminrsep_omp_err'] = []
 
 		for run in range(1,1000):
 			try:
@@ -348,12 +357,15 @@ def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
 		raw_input("Now ssh into atlas. Press any key to continue...")
 		avg_rsep_dict = get.avg_Rsep_all(shots=rbs_dict['shots in for'], r_probe=r_probe, locations=rbs_dict['location'])
 
-		for loc in reversed(sorted(avg_rsep_dict)):
-			rminrsep = avg_rsep_dict[loc][probe.lower()]
-			#print "Rminrsep: " + str(rminrsep)
-			rminrsep_error = avg_rsep_dict[loc][probe.lower() + '_err']
+		for loc in reversed(sorted(rbs_dict['location'])):
+			rminrsep = avg_rsep_dict[probe.lower()][str(loc)]
+			rminrsep_error = avg_rsep_dict[probe.lower() + '_err'][str(loc)]
 			rbs_dict['rminrsep'].append(rminrsep)
 			rbs_dict['rminrsep_err'].append(rminrsep_error)
+			rminrsep_omp = avg_rsep_dict[probe.lower() + '_omp'][str(loc)]
+			rminrsep_omp_err = avg_rsep_dict[probe.lower() + '_omp_err'][str(loc)]
+			rbs_dict['rminrsep_omp'].append(rminrsep_omp)
+			rbs_dict['rminrsep_omp_err'].append(rminrsep_omp_err)
 
 
 

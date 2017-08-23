@@ -17,7 +17,8 @@ import meas_locations as geo
 # startTime = start of time range to be averaged over (ms).
 # endTime   = end of time range (ms).
 
-def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnterAFilename.txt", startTime=2500, endTime=5000):
+def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnterAFilename.txt",
+             server='atlas.gat.com', startTime=2500, endTime=5000):
 	time = startTime
 	count = 0
 
@@ -44,7 +45,7 @@ def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnter
 			print("Time:     " + str(time))
 
 			# Lines from Zeke's code.
-			parmDICT = loadg.read_g_file_mds(shot, time, Server='localhost', write2file=False)
+			parmDICT = loadg.read_g_file_mds(shot, time, Server=server, write2file=False)
 			Rs, Zs = np.meshgrid(parmDICT['R'], parmDICT['Z'])
 			Zes = np.copy(parmDICT['lcfs'][:, 1][13:-12])
 			Res = np.copy(parmDICT['lcfs'][:, 0][13:-12])
@@ -128,7 +129,9 @@ def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnter
 
 
 
-def avg_Rsep_all(shots, r_probe, locations, writeToFile=False, filename="IDidNotEnterAFilename.txt", startTime=2500, endTime=5000, step=500):
+def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
+                 filename="IDidNotEnterAFilename.txt", server='atlas.gat.com',
+				 startTime=2500, endTime=5000, step=500):
 	time = startTime
 	count = 0
 
@@ -158,7 +161,7 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False, filename="IDidNot
 
 
 			# Lines from Zeke's code.
-			parmDICT = loadg.read_g_file_mds(shot, time, Server='localhost', write2file=False)
+			parmDICT = loadg.read_g_file_mds(shot, time, Server=server, write2file=False)
 			Rs, Zs = np.meshgrid(parmDICT['R'], parmDICT['Z'])
 			Z_axis = parmDICT['ZmAxis']
 			R_axis = parmDICT['RmAxis']

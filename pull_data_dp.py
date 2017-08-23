@@ -15,6 +15,12 @@ def thin_connect(shot, tree='dp_probes', server='r2d2.gat.com'):
 
 
 # RBS relevant data.
+def pull_rprobe(conn, probe):
+	path = '\\DP_PROBES::TOP.' + probe[0] + ':RPROBE'
+	r_probe = conn.get(path).data()
+	return r_probe
+
+
 def pull_rbs_raw(conn, probe, run):
     if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
         if run < 10:
@@ -129,6 +135,7 @@ def pull_rbs_rcx_w(conn):
     path = '\\DP_PROBES::TOP.RBS_RCX:W_RCX'
     w_rcx = conn.get(path).data()
     return w_rcx
+
 
 
 # ICPMS relvant data.

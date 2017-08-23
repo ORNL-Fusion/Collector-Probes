@@ -253,7 +253,7 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
     all_rminrsep = {}
     avg_rminrsep = {}
     probe_list = ['ad', 'au', 'bd', 'bu', 'cd', 'cu',
-        'ad_omp', 'au_omp', 'bd_omp', 'bu_omp', 'cd_omp', 'cu_omp']
+                  'ad_omp', 'au_omp', 'bd_omp', 'bu_omp', 'cd_omp', 'cu_omp']
     for probe in probe_list:
         all_rminrsep[probe] = {}
         avg_rminrsep[probe] = {}

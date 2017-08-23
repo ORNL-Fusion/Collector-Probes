@@ -22,9 +22,7 @@ def pull_rbs_raw(conn, probe, run):
         else:
             run_str = str(run)
         path = '\\DP_PROBES::TOP.' + probe[0] + '.' + probe + '.RBS.RUN' + run_str + ':SIGNAL'
-        sig_node = conn.get('_s = '+path).data()
-        raw_data = conn.get('raw_of(_s)').data()
-        del sig_node
+        raw_data = conn.get('_s = '+path+', raw_of(_s)').data()
         return raw_data
 
 
@@ -166,8 +164,7 @@ def pull_icpms_pos(conn, probe, loc):
 def pull_icpms_signal(conn, probe, spectrum, loc):
     if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
         path = '\\DP_PROBES::TOP.' + probe[0] + '.' + probe + '.ICPMS.LOC' + str(loc) + '.SPECTRUM' + str(spectrum) + ':DATA'
-        sig_node = conn.get('_s = '+path).data()
-        raw_sig = conn.get('raw_of(_s)').data()
+        raw_sig = conn.get('_s = '+path+', raw_of(_s)').data()
         return raw_sig
     else:
         print "Incorrect probe entry"
@@ -176,8 +173,7 @@ def pull_icpms_signal(conn, probe, spectrum, loc):
 def pull_standard_data(conn, probe, loc, stan):
     if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
         path = '\\DP_PROBES::TOP.' + probe[0] + '.' + probe + '.ICPMS.LOC' + str(loc) + '.STANDARD:STANDARD' + str(stan)
-        sig_node = conn.get('_s = '+path).data()
-        raw_sig = conn.get('raw_of(_s)').data()
+        raw_sig = conn.get('_s = '+path+', raw_of(_s)').data()
         return raw_sig
     else:
         print "Incorrect probe entry."
@@ -306,7 +302,7 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 
 
 def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_step=500.,
-                         server1='r2d2.gat.com', server2='atlas.gat.com'):
+                         EFIT_tree='EFIT01', server1='r2d2.gat.com', server2='atlas.gat.com'):
     if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
         raw_input("Make sure you have ssh'd into r2d2. Press any key to continue...")
         r_probe = float(raw_input("Radial location of probe tip (from collector probe spreadsheet): "))
@@ -328,6 +324,8 @@ def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_st
         rbs_dict['w_areal_err'] = []
         # The sum of channels 420-440, assumed to correspond to W.
         rbs_dict['rbs w counts'] = []
+        # The raw rbs spectrum of how many counts per channel.
+        rbs_dict['rbs raw spectrum'] = []
         # Average R-Rsep of the probe and its error.
         rbs_dict['rminrsep'] = []
         rbs_dict['rminrsep_err'] = []
@@ -343,10 +341,12 @@ def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_st
                 areal = pull_rbs_areal(conn, probe, run)
                 areal_err = pull_rbs_areal_err(conn, probe, run)
                 counts = pull_rbs_wCounts(conn, probe, run)
+                raw = pull_rbs_raw(conn, probe, run)
                 rbs_dict['location'].append(loc)
                 rbs_dict['w_areal'].append(areal)
                 rbs_dict['w_areal_err'].append(areal_err)
                 rbs_dict['rbs w counts'].append(counts)
+                rbs_dict['rbs raw spectrum'].append(raw)
 
             except:
                 print "Broke at run " + str(run)
@@ -368,9 +368,6 @@ def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_st
             rminrsep_omp_err = avg_rsep_dict[probe.lower() + '_omp_err'][str(loc)]
             rbs_dict['rminrsep_omp'].append(rminrsep_omp)
             rbs_dict['rminrsep_omp_err'].append(rminrsep_omp_err)
-
-        # The raw rbs spectrum of how many counts per channel.
-        rbs_dict['rbs raw spectrum'] = pull_rbs_raw(conn, probe, run)
 
         return rbs_dict
 

@@ -306,12 +306,13 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 			print "Incorrect probe entry."
 
 
-def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
+def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000.,
+                         server1='r2d2.gat.com', server2='atlas.gat.com'):
 	if probe in ['AU', 'AD', 'BU', 'BD', 'CU', 'CD']:
 		raw_input("Make sure you have ssh'd into r2d2. Press any key to continue...")
 		r_probe = float(raw_input("Radial location of probe tip (from collector probe spreadsheet): "))
 		#tree = get_tree(probe_number)
-		conn = thin_connect(probe_number, server=server)
+		conn = thin_connect(probe_number, server=server1)
 		rbs_dict = {'probe': probe, 'probe number': probe_number}
 
 		# Which shots was the probe inserted for.
@@ -355,7 +356,9 @@ def rbs_profile_dict_all(probe, probe_number, server='r2d2.gat.com'):
 
 		# Use loc to get corresponding r-rsep value.
 		raw_input("Now ssh into atlas. Press any key to continue...")
-		avg_rsep_dict = get.avg_Rsep_all(shots=rbs_dict['shots in for'], r_probe=r_probe, locations=rbs_dict['location'])
+		avg_rsep_dict = get.avg_Rsep_all(shots=rbs_dict['shots in for'], r_probe=r_probe,
+		                                 locations=rbs_dict['location'], server=server2,
+										 startTime=R_tstart, endTime=R_tend, step=500)
 
 		for loc in reversed(sorted(rbs_dict['location'])):
 			rminrsep = avg_rsep_dict[probe.lower()][str(loc)]

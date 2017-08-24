@@ -3,7 +3,7 @@
 # Email:  zamp@utk.edu
 # Date:   8/23/17
 #
-# Description: 
+# Description:
 # Pulls data from the dp_probes tree on r2d2 and puts it into lists
 # in the class. Then uses this data to access EFIT on atlas and get R - Rsep and
 # R - Rsep_omp. These can then be plotted using the plot functions or the data
@@ -50,10 +50,12 @@ class Probe():
             except:
                 break
 
+        for run in range(1,1000):
             # Downstream data.
             try:
                 print "AD Run: " + str(run)
                 loc = pull.pull_rbs_loc(self.conn, self.letter + 'D', run) / 10.0
+                print "AD Loc: " + str(loc)
                 areal = pull.pull_rbs_areal(self.conn, self.letter + 'D', run)
                 areal_err = pull.pull_rbs_areal_err(self.conn, self.letter + 'D', run)
                 self.locations_D.append(loc)
@@ -73,22 +75,31 @@ class Probe():
         self.rminrsep_omp_D     = []
         self.rminrsep_omp_err_D = []
 
-        avg_dict = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_U,
+        print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
+        avg_dict_U = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_U,
+            server=server, startTime=startTime, endTime=endTime, step=500)
+        print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
+        avg_dict_D = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_D,
             server=server, startTime=startTime, endTime=endTime, step=500)
 
         probe_name = self.letter + 'U'
         for loc in self.locations_U:
-            self.rminrsep_U.append(avg_dict[probe_name.lower()][str(loc)])
-            self.rminrsep_err_U.append(avg_dict[probe_name.lower() + '_err'][str(loc)])
-            self.rminrsep_omp_U.append(avg_dict[probe_name.lower() + '_omp'][str(loc)])
-            self.rminrsep_omp_err_U.append(avg_dict[probe_name.lower() + '_omp_err'][str(loc)])
+            #print "U Loc: " + str(loc)
+            self.rminrsep_U.append(avg_dict_U[probe_name.lower()][str(loc)])
+            self.rminrsep_err_U.append(avg_dict_U[probe_name.lower() + '_err'][str(loc)])
+            self.rminrsep_omp_U.append(avg_dict_U[probe_name.lower() + '_omp'][str(loc)])
+            self.rminrsep_omp_err_U.append(avg_dict_U[probe_name.lower() + '_omp_err'][str(loc)])
 
         probe_name = self.letter + 'D'
+        #for key in avg_dict[probe_name.lower()].keys():
+        #    print key
+
         for loc in self.locations_D:
-            self.rminrsep_D.append(avg_dict[probe_name.lower()][str(loc)])
-            self.rminrsep_err_D.append(avg_dict[probe_name.lower() + '_err'][str(loc)])
-            self.rminrsep_omp_D.append(avg_dict[probe_name.lower() + '_omp'][str(loc)])
-            self.rminrsep_omp_err_D.append(avg_dict[probe_name.lower() + '_omp_err'][str(loc)])
+            #print "D Loc: " + str(loc)
+            self.rminrsep_D.append(avg_dict_D[probe_name.lower()][str(loc)])
+            self.rminrsep_err_D.append(avg_dict_D[probe_name.lower() + '_err'][str(loc)])
+            self.rminrsep_omp_D.append(avg_dict_D[probe_name.lower() + '_omp'][str(loc)])
+            self.rminrsep_omp_err_D.append(avg_dict_D[probe_name.lower() + '_omp_err'][str(loc)])
 
 
     def plot_norm(self, limit=6):

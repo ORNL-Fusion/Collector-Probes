@@ -12,6 +12,8 @@
 import pull_data_dp as pull
 import get_Rsep as get
 import matplotlib.pyplot as plt
+import numpy as np
+import scipy.io as sio
 
 class Probe():
     """Contains information about probes. Must run r2d2, then atlas to
@@ -55,7 +57,6 @@ class Probe():
             try:
                 print "AD Run: " + str(run)
                 loc = pull.pull_rbs_loc(self.conn, self.letter + 'D', run) / 10.0
-                print "AD Loc: " + str(loc)
                 areal = pull.pull_rbs_areal(self.conn, self.letter + 'D', run)
                 areal_err = pull.pull_rbs_areal_err(self.conn, self.letter + 'D', run)
                 self.locations_D.append(loc)
@@ -131,3 +132,26 @@ class Probe():
         plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes at OMP')
 
         plt.show()
+
+    def to_matlab(self):
+        tmp_dict={}
+        arr_loc_U   = np.array(self.locations_U)
+        arr_sep_U   = np.array(self.rminrsep_U)
+        arr_omp_U   = np.array(self.rminrsep_omp_U)
+        arr_areal_U = np.array(self.w_areal_U)
+        tmp_dict['locations_U']       = arr_loc_U
+        tmp_dict['rminrsep_U']        = arr_sep_U
+        tmp_dict['rminrsep_omp_U']    = arr_omp_U
+        tmp_dict['w_areal_density_U'] = arr_areal_U
+
+        arr_loc_D   = np.array(self.locations_D)
+        arr_sep_D   = np.array(self.rminrsep_D)
+        arr_omp_D   = np.array(self.rminrsep_omp_D)
+        arr_areal_D = np.array(self.w_areal_D)
+        tmp_dict['locations_D']       = arr_loc_D
+        tmp_dict['rminrsep_D']        = arr_sep_D
+        tmp_dict['rminrsep_omp_D']    = arr_omp_D
+        tmp_dict['w_areal_density_D'] = arr_areal_D
+
+        filename = self.letter.upper() + str(self.number) + 'data.mat'
+        sio.savemat(filename, tmp_dict)

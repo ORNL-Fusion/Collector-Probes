@@ -42,6 +42,9 @@ class Probe():
         # this is needed b/c 167206 has no EFITs (as of 08/22/2017) -- EAU
         ind = np.argwhere(self.shots == 167206)
         self.shots = np.delete(self.shots, ind)
+        # temporary until we get the EFIT04s in the database.
+        ind = np.argwhere(self.shots == 167220)
+        self.shots = np.delete(self.shots, ind)
 
         # Data from R2D2.
         for run in range(1, 1000):
@@ -71,6 +74,13 @@ class Probe():
             except:
                 break
 
+        self.r2d2DICT = {'shots': self.shots, 'r_probe': self.r_probe,
+                         'locations_U': self.locations_U,
+                         'locations_D': self.locations_D, 'w_areal_U': self.w_areal_U,
+                         'w_areal_D': self.w_areal_D, 'w_areal_err_U': self.w_areal_err_U,
+                         'w_areal_err_D': self.w_areal_err_D}
+        return self.r2d2DICT
+
     def atlas(self, server='atlas.gat.com', EFIT='EFIT01', startTime=2500, endTime=5000, step=500):
 
         self.rminrsep_U         = []
@@ -82,14 +92,17 @@ class Probe():
         self.rminrsep_omp_D     = []
         self.rminrsep_omp_err_D = []
 
+        self.EFIT_tstart = startTime
+        self.EFIT_tend = endTime
+
         print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
         avg_dict_U = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_U,
                                       server=server, Etree=EFIT, startTime=startTime,
-                                      endTime=endTime, step=500)
+                                      endTime=endTime, step=step)
         print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
         avg_dict_D = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_D,
                                       server=server, Etree=EFIT, startTime=startTime,
-                                      endTime=endTime, step=500)
+                                      endTime=endTime, step=step)
 
         probe_name = self.letter + 'U'
         for loc in self.locations_U:
@@ -110,6 +123,16 @@ class Probe():
             self.rminrsep_omp_D.append(avg_dict_D[probe_name.lower() + '_omp'][str(loc)])
             self.rminrsep_omp_err_D.append(avg_dict_D[probe_name.lower() + '_omp_err'][str(loc)])
 
+        self.atlasDICT = {'rminrsep_U': self.rminrsep_U,
+                          'rminrsep_err_U': self.rminrsep_err_U,
+                          'rminrsep_omp_U': self.rminrsep_omp_U,
+                          'rminrsep_omp_err_U': self.rminrsep_omp_err_U,
+                          'rminrsep_D': self.rminrsep_D,
+                          'rminrsep_err_D': self.rminrsep_err_D,
+                          'rminrsep_omp_D': self.rminrsep_omp_D,
+                          'rminrsep_omp_err_D': self.rminrsep_omp_err_D}
+        return self.atlasDICT
+
     def plot_norm(self, limit=6):
 
         plt.errorbar(x=self.rminrsep_U[limit:], y=self.w_areal_U[limit:],
@@ -121,7 +144,7 @@ class Probe():
         plt.legend(loc='upper right')
         plt.xlabel("R - Rsep (cm)")
         plt.ylabel('W Areal Density (x10^16 cm^-2)')
-        plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes')
+        plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes from ' + str(self.EFIT_tstart) + ' to ' + str(self.EFIT_tend))
 
         plt.show()
 
@@ -135,7 +158,7 @@ class Probe():
         plt.legend(loc='upper right')
         plt.xlabel("R - Rsep_omp (cm)")
         plt.ylabel("W Areal Density (x10^16 cm^-2)")
-        plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes at OMP')
+        plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes at OMP from ' + str(self.EFIT_tstart) + ' to ' + str(self.EFIT_tend))
 
         plt.show()
 
@@ -161,3 +184,11 @@ class Probe():
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)
+
+    def to_hickle(self):
+        import Misc.hickle.hickle as hkl
+
+        fnam = 'CPdata_mdsplus_'+str(self.letter)+str(self.number)+'.hkl'
+        print fnam
+        hkl.dump(self.r2d2DICT, fnam, 'w')
+        hkl.dump(self.r2d2DICT, fnam, 'w')

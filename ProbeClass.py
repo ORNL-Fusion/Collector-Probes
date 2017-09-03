@@ -35,59 +35,102 @@ class Probe():
 
     def r2d2(self, server='r2d2.gat.com'):
 
-        # Setup each probe if used.
-        if self.Anumber is not None:
-            conn           = pull.thin_connect(self.Anumber, server=server)
-            A_shots        = pull.pull_shots(conn, 'AD')
-            self.A_r_probe = pull.pull_rprobe(conn, 'A')
-            # Relevant lists for each probe, 'U' and 'D' faces.
-            self.AU_locations    = []
-            self.AU_w_areal      = []
-            self.AU_w_areal_err  = []
-            self.AD_locations    = []
-            self.AD_w_areal      = []
-            self.AD_w_areal_err  = []
-        if self.Bnumber is not None:
-            Bconn      = pull.thin_connect(self.Bnumber, server=server)
-            B_shots   = pull.pull_shots(Bconn, 'BD')
-            self.B_r_probe = pull.pull_rprobe(Bconn, 'B')
-            # Relevant lists for each probe, 'U' and 'D' faces.
-            self.BU_locations    = []
-            self.BU_w_areal      = []
-            self.BU_w_areal_err  = []
-            self.BD_locations    = []
-            self.BD_w_areal      = []
-            self.BD_w_areal_err  = []
-        if self.Cnumber is not None:
-            self.conn      = pull.thin_connect(self.Cnumber, server=server)
-            C_shots   = pull.pull_shots(conn, self.Cletter + 'D')
-            self.C_r_probe = pull.pull_rprobe(conn, self.Cletter)
-            ## Relevant lists for each probe, 'U' and 'D' faces.
-            self.CU_locations    = []
-            self.CU_w_areal      = []
-            self.CU_w_areal_err  = []
-            self.CD_locations    = []
-            self.CD_w_areal      = []
-            self.CD_w_areal_err  = []
-
-        # Now check that the shots are consistent. Implies that the probe set is equal.
+        # Check that the shots are consistent. Implies that the probe set is equal.
         # In most cases this is true.
         # Can default to single probe pulls.
+        # AND setup each probe as needed.
         if self.Anumber is not None and self.Bnumber is not None and self.Cnumber is not None:
+            Aconn   = pull.thin_connect(self.Anumber, server=server)
+            A_shots = pull.pull_shots(Aconn, 'AD')
+            A_r_probe = pull.pull_rprobe(Aconn, 'A')
+            Bconn   = pull.thin_connect(self.Bnumber, server=server)
+            B_shots = pull.pull_shots(Bconn, 'BD')
+            B_r_probe = pull.pull_rprobe(Bconn, 'B')
+            Cconn   = pull.thin_connect(self.Cnumber, server=server)
+            C_shots = pull.pull_shots(Cconn, 'CD')
+            C_r_probe = pull.pull_rprobe(Cconn, 'C')
+            # Relevant lists for each probe, 'U' and 'D' faces.
+            AU_locations    = []
+            AU_w_areal      = []
+            AU_w_areal_err  = []
+            AD_locations    = []
+            AD_w_areal      = []
+            AD_w_areal_err  = []
+            BU_locations    = []
+            BU_w_areal      = []
+            BU_w_areal_err  = []
+            BD_locations    = []
+            BD_w_areal      = []
+            BD_w_areal_err  = []
+            CU_locations    = []
+            CU_w_areal      = []
+            CU_w_areal_err  = []
+            CD_locations    = []
+            CD_w_areal      = []
+            CD_w_areal_err  = []
             if all(A_shots) == all(B_shots) == all(C_shots):
                 shots2DICT = A_shots
             else:
                 return 'Shot lists are not the same for each probe, check documentation for correct probes or get one probe at a time. Cannot continue.'
-        if self.Anumber is not None and self.Bnumber is not None and self.Cnumber is None:
+        if self.Anumber is not None and self.Bnumber is not None:
+            Aconn   = pull.thin_connect(self.Anumber, server=server)
+            A_shots = pull.pull_shots(Aconn, 'AD')
+            A_r_probe = pull.pull_rprobe(Aconn, 'A')
+            Bconn   = pull.thin_connect(self.Bnumber, server=server)
+            B_shots = pull.pull_shots(Bconn, 'BD')
+            B_r_probe = pull.pull_rprobe(Bconn, 'B')
+            del Aconn,Bconn
+            AU_locations    = []
+            AU_w_areal      = []
+            AU_w_areal_err  = []
+            AD_locations    = []
+            AD_w_areal      = []
+            AD_w_areal_err  = []
+            BU_locations    = []
+            BU_w_areal      = []
+            BU_w_areal_err  = []
+            BD_locations    = []
+            BD_w_areal      = []
+            BD_w_areal_err  = []
             if all(A_shots) == all(B_shots):
                 shots2DICT = A_shots
             else:
                 return 'Shot lists are not the same for each probe, check documentation for correct probes or get one probe at a time. Cannot continue.'
         elif self.Anumber is not None:
+            Aconn      = pull.thin_connect(self.Anumber, server=server)
+            A_shots    = pull.pull_shots(Aconn, 'AD')
+            A_r_probe = pull.pull_rprobe(Aconn, 'A')
+            del Aconn
+            AU_locations    = []
+            AU_w_areal      = []
+            AU_w_areal_err  = []
+            AD_locations    = []
+            AD_w_areal      = []
+            AD_w_areal_err  = []
             shots2DICT = A_shots
         elif self.Bnumber is not None:
+            Bconn      = pull.thin_connect(self.Bnumber, server=server)
+            B_shots    = pull.pull_shots(Bconn, 'BD')
+            B_r_probe = pull.pull_rprobe(Bconn, 'B')
+            del Bconn
+            BU_locations    = []
+            BU_w_areal      = []
+            BU_w_areal_err  = []
+            BD_locations    = []
+            BD_w_areal      = []
+            BD_w_areal_err  = []
             shots2DICT = B_shots
         elif self.Cnumber is not None:
+            Cconn      = pull.thin_connect(self.Cnumber, server=server)
+            C_shots    = pull.pull_shots(Cconn, 'CD')
+            C_r_probe = pull.pull_rprobe(Cconn, 'C')
+            del Cconn
+            CU_locations    = []
+            CU_w_areal      = []
+            CU_w_areal_err  = []
+            CD_locations    = []
+            CD_w_areal      = []
+            CD_w_areal_err  = []
             shots2DICT = C_shots
 
         # this is needed b/c 167206 has no EFITs (as of 08/22/2017) -- EAU
@@ -99,6 +142,7 @@ class Probe():
 
         # Collect Data from R2D2 for each probe if approriate.
         if self.Anumber is not None:
+            Aconn   = pull.thin_connect(self.Anumber, server=server)
             print "AU Runs"
             for run in range(1, 1000):
                 # U-face data.
@@ -106,9 +150,9 @@ class Probe():
                     loc = pull.pull_rbs_loc(Aconn, 'AU', run) / 10.0
                     areal = pull.pull_rbs_areal(Aconn, 'AU', run)
                     areal_err = pull.pull_rbs_areal_err(Aconn, 'AU', run)
-                    self.AU_locations.append(loc)
-                    self.AU_w_areal.append(areal)
-                    self.AU_w_areal_err.append(areal_err)
+                    AU_locations.append(loc)
+                    AU_w_areal.append(areal)
+                    AU_w_areal_err.append(areal_err)
                 except:
                     print "AU Stop at Run: " + str(run)
                     break
@@ -116,141 +160,138 @@ class Probe():
             for run in range(1, 1000):
                 # D-face data.
                 try:
-                    loc = pull.pull_rbs_loc(self.conn, 'AD', run) / 10.0
-                    areal = pull.pull_rbs_areal(self.conn, 'AD', run)
-                    areal_err = pull.pull_rbs_areal_err(self.conn, 'AD', run)
-                    self.AD_locations.append(loc)
-                    self.AD_w_areal.append(areal)
-                    self.AD_w_areal_err.append(areal_err)
+                    loc = pull.pull_rbs_loc(Aconn, 'AD', run) / 10.0
+                    areal = pull.pull_rbs_areal(Aconn, 'AD', run)
+                    areal_err = pull.pull_rbs_areal_err(Aconn, 'AD', run)
+                    AD_locations.append(loc)
+                    AD_w_areal.append(areal)
+                    AD_w_areal_err.append(areal_err)
                 except:
                     print "AD Stop at Run: " + str(run)
                     break
 
         if self.Bnumber is not None:
+            Bconn   = pull.thin_connect(self.Bnumber, server=server)
             print "BU Runs"
             for run in range(1, 1000):
                 try:
-                    loc = pull.pull_rbs_loc(self.conn, 'BU', run) / 10.0
-                    areal = pull.pull_rbs_areal(self.conn, 'BU', run)
-                    areal_err = pull.pull_rbs_areal_err(self.conn, 'BU', run)
-                    self.BU_locations.append(loc)
-                    self.BU_w_areal.append(areal)
-                    self.BU_w_areal_err.append(areal_err)
+                    loc = pull.pull_rbs_loc(Bconn, 'BU', run) / 10.0
+                    areal = pull.pull_rbs_areal(Bconn, 'BU', run)
+                    areal_err = pull.pull_rbs_areal_err(Bconn, 'BU', run)
+                    BU_locations.append(loc)
+                    BU_w_areal.append(areal)
+                    BU_w_areal_err.append(areal_err)
                 except:
                     print "BU Stop at Run: " + str(run)
                     break
             print "BD Runs"
             for run in range(1, 1000):
                 # D-face data.
-                    try:
-                        loc = pull.pull_rbs_loc(self.conn, self.Bletter + 'D', run) / 10.0
-                        areal = pull.pull_rbs_areal(self.conn, self.Bletter + 'D', run)
-                        areal_err = pull.pull_rbs_areal_err(self.conn, self.Bletter + 'D', run)
-                        self.BD_locations.append(loc)
-                        self.BD_w_areal.append(areal)
-                        self.BD_w_areal_err.append(areal_err)
-                    except:
-                        print "BD Stop at Run: " + str(run)
-                        break
+                try:
+                    loc = pull.pull_rbs_loc(Bconn,  'BD', run) / 10.0
+                    areal = pull.pull_rbs_areal(Bconn,  'BD', run)
+                    areal_err = pull.pull_rbs_areal_err(Bconn, self.Bletter + 'D', run)
+                    BD_locations.append(loc)
+                    BD_w_areal.append(areal)
+                    BD_w_areal_err.append(areal_err)
+                except:
+                    print "BD Stop at Run: " + str(run)
+                    break
 
         if self.Cnumber is not None:
+            Cconn   = pull.thin_connect(self.Cnumber, server=server)
             print "CU Runs"
             for run in range(1, 1000):
                 try:
-                    loc = pull.pull_rbs_loc(self.conn, 'CU', run) / 10.0
-                    areal = pull.pull_rbs_areal(self.conn, 'CU', run)
-                    areal_err = pull.pull_rbs_areal_err(self.conn, 'CU', run)
-                    self.CU_locations.append(loc)
-                    self.CU_w_areal.append(areal)
-                    self.CU_w_areal_err.append(areal_err)
+                    loc = pull.pull_rbs_loc(Cconn, 'CU', run) / 10.0
+                    areal = pull.pull_rbs_areal(Cconn, 'CU', run)
+                    areal_err = pull.pull_rbs_areal_err(Cconn, 'CU', run)
+                    CU_locations.append(loc)
+                    CU_w_areal.append(areal)
+                    CU_w_areal_err.append(areal_err)
                 except:
                     print "CU Stop at Run: " + str(run)
                     break
             print "CD Runs"
             for run in range(1, 1000):
                 # D-face data.
-                    try:
-                        loc = pull.pull_rbs_loc(self.conn, 'CD', run) / 10.0
-                        areal = pull.pull_rbs_areal(self.conn, 'CD', run)
-                        areal_err = pull.pull_rbs_areal_err(self.conn, 'CD', run)
-                        self.CD_locations.append(loc)
-                        self.CD_w_areal.append(areal)
-                        self.CD_w_areal_err.append(areal_err)
-                    except:
-                        print "CD Stop at Run: " + str(run)
-                        break
+                try:
+                    loc = pull.pull_rbs_loc(Cconn, 'CD', run) / 10.0
+                    areal = pull.pull_rbs_areal(Cconn, 'CD', run)
+                    areal_err = pull.pull_rbs_areal_err(Cconn, 'CD', run)
+                    CD_locations.append(loc)
+                    CD_w_areal.append(areal)
+                    CD_w_areal_err.append(areal_err)
+                except:
+                    print "CD Stop at Run: " + str(run)
+                    break
 
         # Finally, do a check to see that r_probe is the same for all probes.
         # It should be, if not should kill script and think about what's what.
         # If it's OK, return a dictionary with all the data.
         if self.Anumber is not None:
-            r_probe2DICT = self.A_r_probe
-            self.r2d2DICT = {'shots': shots2DICT, 'r_probe': r_probe2DICT,
-                             'AU_locations': np.array(self.AU_locations),
-                             'AD_locations': np.array(self.AD_locations),
-                             'AU_w_areal': np.array(self.AU_w_areal),
-                             'AD_w_areal': np.array(self.AD_w_areal),
-                             'AU_w_areal_err': np.array(self.AU_w_areal_err),
-                             'AD_w_areal_err': np.array(self.AD_w_areal_err)}
+            self.r2d2DICT = {'shots': shots2DICT, 'r_probe': A_r_probe,
+                             'AU_locations': np.array(AU_locations),
+                             'AD_locations': np.array(AD_locations),
+                             'AU_w_areal': np.array(AU_w_areal),
+                             'AD_w_areal': np.array(AD_w_areal),
+                             'AU_w_areal_err': np.array(AU_w_areal_err),
+                             'AD_w_areal_err': np.array(AD_w_areal_err)}
         if self.Bnumber is not None:
-            r_probe2DICT = self.B_r_probe
-            self.r2d2DICT = {'shots': shots2DICT, 'r_probe': r_probe2DICT,
-                             'BU_locations': np.array(self.BU_locations),
-                             'BD_locations': np.array(self.BD_locations),
-                             'BU_w_areal': np.array(self.BU_w_areal),
-                             'BD_w_areal': np.array(self.BD_w_areal),
-                             'BU_w_areal_err': np.array(self.BU_w_areal_err),
-                             'BD_w_areal_err': np.array(self.BD_w_areal_err)}
+            self.r2d2DICT = {'shots': shots2DICT, 'r_probe': B_r_probe,
+                             'BU_locations': np.array(BU_locations),
+                             'BD_locations': np.array(BD_locations),
+                             'BU_w_areal': np.array(BU_w_areal),
+                             'BD_w_areal': np.array(BD_w_areal),
+                             'BU_w_areal_err': np.array(BU_w_areal_err),
+                             'BD_w_areal_err': np.array(BD_w_areal_err)}
         if self.Cnumber is not None:
-            r_probe2DICT = self.C_r_probe
-            self.r2d2DICT = {'shots': shots2DICT, 'r_probe': r_probe2DICT,
-                             'CU_locations': np.array(self.CU_locations),
-                             'CD_locations': np.array(self.CD_locations),
-                             'CU_w_areal': np.array(self.CU_w_areal),
-                             'CD_w_areal': np.array(self.CD_w_areal),
-                             'CU_w_areal_err': np.array(self.CU_w_areal_err),
-                             'CD_w_areal_err': np.array(self.CD_w_areal_err)}
+            self.r2d2DICT = {'shots': shots2DICT, 'r_probe': C_r_probe,
+                             'CU_locations': np.array(CU_locations),
+                             'CD_locations': np.array(CD_locations),
+                             'CU_w_areal': np.array(CU_w_areal),
+                             'CD_w_areal': np.array(CD_w_areal),
+                             'CU_w_areal_err': np.array(CU_w_areal_err),
+                             'CD_w_areal_err': np.array(CD_w_areal_err)}
         if self.Anumber is not None and self.Bnumber is not None:
-            if self.A_r_probe == self.B_r_probe:
-                r_probe2DICT = self.A_r_probe
-                self.r2d2DICT = {'shots': shots2DICT, 'r_probe': r_probe2DICT,
-                                 'AU_locations': np.array(self.AU_locations),
-                                 'AD_locations': np.array(self.AD_locations),
-                                 'AU_w_areal': np.array(self.AU_w_areal),
-                                 'AD_w_areal': np.array(self.AD_w_areal),
-                                 'AU_w_areal_err': np.array(self.AU_w_areal_err),
-                                 'AD_w_areal_err': np.array(self.AD_w_areal_err),
-                                 'BU_locations': np.array(self.BU_locations),
-                                 'BD_locations': np.array(self.BD_locations),
-                                 'BU_w_areal': np.array(self.BU_w_areal),
-                                 'BD_w_areal': np.array(self.BD_w_areal),
-                                 'BU_w_areal_err': np.array(self.BU_w_areal_err),
-                                 'BD_w_areal_err': np.array(self.BD_w_areal_err)}
+            if A_r_probe == B_r_probe:
+                self.r2d2DICT = {'shots': shots2DICT, 'r_probe': A_r_probe,
+                                 'AU_locations': np.array(AU_locations),
+                                 'AD_locations': np.array(AD_locations),
+                                 'AU_w_areal': np.array(AU_w_areal),
+                                 'AD_w_areal': np.array(AD_w_areal),
+                                 'AU_w_areal_err': np.array(AU_w_areal_err),
+                                 'AD_w_areal_err': np.array(AD_w_areal_err),
+                                 'BU_locations': np.array(BU_locations),
+                                 'BD_locations': np.array(BD_locations),
+                                 'BU_w_areal': np.array(BU_w_areal),
+                                 'BD_w_areal': np.array(BD_w_areal),
+                                 'BU_w_areal_err': np.array(BU_w_areal_err),
+                                 'BD_w_areal_err': np.array(BD_w_areal_err)}
             else:
                 print 'r_probe values not consistent between probes. Check data.'
                 self.r2d2DICT ={}
         if self.Anumber is not None and self.Bnumber is not None and self.Cnumber is not None:
-            if self.A_r_probe == self.B_r_probe == self.C_r_probe:
-                r_probe2DICT = self.A_r_probe
-                self.r2d2DICT = {'shots': shots2DICT, 'r_probe': r_probe2DICT,
-                                 'AU_locations': np.array(self.AU_locations),
-                                 'AD_locations': np.array(self.AD_locations),
-                                 'AU_w_areal': np.array(self.AU_w_areal),
-                                 'AD_w_areal': np.array(self.AD_w_areal),
-                                 'AU_w_areal_err': np.array(self.AU_w_areal_err),
-                                 'AD_w_areal_err': np.array(self.AD_w_areal_err),
-                                 'BU_locations': np.array(self.BU_locations),
-                                 'BD_locations': np.array(self.BD_locations),
-                                 'BU_w_areal': np.array(self.BU_w_areal),
-                                 'BD_w_areal': np.array(self.BD_w_areal),
-                                 'BU_w_areal_err': np.array(self.BU_w_areal_err),
-                                 'BD_w_areal_err': np.array(self.BD_w_areal_err),
-                                 'CU_locations': np.array(self.CU_locations),
-                                 'CD_locations': np.array(self.CD_locations),
-                                 'CU_w_areal': np.array(self.CU_w_areal),
-                                 'CD_w_areal': np.array(self.CD_w_areal),
-                                 'CU_w_areal_err': np.array(self.CU_w_areal_err),
-                                 'CD_w_areal_err': np.array(self.CD_w_areal_err)}
+            if A_r_probe == B_r_probe == C_r_probe:
+                self.r2d2DICT = {'shots': shots2DICT, 'r_probe': A_r_probe,
+                                 'AU_locations': np.array(AU_locations),
+                                 'AD_locations': np.array(AD_locations),
+                                 'AU_w_areal': np.array(AU_w_areal),
+                                 'AD_w_areal': np.array(AD_w_areal),
+                                 'AU_w_areal_err': np.array(AU_w_areal_err),
+                                 'AD_w_areal_err': np.array(AD_w_areal_err),
+                                 'BU_locations': np.array(BU_locations),
+                                 'BD_locations': np.array(BD_locations),
+                                 'BU_w_areal': np.array(BU_w_areal),
+                                 'BD_w_areal': np.array(BD_w_areal),
+                                 'BU_w_areal_err': np.array(BU_w_areal_err),
+                                 'BD_w_areal_err': np.array(BD_w_areal_err),
+                                 'CU_locations': np.array(CU_locations),
+                                 'CD_locations': np.array(CD_locations),
+                                 'CU_w_areal': np.array(CU_w_areal),
+                                 'CD_w_areal': np.array(CD_w_areal),
+                                 'CU_w_areal_err': np.array(CU_w_areal_err),
+                                 'CD_w_areal_err': np.array(CD_w_areal_err)}
             else:
                 print 'r_probe values not consistent between probes. Check data.'
                 self.r2d2DICT ={}

@@ -87,8 +87,9 @@ class Probe():
             except:
                 break
 
-    def atlas(self, server='atlas.gat.com', startTime=2500, endTime=5000, step=500):
+    def atlas(self, server='atlas.gat.com', startTime=2500, endTime=5000, step=500, efitTree='EFIT01'):
 
+        # Create lists required to hold the data we want.
         self.rminrsep_U         = []
         self.rminrsep_err_U     = []
         self.rminrsep_omp_U     = []
@@ -98,27 +99,25 @@ class Probe():
         self.rminrsep_omp_D     = []
         self.rminrsep_omp_err_D = []
 
+        # Get the dictionaries from the avg_Rsep_all function that give us all our
+        # rminrsep relevant data.
         print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
         avg_dict_U = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_U,
-            server=server, startTime=startTime, endTime=endTime, step=500)
+            server=server, startTime=startTime, endTime=endTime, step=500, Etree=efitTree)
         print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
         avg_dict_D = get.avg_Rsep_all(self.shots, self.r_probe, self.locations_D,
-            server=server, startTime=startTime, endTime=endTime, step=500)
+            server=server, startTime=startTime, endTime=endTime, step=500, Etree=efitTree)
 
+        # Pull the data out of the dicitonaries and put into the lists in the Probe class.
         probe_name = self.letter + 'U'
         for loc in self.locations_U:
-            #print "U Loc: " + str(loc)
             self.rminrsep_U.append(avg_dict_U[probe_name.lower()][str(loc)])
             self.rminrsep_err_U.append(avg_dict_U[probe_name.lower() + '_err'][str(loc)])
             self.rminrsep_omp_U.append(avg_dict_U[probe_name.lower() + '_omp'][str(loc)])
             self.rminrsep_omp_err_U.append(avg_dict_U[probe_name.lower() + '_omp_err'][str(loc)])
 
         probe_name = self.letter + 'D'
-        #for key in avg_dict[probe_name.lower()].keys():
-        #    print key
-
         for loc in self.locations_D:
-            #print "D Loc: " + str(loc)
             self.rminrsep_D.append(avg_dict_D[probe_name.lower()][str(loc)])
             self.rminrsep_err_D.append(avg_dict_D[probe_name.lower() + '_err'][str(loc)])
             self.rminrsep_omp_D.append(avg_dict_D[probe_name.lower() + '_omp'][str(loc)])
@@ -178,9 +177,11 @@ class Probe():
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)
 
-def get_multiple(aNumber=None, bNumber=None, cNumber=None):
+def get_multiple(aNumber=None, bNumber=None, cNumber=None, startTime=2500, endTime=5000, step=500, efitTree='EFIT01'):
     """ Allows filling out of multiple probe classes at once for probes that
-        were inserted together."""
+        were inserted together. Returns a list of the up to three probes requested,
+        each of class Probe so as to preserve each individual function in the
+        Probe class (such as to_matlab)."""
     # Create probes and put into list.
     pList = []
     if aNumber:
@@ -201,9 +202,10 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None):
     # Get the Atlas data.
     raw_input("SSH into Atlas. Press enter when finished...")
     for p in pList:
-        p.atlas(server='localhost')
+        p.atlas(server='localhost', startTime=startTime, endTime=endTime, step=step, efitTree=efitTree)
 
     # Give a warning if the shots don't match up.
+    # Case if only two probes are given.
     if len(pList==2):
         if (pList[0].shots.all() != pList[1].shots.all()):
             print("Error \n-------")
@@ -211,6 +213,7 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None):
             print(pList[0].letter + " shots: " + str(pList[0].shots))
             print(pList[1].letter + " shots: " + str(pList[1].shots) + "\n")
 
+    # Case if three probes are given.
     if len(pList==3):
         if (pList[0].shots.all() != pList[1].shots.all()):
             print("Error \n-------")
@@ -228,5 +231,5 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None):
             print(pList[1].letter + " shots: " + str(pList[1].shots))
             print(pList[2].letter + " shots: " + str(pList[2].shots) + "\n")
 
-    # Return list. could have up to three probes.
+    # Return list. Could have up to three probes, but will still be in order or A, B then C.
     return pList

@@ -203,5 +203,30 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None):
     for p in pList:
         p.atlas(server='localhost')
 
+    # Give a warning if the shots don't match up.
+    if len(pList==2):
+        if (pList[0].shots.all() != pList[1].shots.all()):
+            print("Error \n-------")
+            print(pList[0].letter + " probe shots do not match " + pList[1].letter + " probe shots.")
+            print(pList[0].letter + " shots: " + str(pList[0].shots))
+            print(pList[1].letter + " shots: " + str(pList[1].shots) + "\n")
+
+    if len(pList==3):
+        if (pList[0].shots.all() != pList[1].shots.all()):
+            print("Error \n-------")
+            print(pList[0].letter + " probe shots do not match " + pList[1].letter + " probe shots.")
+            print(pList[0].letter + " shots: " + str(pList[0].shots))
+            print(pList[1].letter + " shots: " + str(pList[1].shots) + "\n")
+        if (pList[0].shots.all() != pList[2].shots.all()):
+            print("Error \n-------")
+            print(pList[0].letter + " probe shots do not match " + pList[2].letter + " probe shots.")
+            print(pList[0].letter + " shots: " + str(pList[0].shots))
+            print(pList[2].letter + " shots: " + str(pList[2].shots) + "\n")
+        if (pList[1].shots.all() != pList[2].shots.all()):
+            print("Error \n-------")
+            print(pList[1].letter + " probe shots do not match " + pList[2].letter + " probe shots.")
+            print(pList[1].letter + " shots: " + str(pList[1].shots))
+            print(pList[2].letter + " shots: " + str(pList[2].shots) + "\n")
+
     # Return list. could have up to three probes.
     return pList

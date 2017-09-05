@@ -17,7 +17,29 @@ import scipy.io as sio
 
 class Probe():
     """Contains information about probes. Must run r2d2, then atlas to
-    fill out the variables."""
+    fill out the variables. A list of available data after running each
+    is as follows:
+
+    letter         - Letter of probe: A, B or C
+    number         - Number of probe.
+    shots          - List of shots the probe was in for.
+    r_probe        - Radial location of probe holder tip.
+    locations_U    - The actual location along the probe in cm. 0 would be the
+                     side closest to the plasma.
+    w_areal_U      - Areal density of tungsten in W/cm^2. Corresponds to each location
+                     or rminrsep. The lists are ordered to match up.
+    w_areal_err_U  - Error of the above.
+    rminrsep_U     - Distance between the average position of the sepatrix and the
+                     corresponding location along the probe. The list is ordered and lines
+                     up with w_areal and locations.
+    rminrsep_err_U - Std. dev. of the above.
+    rminrsep_omp_U - The average distance from the sepatrix after translating up
+                     to the outboard midplane (omp). This is the magnetic axis of the plasma.
+    rminrsep_err_U - Std. dev. of the above.
+
+    The 'U' can be swapped out for a 'D' to get the D side of the probe data.
+
+    """
 
     def __init__(self, letter, number):
         self.letter = letter
@@ -41,7 +63,7 @@ class Probe():
         for run in range(1,1000):
             # Upstream data.
             try:
-                print "AU Run: " + str(run)
+                print self.letter + "U Run: " + str(run)
 
                 loc = pull.pull_rbs_loc(self.conn, self.letter + 'U', run) / 10.0
                 areal = pull.pull_rbs_areal(self.conn, self.letter + 'U', run)
@@ -55,7 +77,7 @@ class Probe():
         for run in range(1,1000):
             # Downstream data.
             try:
-                print "AD Run: " + str(run)
+                print self.letter + "D Run: " + str(run)
                 loc = pull.pull_rbs_loc(self.conn, self.letter + 'D', run) / 10.0
                 areal = pull.pull_rbs_areal(self.conn, self.letter + 'D', run)
                 areal_err = pull.pull_rbs_areal_err(self.conn, self.letter + 'D', run)
@@ -155,3 +177,31 @@ class Probe():
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)
+
+def get_multiple(aNumber=None, bNumber=None, cNumber=None):
+    """ Allows filling out of multiple probe classes at once for probes that
+        were inserted together."""
+    # Create probes and put into list.
+    pList = []
+    if aNumber:
+        aProbe = Probe('A', int(aNumber))
+        pList.append(aProbe)
+    if bNumber:
+        bProbe = Probe('B', int(bNumber))
+        pList.append(bProbe)
+    if cNumber:
+        cProbe = Probe('C', int(cNumber))
+        pList.append(cProbe)
+
+    # Get the R2D2 data.
+    raw_input("SSH into R2D2. Press enter when finished...")
+    for p in pList:
+        p.r2d2(server='localhost')
+
+    # Get the Atlas data.
+    raw_input("SSH into Atlas. Press enter when finished...")
+    for p in pList:
+        p.atlas(server='localhost')
+
+    # Return list. could have up to three probes.
+    return pList

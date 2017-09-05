@@ -50,6 +50,11 @@ class Probe():
         self.shots          = pull.pull_shots(self.conn, self.letter + 'D')
         self.r_probe        = pull.pull_rprobe(self.conn, self.letter)
 
+        # Special cases of bad shots.
+        # This corresponds to shot 167206.
+        if self.number==2:
+            self.shots = np.delete(self.shots, 10)
+
         # Relevant lists for each probe, upstream (U) and downstream (D).
         self.locations_U    = []
         self.w_areal_U      = []

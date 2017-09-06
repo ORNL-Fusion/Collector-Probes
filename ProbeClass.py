@@ -183,8 +183,8 @@ class Probe():
     def to_matlab(self):
         tmp_dict = {}
         arr_loc_U   = np.array(self.r2d2DICT['locations_U'])
-        arr_sep_U   = np.array(self.rminrsep_U)
-        arr_omp_U   = np.array(self.rminrsep_omp_U)
+        arr_sep_U   = np.array(self.r2d2DICT['rminrsep_U'])
+        arr_omp_U   = np.array(self.r2d2DICT['rminrsep_omp_U'])
         arr_areal_U = np.array(self.r2d2DICT['w_areal_U'])
         tmp_dict['locations_U']       = arr_loc_U
         tmp_dict['rminrsep_U']        = arr_sep_U
@@ -192,8 +192,8 @@ class Probe():
         tmp_dict['w_areal_density_U'] = arr_areal_U
 
         arr_loc_D   = np.array(self.r2d2DICT['locations_D'])
-        arr_sep_D   = np.array(self.rminrsep_D)
-        arr_omp_D   = np.array(self.rminrsep_omp_D)
+        arr_sep_D   = np.array(self.r2d2DICT['rminrsep_D'])
+        arr_omp_D   = np.array(self.r2d2DICT['rminrsep_omp_D'])
         arr_areal_D = self.r2d2DICT['w_areal_D']
         tmp_dict['locations_D']       = arr_loc_D
         tmp_dict['rminrsep_D']        = arr_sep_D
@@ -246,54 +246,48 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
     # Give a warning if the shots don't match up.
     # Case if only two probes are given.
     if len(pList) == 2:
-        if (pList[0].shots.all() != pList[1].shots.all()):
+        if (pList[0].r2d2DICT['shots'].all() != pList[1].r2d2DICT['shots'].all()):
             print("Error \n-------")
             print(pList[0].letter + " probe shots do not match " + pList[1].letter + " probe shots.")
-            print(pList[0].letter + " shots: " + str(pList[0].shots))
-            print(pList[1].letter + " shots: " + str(pList[1].shots) + "\n")
+            print(pList[0].letter + " shots: " + str(pList[0].r2d2DICT['shots']))
+            print(pList[1].letter + " shots: " + str(pList[1].r2d2DICT['shots']) + "\n")
 
     # Case if three probes are given.
     if len(pList) == 3:
-        if (pList[0].shots.all() != pList[1].shots.all()):
+        if (pList[0].r2d2DICT['shots'].all() != pList[1].r2d2DICT['shots'].all()):
             print("Error \n-------")
             print(pList[0].letter + " probe shots do not match " + pList[1].letter + " probe shots.")
-            print(pList[0].letter + " shots: " + str(pList[0].shots))
-            print(pList[1].letter + " shots: " + str(pList[1].shots) + "\n")
-        if (pList[0].shots.all() != pList[2].shots.all()):
+            print(pList[0].letter + " shots: " + str(pList[0].r2d2DICT['shots']))
+            print(pList[1].letter + " shots: " + str(pList[1].r2d2DICT['shots']) + "\n")
+        if (pList[0].r2d2DICT['shots'].all() != pList[2].r2d2DICT['shots'].all()):
             print("Error \n-------")
             print(pList[0].letter + " probe shots do not match " + pList[2].letter + " probe shots.")
-            print(pList[0].letter + " shots: " + str(pList[0].shots))
+            print(pList[0].letter + " shots: " + str(pList[0].r2d2DICT['shots']))
             print(pList[2].letter + " shots: " + str(pList[2].shots) + "\n")
-        if (pList[1].shots.all() != pList[2].shots.all()):
+        if (pList[1].r2d2DICT['shots'].all() != pList[2].r2d2DICT['shots'].all()):
             print("Error \n-------")
             print(pList[1].letter + " probe shots do not match " + pList[2].letter + " probe shots.")
-            print(pList[1].letter + " shots: " + str(pList[1].shots))
-            print(pList[2].letter + " shots: " + str(pList[2].shots) + "\n")
-
-    if toHDF5:
-        """
-        Warning: make sure you have the hickle package installed via:
-                 pip install hickle
-        """
-        import Misc.hickle.hickle as hkl
-
+            print(pList[1].letter + " shots: " + str(pList[1].r2d2DICT['shots']))
+            print(pList[2].letter + " shots: " + str(pList[2].r2d2DICT['shots']) + "\n")
 
     # Return list. Could have up to three probes, but will still be in order or A, B then C.
     return pList
 
-#
-#     if self.Anumber is not None:
-#         suffix = 'A'+str(self.Anumber)
-#     if self.Bnumber is not None:
-#         suffix = 'B'+str(self.Bnumber)
-#     if self.Cnumber is not None:
-#         suffix = 'C'+str(self.Cnumber)
-#     if self.Anumber is not None:
-#         suffix = 'A'+str(self.Anumber)+'_B'+str(self.Bnumber)
-#     if self.Anumber is not None and self.Bnumber is not None and self.Cnumber is not None:
-#         suffix = 'A'+str(self.Anumber)+'_B'+str(self.Bnumber)+'_C'+str(self.Cnumber)
-#
-#     fnam = 'CPdata_mdsplus_'+suffix+'.h5'
-#     print fnam
-#     hkl.dump(self.r2d2DICT, fnam, 'w', path='/r2d2')
-#     hkl.dump(self.atlasDICT, fnam, 'r+', path='/atlas')
+
+def dump2HDF5(pList):
+    """
+    Warning: make sure you have the hickle package installed via:
+             pip install hickle
+    """
+    import Misc.hickle.hickle as hkl
+    suffix = ''
+    for i, j in enumerate(pList):
+        suffix += str(j.letter) + str(j.number)
+
+    fnam = 'CPdata_mdsplus_'+suffix+'.h5'
+    print "HDF5 dump: to "+fnam
+
+    hkl.dump(pList[0].r2d2DICT, fnam, 'w', path='/r2d2')
+    hkl.dump(pList[0].atlasDICT, fnam, 'r+', path='/atlas')
+
+    for i, j in enumerate(pList):

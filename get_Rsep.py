@@ -2,6 +2,8 @@
 # ssh -Y -p 2039 -L 8000:atlas.gat.com:8000 username@cybele.gat.com
 # where you substitute in your username. The MDSplus connection is
 # then MDSplus.Connection('localhost').
+from __future__ import print_function
+import sys
 import numpy as np
 import scipy.interpolate as scinter
 
@@ -88,7 +90,7 @@ def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnter
             # Next time step.
             time += 500
             count += 1
-            print "\n"
+            print("\n")
 
     # Put rminrsep values into np.array to calculate mean and std. dev.
     avg_rminrsep = {'ad': 0, 'ad_err': 0, 'au': 0, 'au_err': 0, 'bd': 0, 'bd_err': 0, 'bu': 0,
@@ -161,9 +163,9 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
         time = startTime
         while time <= endTime:
 
-            print("Shot:     " + str(shot))
+            print("Shot:     " + str(shot), end='\n')
             # print("Location: " + str(location))
-            print("Time:     " + str(time))
+            print("Time:     " + str(time), end='\n')
 
             # Lines from Zeke's code.
             parmDICT = loadg.read_g_file_mds(shot, time,
@@ -238,7 +240,8 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
                 # Put into dictionary of lists containing rminrsep values for
                 # each probe.
                 rminrsep_values = {'ad': [], 'au': [], 'bd': [], 'bu': [], 'cd': [], 'cu': [],
-                    'ad_omp':[], 'au_omp':[], 'bd_omp':[], 'bu_omp':[], 'cd_omp':[], 'cu_omp':[]}
+                                   'ad_omp': [], 'au_omp': [], 'bd_omp': [], 'bu_omp': [],
+                                   'cd_omp': [], 'cu_omp': []}
                 rminrsep_values['ad'].append(rad_pos['ad'] - rSep['a'])
                 rminrsep_values['au'].append(rad_pos['au'] - rSep['a'])
                 rminrsep_values['bd'].append(rad_pos['bd'] - rSep['b'])
@@ -260,7 +263,8 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             # Next time step.
             time += step
             count += 1
-            print "\n"
+            print("\r")
+            sys.stdout.flush()
 
     # Create dictionaries to hold all the r-rep values and the averages.
     all_rminrsep = {}

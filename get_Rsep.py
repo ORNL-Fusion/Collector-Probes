@@ -6,6 +6,7 @@ import numpy as np
 import scipy.interpolate as scinter
 
 # Normal load_gfile_d3d except needed to cast 'g['lcfs']' as an int.
+import MDSplus as mds
 import EFIT.load_gfile_d3d as loadg
 import meas_locations as geo
 
@@ -36,6 +37,10 @@ def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnter
         'cd': geo.calc_R_measCD(r_probe, location),
         'cu': geo.calc_R_measCU(r_probe, location)}
 
+    # Make an MDSplus connection only once.
+    # This makes the EFIT data grabs much faster.
+    MDSplusCONN = mds.Connection(server)
+
     for shot in shots:
         time = startTime
         while time <= endTime:
@@ -45,7 +50,9 @@ def avg_Rsep(shots, r_probe, location, writeToFile=False, filename="IDidNotEnter
             print("Time:     " + str(time))
 
             # Lines from Zeke's code.
-            parmDICT = loadg.read_g_file_mds(shot, time, Server=server, write2file=False)
+            parmDICT = loadg.read_g_file_mds(shot, time,
+                                             connection=MDSplusCONN,
+                                             write2file=False)
             Rs, Zs = np.meshgrid(parmDICT['R'], parmDICT['Z'])
             Zes = np.copy(parmDICT['lcfs'][:, 1][13:-12])
             Res = np.copy(parmDICT['lcfs'][:, 0][13:-12])
@@ -146,6 +153,10 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
                 tmp_dict[str(shot)][str(time)][str(loc)] = {}
             time += step
 
+    # Make an MDSplus connection only once.
+    # This makes the EFIT data grabs much faster.
+    MDSplusCONN = mds.Connection(server)
+
     for shot in shots:
         time = startTime
         while time <= endTime:
@@ -155,7 +166,9 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             print("Time:     " + str(time))
 
             # Lines from Zeke's code.
-            parmDICT = loadg.read_g_file_mds(shot, time, Server=server, write2file=False,
+            parmDICT = loadg.read_g_file_mds(shot, time,
+                                             connection=MDSplusCONN,
+                                             write2file=False,
                                              tree=Etree)
             Rs, Zs = np.meshgrid(parmDICT['R'], parmDICT['Z'])
             Z_axis = parmDICT['ZmAxis']

@@ -219,22 +219,34 @@ class Probe():
     def to_matlab(self):
         tmp_dict = {}
         arr_loc_U   = np.array(self.r2d2DICT['locations_U'])
-        arr_sep_U   = np.array(self.r2d2DICT['rminrsep_U'])
-        arr_omp_U   = np.array(self.r2d2DICT['rminrsep_omp_U'])
+        arr_sep_U   = np.array(self.atlasDICT['rminrsep_U'])
+        arr_sep_err_U   = np.array(self.atlasDICT['rminrsep_err_U'])
+        arr_omp_U   = np.array(self.atlasDICT['rminrsep_omp_U'])
+        arr_omp_err_U   = np.array(self.atlasDICT['rminrsep_omp_err_U'])
         arr_areal_U = np.array(self.r2d2DICT['w_areal_U'])
+        arr_areal_err_U = np.array(self.r2d2DICT['w_areal_err_U'])
         tmp_dict['locations_U']       = arr_loc_U
         tmp_dict['rminrsep_U']        = arr_sep_U
+        tmp_dict['rminrsep_err_U']        = arr_sep_err_U
         tmp_dict['rminrsep_omp_U']    = arr_omp_U
+        tmp_dict['rminrsep_omp_err_U']    = arr_omp_err_U
         tmp_dict['w_areal_density_U'] = arr_areal_U
+        tmp_dict['w_areal_density_err_U'] = arr_areal_err_U
 
         arr_loc_D   = np.array(self.r2d2DICT['locations_D'])
-        arr_sep_D   = np.array(self.r2d2DICT['rminrsep_D'])
-        arr_omp_D   = np.array(self.r2d2DICT['rminrsep_omp_D'])
+        arr_sep_D   = np.array(self.atlasDICT['rminrsep_D'])
+        arr_sep_err_D   = np.array(self.atlasDICT['rminrsep_err_D'])
+        arr_omp_D   = np.array(self.atlasDICT['rminrsep_omp_D'])
+        arr_omp_err_D   = np.array(self.atlasDICT['rminrsep_omp_err_D'])
         arr_areal_D = self.r2d2DICT['w_areal_D']
+        arr_areal_err_D = self.r2d2DICT['w_areal_err_D']
         tmp_dict['locations_D']       = arr_loc_D
         tmp_dict['rminrsep_D']        = arr_sep_D
+        tmp_dict['rminrsep_err_D']        = arr_sep_err_D
         tmp_dict['rminrsep_omp_D']    = arr_omp_D
+        tmp_dict['rminrsep_omp_err_D']    = arr_omp_err_D
         tmp_dict['w_areal_density_D'] = arr_areal_D
+        tmp_dict['w_areal_density_err_D'] = arr_areal_err_D
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)
@@ -314,7 +326,7 @@ def dump2HDF5(pList):
     """
     Warning: make sure you have the hickle package installed via:
              pip install hickle
-    """
+
     import Misc.hickle.hickle as hkl
     suffix = ''
     for i, j in enumerate(pList):
@@ -327,3 +339,4 @@ def dump2HDF5(pList):
     hkl.dump(pList[0].atlasDICT, fnam, 'r+', path='/atlas')
 
     for i, j in enumerate(pList):
+    """

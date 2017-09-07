@@ -108,10 +108,20 @@ class Probe():
                          'w_areal_err_U': np.array(w_areal_err_U),
                          'w_areal_err_D': np.array(w_areal_err_D)}
 
-    def atlas(self, server='atlas.gat.com', EFIT='EFIT01', startTime=2500, endTime=5000, step=500):
-        """ This function access the EFIT data on atlas to get the R - Rsep
-            and R_omp - Rsep_omp values. Averages between the start and end times
-            are returned. Run this after r2d2."""
+    def atlas(self, server='atlas.gat.com', EFIT='EFIT01', startTime=2500, endTime=5000, step=500,
+              probe_tip_corr=1.5):
+        """
+        This function access the EFIT data on atlas to get the R - Rsep
+        and R_omp - Rsep_omp values. Averages between the start and end times
+        are returned. Run this after r2d2.
+        Input varibles/keywords (default values if any):
+        server ('atlas.gat.com')  -- the MDSplus connection information, can be localhost if tunneling.
+        EFIT ('EFIT01')           -- name of the EFIT MDSplus tree used in calculations.
+        startTime (2500)          -- time in msec for first EFIT.
+        endTime (5000)            -- time in msec for last EFIT.
+        step (500)                -- del_time between EFIT equilibrium.
+        probe_tip_corr (1.5)      -- correction to PLC insertion value in cm (from Dmitry's calibration).
+        """
 
         # inputs for final dictionary.
         self.EFIT_tstart = startTime
@@ -131,7 +141,7 @@ class Probe():
         # get_Rsep file.
         print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
         avg_dict_U = get.avg_Rsep_all(self.r2d2DICT['shots'],
-                                      self.r2d2DICT['r_probe'],
+                                      self.r2d2DICT['r_probe']+probe_tip_corr,
                                       self.r2d2DICT['locations_U'],
                                       server=server,
                                       Etree=EFIT,
@@ -140,7 +150,7 @@ class Probe():
                                       step=step)
         print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
         avg_dict_D = get.avg_Rsep_all(self.r2d2DICT['shots'],
-                                      self.r2d2DICT['r_probe'],
+                                      self.r2d2DICT['r_probe']+probe_tip_corr,
                                       self.r2d2DICT['locations_D'],
                                       server=server,
                                       Etree=EFIT,
@@ -218,23 +228,16 @@ class Probe():
     # Output to basic matlab file for curve fitting or whatever.
     def to_matlab(self):
         tmp_dict = {}
-        arr_loc_U   = np.array(self.r2d2DICT['locations_U'])
-        arr_sep_U   = np.array(self.r2d2DICT['rminrsep_U'])
-        arr_omp_U   = np.array(self.r2d2DICT['rminrsep_omp_U'])
-        arr_areal_U = np.array(self.r2d2DICT['w_areal_U'])
-        tmp_dict['locations_U']       = arr_loc_U
-        tmp_dict['rminrsep_U']        = arr_sep_U
-        tmp_dict['rminrsep_omp_U']    = arr_omp_U
-        tmp_dict['w_areal_density_U'] = arr_areal_U
 
-        arr_loc_D   = np.array(self.r2d2DICT['locations_D'])
-        arr_sep_D   = np.array(self.r2d2DICT['rminrsep_D'])
-        arr_omp_D   = np.array(self.r2d2DICT['rminrsep_omp_D'])
-        arr_areal_D = self.r2d2DICT['w_areal_D']
-        tmp_dict['locations_D']       = arr_loc_D
-        tmp_dict['rminrsep_D']        = arr_sep_D
-        tmp_dict['rminrsep_omp_D']    = arr_omp_D
-        tmp_dict['w_areal_density_D'] = arr_areal_D
+        tmp_dict['locations_U']       = self.r2d2DICT['locations_U']
+        tmp_dict['rminrsep_U']        = self.r2d2DICT['rminrsep_U']
+        tmp_dict['rminrsep_omp_U']    = self.r2d2DICT['rminrsep_omp_U']
+        tmp_dict['w_areal_density_U'] = self.r2d2DICT['w_areal_U']
+
+        tmp_dict['locations_D']       = self.r2d2DICT['locations_D']
+        tmp_dict['rminrsep_D']        = self.r2d2DICT['rminrsep_D']
+        tmp_dict['rminrsep_omp_D']    = self.r2d2DICT['rminrsep_omp_D']
+        tmp_dict['w_areal_density_D'] = self.r2d2DICT['w_areal_D']
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)

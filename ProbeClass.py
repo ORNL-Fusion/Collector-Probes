@@ -1,10 +1,5 @@
-# File:   ProbeClass.py
-# Author: Shawn Zamperini
-# Email:  zamp@utk.edu
-# Date:   8/23/17
-#
 # Description:
-# Pulls data from the dp_probes tree on r2d2 and puts it into lists
+# Pulls data from the dp_probes tree on r2d2 and puts it into dictionaries
 # in the class. Then uses this data to access EFIT on atlas and get R - Rsep and
 # R - Rsep_omp. These can then be plotted using the plot functions or the data
 # can be used in whatever way seen fit.
@@ -21,6 +16,33 @@ class Probe():
     """
     Contains information about probes. Must run from collector probe MDS+ repository first
     (r2d2.gat.com), then from the EFIT MDS+ repo (atlas.gat.com) to fill out the variables.
+
+    Contains information about probes. Must run r2d2, then atlas to
+    fill out the variables from corresponding MDS+ repositories. A list of available
+    data after running each is put into dictionaries inside the class object.:
+
+    letter         - Letter of probe: A, B or C
+    number         - Number of probe.
+    shots          - List of shots the probe was in for.
+    r_probe        - Radial location of probe holder tip.
+    locations_U    - The actual location along the probe in cm. 0 would be the
+                     side closest to the plasma.
+    w_areal_U      - Areal density of tungsten in W/cm^2. Corresponds to each location
+                     or rminrsep. The lists are ordered to match up.
+    w_areal_err_U  - Error of the above.
+    rminrsep_U     - Distance between the average position of the sepatrix and the
+                     corresponding location along the probe. The list is ordered and lines
+                     up with w_areal and locations.
+    rminrsep_err_U - Std. dev. of the above.
+    rminrsep_omp_U - The average distance from the sepatrix after translating up
+                     to the outboard midplane (omp). This is the magnetic axis of the plasma.
+    rminrsep_err_U - Std. dev. of the above.
+    EFIT tree       - Which EFIT was used.
+    EFIT start time - Time of shot where the range of the averages is started.
+    EFIT end time   - Time of shot where the range of averages ends.
+    EFIT time step  - Time increment between start and end times.
+
+    The 'U' can be swapped out for a 'D' to get the D side of the probe data.
     """
 
     def __init__(self, letter, number):
@@ -28,6 +50,9 @@ class Probe():
         self.number = number
 
     def r2d2(self, server='r2d2.gat.com'):
+        """This functions pulls all the relevant data stored on the MDS+
+           repository on the R2D2 server."""
+
         conn    = pull.thin_connect(self.number, server=server)
         shots   = pull.pull_shots(conn,  self.letter + 'D')
         r_probe = pull.pull_rprobe(conn, 'A')
@@ -52,7 +77,6 @@ class Probe():
             # U-face data.
             try:
                 print self.letter + "U Run: " + str(run)
-
                 loc = pull.pull_rbs_loc(conn, self.letter + 'U', run) / 10.0
                 areal = pull.pull_rbs_areal(conn, self.letter + 'U', run)
                 areal_err = pull.pull_rbs_areal_err(conn, self.letter + 'U', run)
@@ -75,6 +99,7 @@ class Probe():
             except:
                 break
 
+        # Put all the data into a dictionary inside the class.
         self.r2d2DICT = {'shots': shots, 'r_probe': r_probe,
                          'locations_U': np.array(locations_U),
                          'locations_D': np.array(locations_D),
@@ -84,6 +109,10 @@ class Probe():
                          'w_areal_err_D': np.array(w_areal_err_D)}
 
     def atlas(self, server='atlas.gat.com', EFIT='EFIT01', startTime=2500, endTime=5000, step=500):
+        """ This function access the EFIT data on atlas to get the R - Rsep
+            and R_omp - Rsep_omp values. Averages between the start and end times
+            are returned. Run this after r2d2."""
+
         # inputs for final dictionary.
         self.EFIT_tstart = startTime
         self.EFIT_tend = endTime
@@ -98,6 +127,8 @@ class Probe():
         rminrsep_omp_D     = []
         rminrsep_omp_err_D = []
 
+        # Get the Rsep data from EFIT and perform necessary operations in the
+        # get_Rsep file.
         print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
         avg_dict_U = get.avg_Rsep_all(self.r2d2DICT['shots'],
                                       self.r2d2DICT['r_probe'],
@@ -117,17 +148,16 @@ class Probe():
                                       endTime=endTime,
                                       step=step)
 
+        # Pull the data from the returned dictionary from get_Rsep and put it
+        # into lists for each the U and D probes.
         probe_name = self.letter + 'U'
         for loc in self.r2d2DICT['locations_U']:
-            # print "U Loc: " + str(loc)
             rminrsep_U.append(avg_dict_U[probe_name.lower()][str(loc)])
             rminrsep_err_U.append(avg_dict_U[probe_name.lower() + '_err'][str(loc)])
             rminrsep_omp_U.append(avg_dict_U[probe_name.lower() + '_omp'][str(loc)])
             rminrsep_omp_err_U.append(avg_dict_U[probe_name.lower() + '_omp_err'][str(loc)])
 
         probe_name = self.letter + 'D'
-        # for key in avg_dict[probe_name.lower()].keys():
-        #    print key
         for loc in self.r2d2DICT['locations_D']:
             # print "D Loc: " + str(loc)
             rminrsep_D.append(avg_dict_D[probe_name.lower()][str(loc)])
@@ -135,6 +165,7 @@ class Probe():
             rminrsep_omp_D.append(avg_dict_D[probe_name.lower() + '_omp'][str(loc)])
             rminrsep_omp_err_D.append(avg_dict_D[probe_name.lower() + '_omp_err'][str(loc)])
 
+        # Create atlas dictionary and store it in the class.
         self.atlasDICT = {'EFIT tree': EFIT, "EFIT start time": startTime,
                           'EFIT end time': endTime, 'EFIT time step': step,
                           'rminrsep_U': np.array(rminrsep_U),
@@ -146,6 +177,9 @@ class Probe():
                           'rminrsep_omp_D': np.array(rminrsep_omp_D),
                           'rminrsep_omp_err_D': np.array(rminrsep_omp_err_D)}
 
+    # Plot the R - Rsep data. The limit flag is to match up with the omp graph.
+    # For whatever reason the last ~6 points are garbage-like. Something with
+    # the interpolation maybe.
     def plot_norm(self, limit=6, newFIG=True):
         if newFIG:
             plt.figure()
@@ -161,6 +195,7 @@ class Probe():
         plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes from ' + str(self.atlasDICT['EFIT start time']) + ' to ' + str(self.atlasDICT['EFIT end time']))
         plt.show()
 
+    # Plot the R - Rsep omp data.
     def plot_omp(self, limit=6, newFIG=True):
         if newFIG:
             plt.figure()
@@ -180,6 +215,7 @@ class Probe():
         plt.title('W Areal Density for ' + self.letter + 'U/' + self.letter + 'D Probes at OMP from ' + str(self.atlasDICT['EFIT start time']) + ' to ' + str(self.atlasDICT['EFIT end time']))
         plt.show()
 
+    # Output to basic matlab file for curve fitting or whatever.
     def to_matlab(self):
         tmp_dict = {}
         arr_loc_U   = np.array(self.r2d2DICT['locations_U'])
@@ -209,8 +245,8 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
     """
     Allows filling out of multiple probe classes at once for probes that
     were inserted together. Returns a list of the up to three probes requested,
-    each of class Probe so as to preserve each individual function in the
-    Probe class (such as to_matlab).
+    each of class Probe and thus with its own corresponding data in it. try
+    using 'vars(ProbeObjectHere)' to get a dictionary of the data returned.
     """
     # Create probes and put into list.
     pList = []
@@ -273,7 +309,7 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
     # Return list. Could have up to three probes, but will still be in order or A, B then C.
     return pList
 
-
+# Output to HDF5 file.
 def dump2HDF5(pList):
     """
     Warning: make sure you have the hickle package installed via:

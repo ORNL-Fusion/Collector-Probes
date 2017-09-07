@@ -287,7 +287,10 @@ def dump2HDF5(pList):
     fnam = 'CPdata_mdsplus_'+suffix+'.h5'
     print "HDF5 dump: to "+fnam
 
-    hkl.dump(pList[0].r2d2DICT, fnam, 'w', path='/r2d2')
-    hkl.dump(pList[0].atlasDICT, fnam, 'r+', path='/atlas')
+    hkl.dump(pList[0].r2d2DICT, fnam, 'w', path='/'+str(pList[0].letter) + str(pList[0].number) + "_r2d2")
+    hkl.dump(pList[0].atlasDICT, fnam, 'r+', path='/'+str(pList[0].letter) + str(pList[0].number) + "_atlas")
 
     for i, j in enumerate(pList):
+        if i != 0:
+            hkl.dump(pList[i].r2d2DICT, fnam, 'r+', path='/'+str(pList[i].letter) + str(pList[i].number) + "_r2d2")
+            hkl.dump(pList[i].atlasDICT, fnam, 'r+', path='/'+str(pList[i].letter) + str(pList[i].number) + "_atlas")

@@ -10,7 +10,7 @@ import scipy.interpolate as scinter
 # Normal load_gfile_d3d except needed to cast 'g['lcfs']' as an int.
 import MDSplus as mds
 import EFIT.load_gfile_d3d as loadg
-import meas_locations as geo
+import Collector_Probes.meas_locations as geo
 
 
 # Return dictionary of average R - Rsep value for each of the probes.
@@ -142,7 +142,7 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
     time = startTime
     count = 0
 
-    main_dict = {}
+    # main_dict = {} ### not used? Is there a reason to keep?
     tmp_dict = {}
 
     # Dict to hold each r-rsep value for calculating statistical values later.
@@ -181,8 +181,14 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
 
             # translate up to outbard midplane
             Rs_trunc = Rs > R_axis
-            f_psiN = scinter.interp2d(Rs[Rs_trunc], Zs[Rs_trunc], parmDICT['psiRZn'][Rs_trunc])
-            f_Romp = scinter.interp2d(parmDICT['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
+            f_psiN = scinter.Rbf(Rs[Rs_trunc],
+                                 Zs[Rs_trunc],
+                                 parmDICT['psiRZn'][Rs_trunc],
+                                 function='linear')
+            f_Romp = scinter.Rbf(parmDICT['psiRZn'][Rs_trunc],
+                                 Zs[Rs_trunc],
+                                 Rs[Rs_trunc],
+                                 function='linear')
 
             # R_Sep for each z location of the three probes.
             rSep = {}

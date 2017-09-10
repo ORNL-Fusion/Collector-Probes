@@ -183,12 +183,8 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             Rs_trunc = Rs > R_axis
             f_psiN = scinter.Rbf(Rs[Rs_trunc],
                                  Zs[Rs_trunc],
-                                 parmDICT['psiRZn'][Rs_trunc],
-                                 function='linear')
-            f_Romp = scinter.Rbf(parmDICT['psiRZn'][Rs_trunc],
-                                 Zs[Rs_trunc],
-                                 Rs[Rs_trunc],
-                                 function='linear')
+                                 parmDICT['psiRZn'][Rs_trunc], function='linear')
+            f_Romp = scinter.interp2d(parmDICT['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
 
             # R_Sep for each z location of the three probes.
             rSep = {}
@@ -219,7 +215,7 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
                 # Give this function a radial position and Z coordinate, and it will
                 # return the psiN value (what flux surface it is on). Convert from cm
                 # to m as well.
-                psiN_AD = f_psiN(rad_pos['ad'] / 100.0, -0.18)
+                psiN_AD = f_psiN((rad_pos['ad'] / 100.0), -0.18)
                 psiN_AU = f_psiN(rad_pos['au'] / 100.0, -0.18)
                 psiN_BD = f_psiN(rad_pos['bd'] / 100.0, -0.1546)
                 psiN_BU = f_psiN(rad_pos['bu'] / 100.0, -0.1546)
@@ -228,12 +224,16 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
 
                 # Give this function a psiN value and z value (in this case the
                 # z of the omp), and it will return the R value. Convert to cm.
-                R_omp_AD = f_Romp(psiN_AD, Z_axis) * 100.0
-                R_omp_AU = f_Romp(psiN_AU, Z_axis) * 100.0
+                R_omp_AD = f_Romp(psiN_AD,
+                                  np.around(Z_axis, decimals=3)) * 100.0
+                R_omp_AU = f_Romp(np.around(psiN_AU, decimals=3), Z_axis) * 100.0
                 R_omp_BD = f_Romp(psiN_BD, Z_axis) * 100.0
                 R_omp_BU = f_Romp(psiN_BU, Z_axis) * 100.0
                 R_omp_CD = f_Romp(psiN_CD, Z_axis) * 100.0
                 R_omp_CU = f_Romp(psiN_CU, Z_axis) * 100.0
+
+                if location == 9.1:
+                    print(R_omp_AD)
 
                 # Now add the omp values into the rad_pos dictionary.
                 rad_pos['ad_omp'] = R_omp_AD
@@ -270,7 +270,6 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             time += step
             count += 1
             print("\r")
-            sys.stdout.flush()
 
     # Create dictionaries to hold all the r-rep values and the averages.
     all_rminrsep = {}
@@ -300,10 +299,11 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
     for probe in probe_list:
         for loc in locations:
             all_rminrsep[probe][str(loc)] = np.array(all_rminrsep[probe][str(loc)])
-            tmp_avg = np.average(all_rminrsep[probe][str(loc)])
+            tmp_avg = np.nanmean(all_rminrsep[probe][str(loc)])
             avg_rminrsep[probe][str(loc)] = tmp_avg
-            tmp_std = np.std(all_rminrsep[probe][str(loc)])
+            tmp_std = np.nanstd(all_rminrsep[probe][str(loc)])
             avg_rminrsep[probe + '_err'][str(loc)] = tmp_std
+
 
     # Save to a txt file.
     if writeToFile:

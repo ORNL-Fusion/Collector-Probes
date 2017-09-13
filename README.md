@@ -5,7 +5,8 @@ ProbeClass.py. The main function used is "get\_multiple". This function will ret
 and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The Probe class includes two dictionaries: one with data from
 the R2D2 server, and another with data analyzed using EFIT on atlas. The parameters passed to get\_multiple are:
 
-ProbeClass.get\_multiple(aNumber=None       --> A probe number  
+ProbeClass.get\_multiple(
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; aNumber=None       --> A probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; bNumber=None       --> B probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cNumber=None       --> C probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MDStunnel=False    --> Use True is accessing remotely outside the DIII-D network.  
@@ -23,7 +24,7 @@ SSH into R2D2. Press enter when ready...
 
 _In a new terminal ssh linking r2d2 to your localhost:_  
 $ ssh -Y -p 2039 -L 8000:r2d2.gat.com:8000 username@cybele.gat.com  
-_Then login_  
+_Then login._  
 
 _Back in the python terminal press enter:_  
 AU Run: 1  
@@ -60,3 +61,12 @@ $ probeList[0].number
 $ probeList[0].plot\_norm()  
 _Plots the W areal density vs. R-Rsep._  
 $ probeList[0].plot\_omp  
+_Plots the W areal density vs. R\_omp-Rsep\_omp._  
+$ dict1 = probeList[0].r2d2DICT
+_Return a dictionary of the data pulled from R2D2. Check the r2d2 function docstring._  
+$ dict2 = probeList[0].atlas
+_Return a dictionary of the data analyzed using EFIT. Check the atlas function docstring._  
+$ w\_areal = probeList[0].r2d2['w\_areal\_U']  
+$ rminrsep = probeList[0].atlas['rminrsep\_U']  
+_You can use these two lists to plot W areal density vs. R-Rsep for example._  
+  

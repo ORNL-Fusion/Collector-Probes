@@ -5,7 +5,7 @@ ProbeClass.py. The main function used is "get\_multiple". This function will ret
 and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The Probe class includes two dictionaries: one with data from
 the R2D2 server, and another with data analyzed using EFIT on atlas. The parameters passed to get\_multiple are:
 
-ProbeClass.get\_multiple(
+ProbeClass.get\_multiple(  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; aNumber=None       --> A probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; bNumber=None       --> B probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cNumber=None       --> C probe number  

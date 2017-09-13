@@ -62,9 +62,9 @@ $ probeList[0].plot\_norm()
 _Plots the W areal density vs. R-Rsep._  
 $ probeList[0].plot\_omp  
 _Plots the W areal density vs. R\_omp-Rsep\_omp._  
-$ dict1 = probeList[0].r2d2DICT
+$ dict1 = probeList[0].r2d2DICT  
 _Return a dictionary of the data pulled from R2D2. Check the r2d2 function docstring._  
-$ dict2 = probeList[0].atlas
+$ dict2 = probeList[0].atlas  
 _Return a dictionary of the data analyzed using EFIT. Check the atlas function docstring._  
 $ w\_areal = probeList[0].r2d2['w\_areal\_U']  
 $ rminrsep = probeList[0].atlas['rminrsep\_U']  

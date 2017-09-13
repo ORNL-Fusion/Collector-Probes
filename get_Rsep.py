@@ -10,7 +10,7 @@ import scipy.interpolate as scinter
 # Normal load_gfile_d3d except needed to cast 'g['lcfs']' as an int.
 import MDSplus as mds
 import EFIT.load_gfile_d3d as loadg
-import Collector_Probes.meas_locations as geo
+import meas_locations as geo
 
 
 # Return dictionary of average R - Rsep value for each of the probes.

@@ -25,7 +25,9 @@ from math import *
 
 
 def calc_R_measAD(r_probe, location):
-	"""Calculate the radial position of a measurement along the left A probe."""
+	"""Calculate the radial position of a measurement along the left A probe.
+		r_probe and locations are entered in as cm. Location is from the tip of
+		the probe. """
 
 	# Probe arm inserted at angle to centerline of port axis.
 	offset = 13.0
@@ -65,7 +67,7 @@ def calc_R_measAD(r_probe, location):
 def calc_R_measAU(r_probe, location):
 	"""
 	Calculate the radial position of a measurement along the right A probe.
-	Inputs need to be in cm? 09/08/2017 EAU
+	Inputs need to be in cm? 09/08/2017 EAU. --> Yes. 09/13/17 SAZ.
 	"""
 
 	# Already defined terms.
@@ -101,8 +103,11 @@ def calc_R_measBD(r_probe, location):
 	delta = sqrt(alpha**2 + beta**2)
 	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
 
+	# Distance from tip of probe holder to tip of B probe.
+	lamb = 1.27
+
 	# Follows same logic as A probes. Refer to slides.
-	r_Btip = sqrt(r_probe**2 + beta**2 - 2 * r_probe * beta * cos(radians(c)))
+	r_Btip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
 	f = degrees(asin(r_probe * sin(radians(c)) / r_Btip))
 	q = degrees(atan(beta / alpha))
 	n = 180.0 - f - q
@@ -124,7 +129,11 @@ def calc_R_measBU(r_probe, location):
 	beta = 0.25 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
 	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
-	r_Btip = sqrt(r_probe**2 + beta**2 - 2 * r_probe * beta * cos(radians(c)))
+
+	# Distance from tip of probe holder to tip of B probe.
+	lamb = 1.27
+
+	r_Btip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
 	f = degrees(asin(r_probe * sin(radians(c)) / r_Btip))
 	q = degrees(atan(beta / alpha))
 	n = 180.0 - f - q
@@ -141,14 +150,15 @@ def calc_R_measBU(r_probe, location):
 def calc_R_measCD(r_probe, location):
 	"""Calculate the radial position of a measurement along the left C probe."""
 
-	# Same exact thing as BL, only different beta value.
+	# Same exact thing as BD, only different beta value.
 	offset = 13.0
 	r_offset = 113.46 * 2.54
 	alpha = 0.0001 * 2.54
 	beta = 0.15 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
+	lamb = 1.27
 	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
-	r_Ctip = sqrt(r_probe**2 + beta**2 - 2 * r_probe * beta * cos(radians(c)))
+	r_Ctip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
 	f = degrees(asin(r_probe * sin(radians(c)) / r_Ctip))
 	q = degrees(atan(beta / alpha))
 	n = 180.0 - f - q
@@ -163,14 +173,15 @@ def calc_R_measCD(r_probe, location):
 def calc_R_measCU(r_probe, location):
 	"""Calculate the radial position of a measurement along the right C probe."""
 
-	# Same exact thing as BR, only different beta value.
+	# Same exact thing as BU, only different beta value.
 	offset = 13.0
 	r_offset = 113.46 * 2.54
 	alpha = 0.0001 * 2.54
 	beta = 0.15 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
+	lamb = 1.27
 	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
-	r_Ctip = sqrt(r_probe**2 + beta**2 - 2 * r_probe * beta * cos(radians(c)))
+	r_Ctip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
 	f = degrees(asin(r_probe * sin(radians(c)) / r_Ctip))
 	q = degrees(atan(beta / alpha))
 	n = 180.0 - f - q

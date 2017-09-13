@@ -5,17 +5,17 @@ ProbeClass.py. The main function used is "get\_multiple". This function will ret
 and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The Probe class includes two dictionaries: one with data from
 the R2D2 server, and another with data analyzed using EFIT on atlas. The parameters passed to get\_multiple are:
 
-ProbeClass.get\_multiple(aNumber=None       --> A probe number 
-                         bNumber=None       --> B probe number
-                         cNumber=None       --> C probe number
-                         MDStunnel=False    --> Use True is accessing remotely outside the DIII-D network.
-                         startTime=2500     --> The start time of the range that R - Rsep will be averaged for.
-                         endTime=5000       --> The end time for the range.
-                         step=500           --> Time step for the time range above.
-                         efitTree='EFIT01'  --> Which EFIT tree is used for the R - Rsep calculations.
-                         toHDF5=False       --> Save data to HDF5 file format.)
+ProbeClass.get\_multiple(aNumber=None       --> A probe number  
+                         bNumber=None       --> B probe number  
+                         cNumber=None       --> C probe number  
+                         MDStunnel=False    --> Use True is accessing remotely outside the DIII-D network.  
+                         startTime=2500     --> The start time of the range that R - Rsep will be averaged for.  
+                         endTime=5000       --> The end time for the range.  
+                         step=500           --> Time step for the time range above.  
+                         efitTree='EFIT01'  --> Which EFIT tree is used for the R - Rsep calculations.  
+                         toHDF5=False       --> Save data to HDF5 file format.)  
                        
-To use these functions import ProbeClass into your python2 session, then call the function. An example session is as follows:
+To use these functions import ProbeClass into your python2 session, then call the function. An example session is as follows:  
 
 $ import ProbeClass as Probe
 $ probeList = Probe.get\_multiple(aNumber=2, bNumber=2, cNumber=2, MDStunnel=True)

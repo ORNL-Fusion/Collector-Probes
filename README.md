@@ -7,13 +7,13 @@ the R2D2 server, and another with data analyzed using EFIT on atlas. The paramet
 
 ProbeClass.get\_multiple(aNumber=None       --> A probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; bNumber=None       --> B probe number  
-                         cNumber=None       --> C probe number  
-                         MDStunnel=False    --> Use True is accessing remotely outside the DIII-D network.  
-                         startTime=2500     --> The start time of the range that R - Rsep will be averaged for.  
-                         endTime=5000       --> The end time for the range.  
-                         step=500           --> Time step for the time range above.  
-                         efitTree='EFIT01'  --> Which EFIT tree is used for the R - Rsep calculations.  
-                         toHDF5=False       --> Save data to HDF5 file format.)  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; cNumber=None       --> C probe number  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; MDStunnel=False    --> Use True is accessing remotely outside the DIII-D network.  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; startTime=2500     --> The start time of the range that R - Rsep will be averaged for.  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; endTime=5000       --> The end time for the range.  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; step=500           --> Time step for the time range above.  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; efitTree='EFIT01'  --> Which EFIT tree is used for the R - Rsep calculations.  
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; toHDF5=False       --> Save data to HDF5 file format.)  
                        
 To use these functions import ProbeClass into your python2 session, then call the function. An example session is as follows:  
 

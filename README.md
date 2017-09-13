@@ -6,7 +6,7 @@ and/or C), ONLY IF RBS data is available. Each object in the list will be of "Pr
 the R2D2 server, and another with data analyzed using EFIT on atlas. The parameters passed to get\_multiple are:
 
 ProbeClass.get\_multiple(aNumber=None       --> A probe number  
-nbsp; nbsp               bNumber=None       --> B probe number  
+&nbsp; &nbsp;               bNumber=None       --> B probe number  
                          cNumber=None       --> C probe number  
                          MDStunnel=False    --> Use True is accessing remotely outside the DIII-D network.  
                          startTime=2500     --> The start time of the range that R - Rsep will be averaged for.  

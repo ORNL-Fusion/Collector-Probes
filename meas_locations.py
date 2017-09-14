@@ -98,7 +98,7 @@ def calc_R_measBD(r_probe, location):
 	# Already defined terms.
 	offset = 13.0
 	r_offset = 113.46 * 2.54
-	alpha = 0.0001 * 2.54
+	alpha = 0.054 * 2.54
 	beta = 0.25 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
 	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
@@ -125,7 +125,7 @@ def calc_R_measBU(r_probe, location):
 	# Already defined terms.
 	offset = 13.0
 	r_offset = 113.46 * 2.54
-	alpha = 0.0001 * 2.54
+	alpha = 0.054 * 2.54
 	beta = 0.25 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
 	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
@@ -153,7 +153,7 @@ def calc_R_measCD(r_probe, location):
 	# Same exact thing as BD, only different beta value.
 	offset = 13.0
 	r_offset = 113.46 * 2.54
-	alpha = 0.0001 * 2.54
+	alpha = 0.03 * 2.54
 	beta = 0.15 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
 	lamb = 1.27
@@ -176,7 +176,7 @@ def calc_R_measCU(r_probe, location):
 	# Same exact thing as BU, only different beta value.
 	offset = 13.0
 	r_offset = 113.46 * 2.54
-	alpha = 0.0001 * 2.54
+	alpha = 0.03 * 2.54
 	beta = 0.15 * 2.54
 	delta = sqrt(alpha**2 + beta**2)
 	lamb = 1.27

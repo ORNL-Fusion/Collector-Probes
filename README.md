@@ -20,7 +20,7 @@ ProbeClass.get_multiple(
       aNumber=None       # A probe number  
       bNumber=None       # B probe number  
       cNumber=None       # C probe number  
-      MDStunnel=False    # Use True is accessing remotely outside the DIII-D network.  
+      MDStunnel=False    # Use True if accessing remotely outside the DIII-D network.  
       startTime=2500     # The start time of the range that R - Rsep will be averaged for.  
       endTime=5000       # The end time for the range.  
       step=500           # Time step for the time range above.  

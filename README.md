@@ -12,7 +12,8 @@ The highest level program is ProbeClass.py, and the main function used is "get\_
 probes (an A, B, and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The Probe class includes 
 two dictionaries: one with data from the R2D2 server, and another with data analyzed using EFIT on atlas. The parameters passed to
 get\_multiple are:
-
+  
+'''python
 ProbeClass.get\_multiple(  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; aNumber=None       --> A probe number  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; bNumber=None       --> B probe number  
@@ -23,7 +24,8 @@ ProbeClass.get\_multiple(
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; step=500           --> Time step for the time range above.  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; efitTree='EFIT01'  --> Which EFIT tree is used for the R - Rsep calculations.  
 &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; toHDF5=False       --> Save data to HDF5 file format.)  
-                       
+'''  
+  
 To use these functions import ProbeClass into your python2 session, then call the function. An example session is as follows:  
 
 $ import ProbeClass as Probe  

@@ -106,3 +106,7 @@ _You can use these two lists to plot W areal density vs. R-Rsep for example._
 $ probeList[0].to_matlab()
 ```
 _Save the data to a matlab file. Useful for the curve fitting tool._
+
+------------------------------------------------------------------------------------------------------------------
+  
+Email any questions to Shawn Zamperini at zamp@utk.edu.

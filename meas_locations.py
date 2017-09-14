@@ -5,19 +5,6 @@
 #
 # The variables in the program are pulled from the slides
 # named Probe_Geo_Figures. That naming convention is followed here.
-#
-# New in v3: Cleaned up v2_1 with better comments and docstrings.
-#			 Functions now accept the location along probe to be calculated.
-#			 Functions now return the radial measurement location.
-#            Replaced r_wall with r_offset.
-#
-# New in v3_1: Was missing the degrees() for f calculation on line 51.
-#
-# New in v3_2: Changed naming convention from L,R to D,U, respectively.
-#			   Made sure no variables were reused. All of them match the slides.
-#              Fixed calculation of r_BU and r_CU from n+q+q to 360-(n+q+q).
-#
-# New in v3_3: Changed beta values.
 
 
 # Needed for trig functions.

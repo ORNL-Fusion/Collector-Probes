@@ -3,7 +3,6 @@
 # where you substitute in your username. The MDSplus connection is
 # then MDSplus.Connection('localhost').
 from __future__ import print_function
-import sys
 import numpy as np
 import scipy.interpolate as scinter
 
@@ -232,9 +231,6 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
                 R_omp_CD = f_Romp(psiN_CD, Z_axis) * 100.0
                 R_omp_CU = f_Romp(psiN_CU, Z_axis) * 100.0
 
-                if location == 9.1:
-                    print(R_omp_AD)
-
                 # Now add the omp values into the rad_pos dictionary.
                 rad_pos['ad_omp'] = R_omp_AD
                 rad_pos['au_omp'] = R_omp_AU
@@ -303,7 +299,6 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             avg_rminrsep[probe][str(loc)] = tmp_avg
             tmp_std = np.nanstd(all_rminrsep[probe][str(loc)])
             avg_rminrsep[probe + '_err'][str(loc)] = tmp_std
-
 
     # Save to a txt file.
     if writeToFile:

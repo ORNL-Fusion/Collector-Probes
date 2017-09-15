@@ -115,12 +115,14 @@ class Probe():
         and R_omp - Rsep_omp values. Averages between the start and end times
         are returned. Run this after r2d2.
         Input varibles/keywords (default values if any):
-        server ('atlas.gat.com')  -- the MDSplus connection information, can be localhost if tunneling.
+        server ('atlas.gat.com')  -- the MDSplus connection information, can be localhost
+                                     if tunneling.
         EFIT ('EFIT01')           -- name of the EFIT MDSplus tree used in calculations.
         startTime (2500)          -- time in msec for first EFIT.
         endTime (5000)            -- time in msec for last EFIT.
         step (500)                -- del_time between EFIT equilibrium.
-        probe_tip_corr (1.5)      -- correction to PLC insertion value in cm (from Dmitry's calibration).
+        probe_tip_corr (1.5)      -- correction to PLC insertion value in
+                                     cm (from Dmitry's calibration).
         """
 
         # inputs for final dictionary.
@@ -315,7 +317,8 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
     if len(pList) == 2:
         if (pList[0].r2d2DICT['shots'].all() != pList[1].r2d2DICT['shots'].all()):
             print("Error \n-------")
-            print(pList[0].letter + " probe shots do not match " + pList[1].letter + " probe shots.")
+            print(pList[0].letter + " probe shots do not match " + pList[1].letter +
+                  " probe shots.")
             print(pList[0].letter + " shots: " + str(pList[0].r2d2DICT['shots']))
             print(pList[1].letter + " shots: " + str(pList[1].r2d2DICT['shots']) + "\n")
 
@@ -323,22 +326,26 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
     if len(pList) == 3:
         if (pList[0].r2d2DICT['shots'].all() != pList[1].r2d2DICT['shots'].all()):
             print("Error \n-------")
-            print(pList[0].letter + " probe shots do not match " + pList[1].letter + " probe shots.")
+            print(pList[0].letter + " probe shots do not match " + pList[1].letter +
+                  " probe shots.")
             print(pList[0].letter + " shots: " + str(pList[0].r2d2DICT['shots']))
             print(pList[1].letter + " shots: " + str(pList[1].r2d2DICT['shots']) + "\n")
         if (pList[0].r2d2DICT['shots'].all() != pList[2].r2d2DICT['shots'].all()):
             print("Error \n-------")
-            print(pList[0].letter + " probe shots do not match " + pList[2].letter + " probe shots.")
+            print(pList[0].letter + " probe shots do not match " + pList[2].letter +
+                  " probe shots.")
             print(pList[0].letter + " shots: " + str(pList[0].r2d2DICT['shots']))
             print(pList[2].letter + " shots: " + str(pList[2].shots) + "\n")
         if (pList[1].r2d2DICT['shots'].all() != pList[2].r2d2DICT['shots'].all()):
             print("Error \n-------")
-            print(pList[1].letter + " probe shots do not match " + pList[2].letter + " probe shots.")
+            print(pList[1].letter + " probe shots do not match " + pList[2].letter +
+                  " probe shots.")
             print(pList[1].letter + " shots: " + str(pList[1].r2d2DICT['shots']))
             print(pList[2].letter + " shots: " + str(pList[2].r2d2DICT['shots']) + "\n")
 
     # Return list. Could have up to three probes, but will still be in order or A, B then C.
     return pList
+
 
 # Output to HDF5 file.
 def dump2HDF5(pList):

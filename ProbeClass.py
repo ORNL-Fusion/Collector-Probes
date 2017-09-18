@@ -55,7 +55,7 @@ class Probe():
 
         conn    = pull.thin_connect(self.number, server=server)
         shots   = pull.pull_shots(conn,  self.letter + 'D')
-        r_probe = pull.pull_rprobe(conn, 'A')
+        r_probe = pull.pull_rprobe(conn, self.letter)
 
         # Relevant lists for each probe, 'U' and 'D' faces.
         locations_U    = []
@@ -263,11 +263,6 @@ class Probe():
         tmp_dict['rminrsep_omp_err_D']    = arr_omp_err_D
         tmp_dict['w_areal_density_D'] = arr_areal_D
         tmp_dict['w_areal_density_err_D'] = arr_areal_err_D
-
-        tmp_dict['locations_D']       = self.r2d2DICT['locations_D']
-        tmp_dict['rminrsep_D']        = self.r2d2DICT['rminrsep_D']
-        tmp_dict['rminrsep_omp_D']    = self.r2d2DICT['rminrsep_omp_D']
-        tmp_dict['w_areal_density_D'] = self.r2d2DICT['w_areal_D']
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)

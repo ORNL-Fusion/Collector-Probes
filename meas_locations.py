@@ -8,173 +8,149 @@
 
 
 # Needed for trig functions.
-from math import *
+import math
+
+# Define constants used in functions below.
+# Most are defined and listed in Shawn's slideset on the CP geometry.
+# Probe arm inserted at angle to centerline of port axis.
+offset_angle = 13.0  # in degrees
+# Radial distance from vessel wall to insertion shaft mid-port
+r_offset = 288.1884  # in cm
+# Radial distance from probe tip to collection face at the axis of symmtry of each probe type.
+alpha_A = 0.521  # in cm
+alpha_B = 0.137  # in cm
+alpha_C = 0.076  # in cm
+# Orthonganal distance from probe axis to collection face of each probe type.
+beta_A = 1.450  # in cm
+beta_B = 0.508  # in cm
+beta_C = 0.254  # in cm
+# Radial distance from probe A tip to the tips of the other 2 probes.
+lamb = 1.27
+# Distance (directly) from probe tip to nearest collector probe face.
+delta_A = math.sqrt(alpha_A**2 + beta_A**2)
+delta_B = math.sqrt(alpha_B**2 + beta_B**2)
+delta_C = math.sqrt(alpha_C**2 + beta_C**2)
+
+# Angle between alpha and beta for each probe.
+d = math.degrees(math.atan(beta_A / alpha_A))
+q = math.degrees(math.atan(beta_B / alpha_B))
+s = math.degrees(math.atan(beta_C / alpha_C))
 
 
 def calc_R_measAD(r_probe, location):
-	"""Calculate the radial position of a measurement along the left A probe.
-		r_probe and locations are entered in as cm. Location is from the tip of
-		the probe. """
+    """Calculate the radial position of a measurement along the left A probe.
+        r_probe and locations are entered in as cm. Location is from the tip of
+        the probe. """
 
-	# Probe arm inserted at angle to centerline of port axis.
-	offset = 13.0
+    # Angle between r_probe and A probe center axis. 180 degrees since we
+    # want the higher value in quadrant II (basic trig stuff).
+    c = 180 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_probe))
+    # Angle between r_probe and delta
+    e = c - d
 
-	# Inches to centimeters (actually where 13 degrees happens, not the wall)
-	r_offset = 113.46 * 2.54
+    # Radial position of A-D tip using law of cosines
+    r_AD = math.sqrt(delta_A**2 + r_probe**2 - 2 * r_probe * delta_A * math.cos(math.radians(e)))
 
-	# Geometry of A probe holder.
-	alpha = (5.125 - 4.920) * 2.54
-	beta  = (0.443 + 0.5 * 0.256) * 2.54
-	delta = sqrt(alpha**2 + beta**2)
+    # Angle between tip of left A probe and length of A-D probe. Again want
+    # the higher value in quadrant II.
+    f = 180 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_AD))
 
-	# Angle between r_probe and A probe center axis. 180 degrees since we
-	# want the higher value in quadrant II (basic trig stuff).
-	c = 180 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
+    # Radial position of measurement location, l, along A-D. l=0 is at
+    # the tip of the probe. In cm.
+    r_ADmeas = math.sqrt(location**2 + r_AD**2 - 2 * location * r_AD * math.cos(math.radians(f)))
 
-	# Angle between alpha and beta
-	d = degrees(atan(beta / alpha))
-
-	# Angle between r_probe and delta
-	e = c - d
-
-	# Radial position of A-D tip using law of cosines
-	r_AD = sqrt(delta**2 + r_probe**2 - 2 * r_probe * delta * cos(radians(e)))
-
-	# Angle between tip of left A probe and length of A-D probe. Again want
-	# the higher value in quadrant II.
-	f = 180 - degrees(asin(r_offset * sin(radians(13.0)) / r_AD))
-
-	# Radial position of measurement location, l, along A-D. l=0 is at
-	# the tip of the probe. In cm.
-	r_ADmeas = sqrt(location**2 + r_AD**2 - 2 * location * r_AD * cos(radians(f)))
-
-	return r_ADmeas
+    return r_ADmeas
 
 
 def calc_R_measAU(r_probe, location):
-	"""
-	Calculate the radial position of a measurement along the right A probe.
-	Inputs need to be in cm? 09/08/2017 EAU. --> Yes. 09/13/17 SAZ.
-	"""
+    """
+    Calculate the radial position of a measurement along the right A probe.
+    """
 
-	# Already defined terms.
-	offset = 13
-	r_offset = 113.46 * 2.54
-	alpha = (5.125 - 4.920) * 2.54
-	beta  = (0.443 + 0.5 * 0.256) * 2.54
-	delta = sqrt(alpha**2 + beta**2)
-	c = 180 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
-	d = degrees(atan(beta / alpha))
+    # Angle between r_probe and A probe center axis. 180 degrees since we
+    # want the higher value in quadrant II (basic trig stuff).
+    c = 180 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_probe))
 
-	# Angle between r-probe and delta
-	k = 360 - d - c
+    # Angle between r-probe and delta
+    k = 360 - d - c
 
-	# Radial position of the tip of the right A probe.
-	r_AU = sqrt(delta**2 + r_probe**2 - 2 * r_probe * delta * cos(radians(k)))
+    # Radial position of the tip of the right A probe.
+    r_AU = math.sqrt(delta_A**2 + r_probe**2 - 2 * r_probe * delta_A * math.cos(math.radians(k)))
 
-	# Angle between length of probe and radial position vector of the tip.
-	m = 180 - degrees(asin(r_offset * sin(radians(13)) / r_AU))
+    # Angle between length of probe and radial position vector of the tip.
+    m = 180 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_AU))
 
-	r_AUmeas = sqrt(location**2 + r_AU**2 - 2 * location * r_AU * cos(radians(m)))
+    r_AUmeas = math.sqrt(location**2 + r_AU**2 - 2 * location * r_AU * math.cos(math.radians(m)))
 
-	return r_AUmeas
+    return r_AUmeas
+
 
 def calc_R_measBD(r_probe, location):
-	"""Calculate the radial position of a measurement along the left B probe."""
+    """Calculate the radial position of a measurement along the left B probe."""
 
-	# Already defined terms.
-	offset = 13.0
-	r_offset = 113.46 * 2.54
-	alpha = 0.054 * 2.54
-	beta = 0.25 * 2.54
-	delta = sqrt(alpha**2 + beta**2)
-	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
+    # Angle between r_probe and A probe center axis. 180 degrees since we
+    # want the higher value in quadrant II (basic trig stuff).
+    c = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_probe))
 
-	# Distance from tip of probe holder to tip of B probe.
-	lamb = 1.27
+    # Follows same logic as A probes. Refer to slides.
+    r_Btip = math.sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * math.cos(math.radians(c)))
+    f = math.degrees(math.asin(r_probe * math.sin(math.radians(c)) / r_Btip))
+    n = 180.0 - f - q
+    r_BD = math.sqrt(delta_B**2 + r_Btip**2 - 2 * delta_B * r_Btip * math.cos(math.radians(n)))
+    v = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_BD))
 
-	# Follows same logic as A probes. Refer to slides.
-	r_Btip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
-	f = degrees(asin(r_probe * sin(radians(c)) / r_Btip))
-	q = degrees(atan(beta / alpha))
-	n = 180.0 - f - q
-	r_BD = sqrt(delta**2 + r_Btip**2 - 2 * delta * r_Btip * cos(radians(n)))
-	v = 180.0 - degrees(asin(r_offset * sin(radians(13)) / r_BD))
+    r_BDmeas = math.sqrt(location**2 + r_BD**2 - 2 * location * r_BD * math.cos(math.radians(v)))
 
-	r_BDmeas = sqrt(location**2 + r_BD**2 - 2 * location * r_BD * cos(radians(v)))
-
-	return r_BDmeas
+    return r_BDmeas
 
 
 def calc_R_measBU(r_probe, location):
-	"""Calculate the radial position of a measurement along the right B probe."""
+    """Calculate the radial position of a measurement along the right B probe."""
 
-	# Already defined terms.
-	offset = 13.0
-	r_offset = 113.46 * 2.54
-	alpha = 0.054 * 2.54
-	beta = 0.25 * 2.54
-	delta = sqrt(alpha**2 + beta**2)
-	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
+    # Angle between r_probe and A probe center axis. 180 degrees since we
+    # want the higher value in quadrant II (basic trig stuff).
+    c = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_probe))
 
-	# Distance from tip of probe holder to tip of B probe.
-	lamb = 1.27
+    r_Btip = math.sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * math.cos(math.radians(c)))
+    f = math.degrees(math.asin(r_probe * math.sin(math.radians(c)) / r_Btip))
+    n = 180.0 - f - q
 
-	r_Btip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
-	f = degrees(asin(r_probe * sin(radians(c)) / r_Btip))
-	q = degrees(atan(beta / alpha))
-	n = 180.0 - f - q
+    # Refer to slides for picture.
+    r_BU = math.sqrt(r_Btip**2 + delta_B**2 - 2 * r_Btip * delta_B *
+                     math.cos(math.radians(360 - (n + q + q))))
+    p = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_BU))
 
-	# Refer to slides for picture.
-	r_BU = sqrt(r_Btip**2 + delta**2 - 2 * r_Btip * delta * cos(radians(360 - (n + q + q))))
-	p = 180.0 - degrees(asin(r_offset * sin(radians(13)) / r_BU))
+    r_BUmeas = math.sqrt(location**2 + r_BU**2 - 2 * location * r_BU * math.cos(math.radians(p)))
 
-	r_BUmeas = sqrt(location**2 + r_BU**2 - 2 * location * r_BU * cos(radians(p)))
-
-	return r_BUmeas
+    return r_BUmeas
 
 
 def calc_R_measCD(r_probe, location):
-	"""Calculate the radial position of a measurement along the left C probe."""
+    """Calculate the radial position of a measurement along the left C probe."""
 
-	# Same exact thing as BD, only different beta value.
-	offset = 13.0
-	r_offset = 113.46 * 2.54
-	alpha = 0.03 * 2.54
-	beta = 0.15 * 2.54
-	delta = sqrt(alpha**2 + beta**2)
-	lamb = 1.27
-	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
-	r_Ctip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
-	f = degrees(asin(r_probe * sin(radians(c)) / r_Ctip))
-	q = degrees(atan(beta / alpha))
-	n = 180.0 - f - q
-	r_CD = sqrt(delta**2 + r_Ctip**2 - 2 * delta * r_Ctip * cos(radians(n)))
-	v = 180.0 - degrees(asin(r_offset * sin(radians(13)) / r_CD))
+    c = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_probe))
+    r_Ctip = math.sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * math.cos(math.radians(c)))
+    f = math.degrees(math.asin(r_probe * math.sin(math.radians(c)) / r_Ctip))
+    n = 180.0 - f - s
+    r_CD = math.sqrt(delta_C**2 + r_Ctip**2 - 2 * delta_C * r_Ctip * math.cos(math.radians(n)))
+    v = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_CD))
 
-	r_CDmeas = sqrt(location**2 + r_CD**2 - 2 * location * r_CD * cos(radians(v)))
+    r_CDmeas = math.sqrt(location**2 + r_CD**2 - 2 * location * r_CD * math.cos(math.radians(v)))
 
-	return r_CDmeas
+    return r_CDmeas
 
 
 def calc_R_measCU(r_probe, location):
-	"""Calculate the radial position of a measurement along the right C probe."""
+    """Calculate the radial position of a measurement along the right C probe."""
 
-	# Same exact thing as BU, only different beta value.
-	offset = 13.0
-	r_offset = 113.46 * 2.54
-	alpha = 0.03 * 2.54
-	beta = 0.15 * 2.54
-	delta = sqrt(alpha**2 + beta**2)
-	lamb = 1.27
-	c = 180.0 - degrees(asin(r_offset * sin(radians(offset)) / r_probe))
-	r_Ctip = sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * cos(radians(c)))
-	f = degrees(asin(r_probe * sin(radians(c)) / r_Ctip))
-	q = degrees(atan(beta / alpha))
-	n = 180.0 - f - q
-	r_CU = sqrt(r_Ctip**2 + delta**2 - 2 * r_Ctip * delta * cos(radians(360 - (n + q + q))))
-	p = 180.0 - degrees(asin(r_offset * sin(radians(13)) / r_CU))
+    c = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_probe))
+    r_Ctip = math.sqrt(r_probe**2 + lamb**2 - 2 * r_probe * lamb * math.cos(math.radians(c)))
+    f = math.degrees(math.asin(r_probe * math.sin(math.radians(c)) / r_Ctip))
+    n = 180.0 - f - s
+    r_CU = math.sqrt(r_Ctip**2 + delta_C**2 - 2 * r_Ctip * delta_C *
+                     math.cos(math.radians(360 - (n + s + s))))
+    p = 180.0 - math.degrees(math.asin(r_offset * math.sin(math.radians(offset_angle)) / r_CU))
 
-	r_CUmeas = sqrt(location**2 + r_CU**2 - 2 * location * r_CU * cos(radians(p)))
+    r_CUmeas = math.sqrt(location**2 + r_CU**2 - 2 * location * r_CU * math.cos(math.radians(p)))
 
-	return r_CUmeas
+    return r_CUmeas

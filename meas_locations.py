@@ -18,8 +18,10 @@ offset_angle = 13.0  # in degrees
 r_offset = 288.1884  # in cm
 # Radial distance from probe tip to collection face at the axis of symmtry of each probe type.
 alpha_A = 0.521  # in cm
-alpha_B = 0.137  # in cm
-alpha_C = 0.076  # in cm
+# alpha_B = 0.137  # in cm
+# alpha_C = 0.076  # in cm
+alpha_B = 0.0323  # in cm
+alpha_C = 0.0168  # in cm
 # Orthonganal distance from probe axis to collection face of each probe type.
 beta_A = 1.450  # in cm
 beta_B = 0.508  # in cm

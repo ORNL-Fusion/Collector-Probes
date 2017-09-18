@@ -158,13 +158,38 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
     # This makes the EFIT data grabs much faster.
     MDSplusCONN = mds.Connection(server)
 
+    print("Shots to be analyzed: ", end='')
+    for shot in shots:
+        print(str(shot), end='')
+        if (len(shots) > 1):
+            print(", ", end='')
+    print("\n")
+
+    total_runs = float(len(shots) * (endTime-startTime)/step)
+    count = 0
+
     for shot in shots:
         time = startTime
         while time <= endTime:
 
-            print("Shot:     " + str(shot), end='\n')
+            #print("Shot:     " + str(shot), end='\n')
             # print("Location: " + str(location))
-            print("Time:     " + str(time), end='\n')
+            #print("Time:     " + str(time), end='\n')
+
+            # The "\033[F" means go up to the previous line. This is all so there
+            # can be a progress bar and not spew a bunch of stuff at u.
+            if count != 0:
+                print("\033[F \033[F \033[F \033[F \033[F", end='')
+            print("\rCurrent Shot: ", end='')
+            print(str(shot), end='')
+            print("  ", end='')
+            print("Time: ", end='')
+            print(str(time))
+
+            print("\r[", end='')
+            print(u"\u2588"*int((count/total_runs)*15.0), end='')
+            print(" "*int(15-((count/total_runs)*15.0)-1), end='')
+            print("] " + str(int(count/total_runs*100.0))+"% \n\n")
 
             # Lines from Zeke's code.
             parmDICT = loadg.read_g_file_mds(shot, time,
@@ -266,7 +291,7 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             time += step
             count += 1
             print("\r")
-
+        #print("\n\n")
     # Create dictionaries to hold all the r-rep values and the averages.
     all_rminrsep = {}
     avg_rminrsep = {}

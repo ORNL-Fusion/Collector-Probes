@@ -10,6 +10,8 @@ import get_Rsep as get
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as sio
+import warnings
+#from __future__ import print_function
 
 
 class Probe():
@@ -73,29 +75,35 @@ class Probe():
         shots = np.delete(shots, ind)
 
         # Data from R2D2.
+        print "\n"
         for run in range(1, 1000):
             # U-face data.
             try:
-                print self.letter + "U Run: " + str(run)
+                #print "\033[F \033[F"
                 loc = pull.pull_rbs_loc(conn, self.letter + 'U', run) / 10.0
                 areal = pull.pull_rbs_areal(conn, self.letter + 'U', run)
                 areal_err = pull.pull_rbs_areal_err(conn, self.letter + 'U', run)
                 locations_U.append(loc)
                 w_areal_U.append(areal)
                 w_areal_err_U.append(areal_err)
+                print "\033[F \033[F"
+                print self.letter + "U Run: " + str(run)
             except:
                 break
 
+        print "\n"
         for run in range(1, 1000):
             # D-face data.
             try:
-                print self.letter + "D Run: " + str(run)
+                #print "\033[F \033[F"
                 loc = pull.pull_rbs_loc(conn, self.letter + 'D', run) / 10.0
                 areal = pull.pull_rbs_areal(conn, self.letter + 'D', run)
                 areal_err = pull.pull_rbs_areal_err(conn, self.letter + 'D', run)
                 locations_D.append(loc)
                 w_areal_D.append(areal)
                 w_areal_err_D.append(areal_err)
+                print "\033[F \033[F"
+                print self.letter + "D Run: " + str(run)
             except:
                 break
 
@@ -141,24 +149,26 @@ class Probe():
 
         # Get the Rsep data from EFIT and perform necessary operations in the
         # get_Rsep file.
-        print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
-        avg_dict_U = get.avg_Rsep_all(self.r2d2DICT['shots'],
-                                      self.r2d2DICT['r_probe']+probe_tip_corr,
-                                      self.r2d2DICT['locations_U'],
-                                      server=server,
-                                      Etree=EFIT,
-                                      startTime=startTime,
-                                      endTime=endTime,
-                                      step=step)
-        print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
-        avg_dict_D = get.avg_Rsep_all(self.r2d2DICT['shots'],
-                                      self.r2d2DICT['r_probe']+probe_tip_corr,
-                                      self.r2d2DICT['locations_D'],
-                                      server=server,
-                                      Etree=EFIT,
-                                      startTime=startTime,
-                                      endTime=endTime,
-                                      step=step)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
+            avg_dict_U = get.avg_Rsep_all(self.r2d2DICT['shots'],
+                                          self.r2d2DICT['r_probe']+probe_tip_corr,
+                                          self.r2d2DICT['locations_U'],
+                                          server=server,
+                                          Etree=EFIT,
+                                          startTime=startTime,
+                                          endTime=endTime,
+                                          step=step)
+            print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
+            avg_dict_D = get.avg_Rsep_all(self.r2d2DICT['shots'],
+                                          self.r2d2DICT['r_probe']+probe_tip_corr,
+                                          self.r2d2DICT['locations_D'],
+                                          server=server,
+                                          Etree=EFIT,
+                                          startTime=startTime,
+                                          endTime=endTime,
+                                          step=step)
 
         # Pull the data from the returned dictionary from get_Rsep and put it
         # into lists for each the U and D probes.

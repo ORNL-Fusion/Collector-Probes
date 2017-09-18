@@ -63,7 +63,7 @@ def pull_rbs_loc(conn, probe, run):
             loc = conn.get(path).data()
             return loc
         except:
-            print "Data for run " + str(run) + " not available."
+            print "No data for run  " + str(run) + "."
     else:
         print "Incorrect probe entry."
 

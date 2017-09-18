@@ -55,7 +55,7 @@ class Probe():
 
         conn    = pull.thin_connect(self.number, server=server)
         shots   = pull.pull_shots(conn,  self.letter + 'D')
-        r_probe = pull.pull_rprobe(conn, 'A')
+        r_probe = pull.pull_rprobe(conn, self.letter)
 
         # Relevant lists for each probe, 'U' and 'D' faces.
         locations_U    = []
@@ -190,14 +190,18 @@ class Probe():
     # Plot the R - Rsep data. The limit flag is to match up with the omp graph.
     # For whatever reason the last ~6 points are garbage-like. Something with
     # the interpolation maybe.
-    def plot_norm(self, limit=6, newFIG=True):
+    def plot_norm(self, newFIG=True):
         if newFIG:
             plt.figure()
-        plt.errorbar(x=self.atlasDICT['rminrsep_U'][limit:], y=self.r2d2DICT['w_areal_U'][limit:],
-                     xerr=self.atlasDICT['rminrsep_err_U'][limit:], yerr=self.r2d2DICT['w_areal_err_U'][limit:],
+        plt.errorbar(x=self.atlasDICT['rminrsep_U'],
+                     y=self.r2d2DICT['w_areal_U'],
+                     xerr=self.atlasDICT['rminrsep_err_U'],
+                     yerr=self.r2d2DICT['w_areal_err_U'],
                      label=self.letter + 'U' + str(self.number))
-        plt.errorbar(x=self.atlasDICT['rminrsep_D'][limit:], y=self.r2d2DICT['w_areal_D'][limit:],
-                     xerr=self.atlasDICT['rminrsep_err_D'][limit:], yerr=self.r2d2DICT['w_areal_err_D'][limit:],
+        plt.errorbar(x=self.atlasDICT['rminrsep_D'],
+                     y=self.r2d2DICT['w_areal_D'],
+                     xerr=self.atlasDICT['rminrsep_err_D'],
+                     yerr=self.r2d2DICT['w_areal_err_D'],
                      label=self.letter + 'D' + str(self.number))
         plt.legend(loc='upper right')
         plt.xlabel("R - Rsep (cm)")
@@ -206,18 +210,18 @@ class Probe():
         plt.show()
 
     # Plot the R - Rsep omp data.
-    def plot_omp(self, limit=6, newFIG=True):
+    def plot_omp(self, newFIG=True):
         if newFIG:
             plt.figure()
-        plt.errorbar(x=self.atlasDICT['rminrsep_omp_U'][limit:],
-                     y=self.r2d2DICT['w_areal_U'][limit:],
-                     xerr=self.atlasDICT['rminrsep_omp_err_U'][limit:],
-                     yerr=self.r2d2DICT['w_areal_err_U'][limit:],
+        plt.errorbar(x=self.atlasDICT['rminrsep_omp_U'],
+                     y=self.r2d2DICT['w_areal_U'],
+                     xerr=self.atlasDICT['rminrsep_omp_err_U'],
+                     yerr=self.r2d2DICT['w_areal_err_U'],
                      label=self.letter + 'U' + str(self.number) + ' omp', fmt='o')
-        plt.errorbar(x=self.atlasDICT['rminrsep_omp_D'][limit:],
-                     y=self.r2d2DICT['w_areal_D'][limit:],
-                     xerr=self.atlasDICT['rminrsep_omp_err_D'][limit:],
-                     yerr=self.r2d2DICT['w_areal_err_D'][limit:],
+        plt.errorbar(x=self.atlasDICT['rminrsep_omp_D'],
+                     y=self.r2d2DICT['w_areal_D'],
+                     xerr=self.atlasDICT['rminrsep_omp_err_D'],
+                     yerr=self.r2d2DICT['w_areal_err_D'],
                      label=self.letter + 'D' + str(self.number) + ' omp', fmt='o')
         plt.legend(loc='upper right')
         plt.xlabel("R - Rsep_omp (cm)")
@@ -228,16 +232,35 @@ class Probe():
     # Output to basic matlab file for curve fitting or whatever.
     def to_matlab(self):
         tmp_dict = {}
+        arr_loc_U   = np.array(self.r2d2DICT['locations_U'])
+        arr_sep_U   = np.array(self.atlasDICT['rminrsep_U'])
+        arr_sep_err_U   = np.array(self.atlasDICT['rminrsep_err_U'])
+        arr_omp_U   = np.array(self.atlasDICT['rminrsep_omp_U'])
+        arr_omp_err_U   = np.array(self.atlasDICT['rminrsep_omp_err_U'])
+        arr_areal_U = np.array(self.r2d2DICT['w_areal_U'])
+        arr_areal_err_U = np.array(self.r2d2DICT['w_areal_err_U'])
+        tmp_dict['locations_U']       = arr_loc_U
+        tmp_dict['rminrsep_U']        = arr_sep_U
+        tmp_dict['rminrsep_err_U']        = arr_sep_err_U
+        tmp_dict['rminrsep_omp_U']    = arr_omp_U
+        tmp_dict['rminrsep_omp_err_U']    = arr_omp_err_U
+        tmp_dict['w_areal_density_U'] = arr_areal_U
+        tmp_dict['w_areal_density_err_U'] = arr_areal_err_U
 
-        tmp_dict['locations_U']       = self.r2d2DICT['locations_U']
-        tmp_dict['rminrsep_U']        = self.r2d2DICT['rminrsep_U']
-        tmp_dict['rminrsep_omp_U']    = self.r2d2DICT['rminrsep_omp_U']
-        tmp_dict['w_areal_density_U'] = self.r2d2DICT['w_areal_U']
-
-        tmp_dict['locations_D']       = self.r2d2DICT['locations_D']
-        tmp_dict['rminrsep_D']        = self.r2d2DICT['rminrsep_D']
-        tmp_dict['rminrsep_omp_D']    = self.r2d2DICT['rminrsep_omp_D']
-        tmp_dict['w_areal_density_D'] = self.r2d2DICT['w_areal_D']
+        arr_loc_D   = np.array(self.r2d2DICT['locations_D'])
+        arr_sep_D   = np.array(self.atlasDICT['rminrsep_D'])
+        arr_sep_err_D   = np.array(self.atlasDICT['rminrsep_err_D'])
+        arr_omp_D   = np.array(self.atlasDICT['rminrsep_omp_D'])
+        arr_omp_err_D   = np.array(self.atlasDICT['rminrsep_omp_err_D'])
+        arr_areal_D = self.r2d2DICT['w_areal_D']
+        arr_areal_err_D = self.r2d2DICT['w_areal_err_D']
+        tmp_dict['locations_D']       = arr_loc_D
+        tmp_dict['rminrsep_D']        = arr_sep_D
+        tmp_dict['rminrsep_err_D']        = arr_sep_err_D
+        tmp_dict['rminrsep_omp_D']    = arr_omp_D
+        tmp_dict['rminrsep_omp_err_D']    = arr_omp_err_D
+        tmp_dict['w_areal_density_D'] = arr_areal_D
+        tmp_dict['w_areal_density_err_D'] = arr_areal_err_D
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)
@@ -318,6 +341,7 @@ def dump2HDF5(pList):
     Warning: make sure you have the hickle package installed via:
              pip install hickle
     """
+
     import Misc.hickle.hickle as hkl
     suffix = ''
     for i, j in enumerate(pList):

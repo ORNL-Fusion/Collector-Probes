@@ -64,11 +64,11 @@ def plot_EFIT_helper(shot, time, probe_tip, levs=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 
         plt.plot(parmDICT['lcfs'][:, 0], parmDICT['lcfs'][:, 1], 'b', linewidth=2)
         plt.plot(parmDICT['RmAxis'], parmDICT['ZmAxis'], 'b', linewidth=1, marker='+',
                  markersize=10)
-        plt.plot(R_omp_A, parmDICT['ZmAxis'], marker='o', markersize=5,
+        plt.plot(R_omp_A, parmDICT['ZmAxis'], marker='o', markersize=7,
                  markerfacecolor='None', mec='red', mew=2)
-        plt.plot(R_omp_B, parmDICT['ZmAxis'], marker='s', markersize=5,
+        plt.plot(R_omp_B, parmDICT['ZmAxis'], marker='s', markersize=7,
                  markerfacecolor='None', mec='orange', mew=2)
-        plt.plot(R_omp_C, parmDICT['ZmAxis'], marker='^', markersize=5,
+        plt.plot(R_omp_C, parmDICT['ZmAxis'], marker='^', markersize=7,
                  markerfacecolor='None', mec='green', mew=2)
         plt.show()
 

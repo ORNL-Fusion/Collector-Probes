@@ -30,8 +30,8 @@ def plot_EFIT_helper(shot, time, probe_tip, levs=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 
     f_Romp = scinter.interp2d(parmDICT['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
     # remap each array from probe location to mag. axis midplane
     alpha_A = 0.521 / 100.0
-    alpha_B = 0.137 / 100.0
-    alpha_C = 0.076 / 100.0
+    alpha_B = 0.0323 / 100.0
+    alpha_C = 0.0168 / 100.0
     lamb = 1.27 / 100.0
     psiN_A = f_psiN(probe_tip+alpha_A, -0.18)
     psiN_B = f_psiN(probe_tip+lamb+alpha_B, -0.1546)
@@ -64,12 +64,12 @@ def plot_EFIT_helper(shot, time, probe_tip, levs=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 
         plt.plot(parmDICT['lcfs'][:, 0], parmDICT['lcfs'][:, 1], 'b', linewidth=2)
         plt.plot(parmDICT['RmAxis'], parmDICT['ZmAxis'], 'b', linewidth=1, marker='+',
                  markersize=10)
-        plt.plot(R_omp_A, parmDICT['ZmAxis'], 'red', linewidth=0.1, marker='o',
-                 markersize=10)
-        plt.plot(R_omp_B, parmDICT['ZmAxis'], 'orange', linewidth=0.1, marker='o',
-                 markersize=10)
-        plt.plot(R_omp_C, parmDICT['ZmAxis'], 'green', linewidth=0.1, marker='o',
-                 markersize=10)
+        plt.plot(R_omp_A, parmDICT['ZmAxis'], marker='o', markersize=5,
+                 markerfacecolor='None', mec='red', mew=2)
+        plt.plot(R_omp_B, parmDICT['ZmAxis'], marker='s', markersize=5,
+                 markerfacecolor='None', mec='orange', mew=2)
+        plt.plot(R_omp_C, parmDICT['ZmAxis'], marker='^', markersize=5,
+                 markerfacecolor='None', mec='green', mew=2)
         plt.show()
 
     dict = {'R_sepA': f_Rs(-0.18), 'R_sepB': f_Rs(-0.1546), 'R_sepC': f_Rs(-0.2054)}

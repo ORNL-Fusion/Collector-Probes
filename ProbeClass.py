@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io as sio
 import warnings
+import csv
 #from __future__ import print_function
 
 
@@ -276,6 +277,24 @@ class Probe():
 
         filename = self.letter.upper() + str(self.number) + 'data.mat'
         sio.savemat(filename, tmp_dict)
+
+    def to_csv(self, filename=None):
+        # Put the R2D2 and Atlas dicts into one.
+        combo_dict = self.r2d2DICT.copy()
+        combo_dict.update(self.atlasDICT)
+
+        # Remove the EFIT data that isn't iterable (Note: Would eventually like
+        # to include this).
+        del(combo_dict['EFIT tree'], combo_dict['EFIT start time'],
+            combo_dict['EFIT end time'], combo_dict['EFIT time step'],
+            combo_dict['r_probe'], combo_dict['shots'])
+
+        if (filename == None):
+            filename = self.letter + str(self.number) + '.csv'
+        with open(filename, 'wb') as f:
+            w = csv.writer(f)
+            w.writerow(combo_dict.keys())
+            w.writerows(zip(*combo_dict.values()))
 
 
 def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, startTime=2500,

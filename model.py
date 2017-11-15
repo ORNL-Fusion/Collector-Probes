@@ -9,9 +9,9 @@ from scipy import interpolate
 import atomic.atomic as atomic
 
 # Probe widths in m
-aSize = 3.0 / 10.0
-bSize = 1.0 / 10.0
-cSize = 0.5 / 10.0
+aSize = 3.0 / 100.0
+bSize = 1.0 / 100.0
+cSize = 0.5 / 100.0
 # Mass of tungsten in eV s^2 m^-2
 massW = 183.84 * 931.49 * 10**6.0 / ((3*10**8.0)**2.0)
 # Mass of Deuterium
@@ -98,7 +98,9 @@ def impur_model(Te=25, Ti=25, ne = 10):
     nWinf = 0.01 * ne * 10**18
     # Flux of W at end of flux tube.
     fluxWinf = nWinf * wSpeed
+    # Estimation for short exposures.
+    imp_dep = fluxWinf * timeOfShot
 
-    
+    # Need Te from LPs
 
-    #return upDens
+    return imp_dep

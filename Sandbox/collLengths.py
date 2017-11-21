@@ -338,8 +338,8 @@ def plotCollLengths(valuesDict):
     plt.show()
 
 
-myDict = putN2dict("167192.1")
-myDict = collectionLengths(myDict)
-myDict = calcCollisionLengths(myDict)
-myDict = calcDeflTime(myDict)
-plotCollLengths(myDict)
+#myDict = putN2dict("167192.1")
+#myDict = collectionLengths(myDict)
+#myDict = calcCollisionLengths(myDict)
+#myDict = calcDeflTime(myDict)
+#plotCollLengths(myDict)

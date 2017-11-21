@@ -22,7 +22,7 @@ chargeW = 74.0
 dPerp = 1.0
 
 # ne in 10^18 m^-2
-def impur_model(Te=25, Ti=25, ne = 10):
+def stange_impur_model(Te=25, Ti=25, ne = 10):
     # Time of shot in s
     timeOfShot = 5.0
 

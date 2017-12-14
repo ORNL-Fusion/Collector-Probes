@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
 import math
+import shawn_model as model
 
 wb = xl.load_workbook("recLPdata.xlsx", data_only=True)
 dataSheet = wb.get_sheet_by_name("Sheet1")
@@ -10,6 +11,7 @@ dataSheet = wb.get_sheet_by_name("Sheet1")
 # Mass of Deuterium in eV s^2 m^-2
 massD = 2.01 * 931.49 * 10**6 / ((3*10**8)**2.0)
 massW = 183.84 * 931.49 * 10**6 / ((3*10**8)**2.0)
+#massW = 15.999 * 931.49 * 10**6 / ((3*10**8)**2.0)
 massElec = 0.511 * 10**6 / ((3*10**8)**2.0)
 massElec_kg = 9.11*10**(-31)
 massD_kg = 2.01 * 1.66*10**(-27)
@@ -27,7 +29,7 @@ cSize = 0.5 / 100.0
 elec = 1.609*10**(-19)
 # Vacuum permittivity
 epsilon = 8.85*10**(-12)
-# Coulumb's constant
+# Coulumb's constant[den * 0.03 for den in densitiesElec]
 coulConst = 8.99 * 10**9
 
 
@@ -112,8 +114,8 @@ def putN2dict(shotANDplunge):
         tempHigh = "BH59"
         rMinRsepLow = "BK3"
         rMinRsepHigh = "BK59"
-    else:
-        return print("Incorrect entry.")
+    #else:
+        #return print("Incorrect entry.")
 
     times = returnArray(timeLow, timeHigh)
     dens  = returnArray(densLow, densHigh)
@@ -138,6 +140,71 @@ def putN2dict(shotANDplunge):
                   "Sound Speeds":soundSpeeds}
 
     return valuesDict
+
+
+def avgAllPlunges():
+    p167192n1 = putN2dict("167192.1")
+    p167192n2 = putN2dict("167192.2")
+    p167193n1 = putN2dict("167193.1")
+    p167193n2 = putN2dict("167193.2")
+    p167194n1 = putN2dict("167194.1")
+    p167194n2 = putN2dict("167194.2")
+    p167195n1 = putN2dict("167195.1")
+    p167195n2 = putN2dict("167195.2")
+
+    plungeList = [p167192n1, p167192n2, p167193n1, p167193n2,
+                  p167194n1, p167194n2, p167195n1, p167195n2]
+
+    # 167195.2 reaches the furthest in. Will use this out to it's outer bound (15.923),
+    # and 167193.2 for the rest of the way (up until 16.124).
+    # OR
+    # R-Rsep range with each contributing is 15.775 - 4.953 cm. This encompasses all
+    # the '2' probe data.
+
+    # Make Te interpolations for each.
+    te_fits = []
+    for plunge in plungeList:
+        fit = interpolate.interp1d(plunge["RminRSeps"], plunge["Temperatures"])
+        te_fits.append(fit)
+
+    # Make ne interpolations for each.
+    ne_fits = []
+    for plunge in plungeList:
+        fit = interpolate.interp1d(plunge["RminRSeps"], plunge["Densities"])
+        ne_fits.append(fit)
+
+    # Find average of Te and ne between 4.953 - 15.775 cm. Put into list.
+    avg_dict = {}
+    avg_dict["RminRSeps"] = np.arange(5.077, 15.775, 0.1)
+
+    tmp_list = []
+    for r in np.arange(5.077, 15.775, 0.1):
+        tmp_sum = 0
+        #print(r)
+        for fit in te_fits:
+            tmp_sum = tmp_sum + fit(r)
+        avg = tmp_sum / 8.0
+        tmp_list.append(avg)
+    avg_dict["Temperatures"] = tmp_list
+
+    ne_list = []
+    for r in np.arange(5.077, 15.775, 0.1):
+        tmp_sum = 0
+        #print(r)
+        for fit in ne_fits:
+            tmp_sum = tmp_sum + fit(r)
+        avg = tmp_sum / 8.0
+        ne_list.append(avg)
+    avg_dict["Densities"] = ne_list
+
+    # Do an average of the sound speeds as well.
+    sound_speeds = []
+    for temp in avg_dict["Temperatures"]:
+        cs = (temp*2 / massD)**0.5
+        sound_speeds.append(cs)
+    avg_dict["Sound Speeds"] = sound_speeds
+
+    return avg_dict
 
 
 def collectionLengths(valuesDict):
@@ -172,10 +239,19 @@ def calcCollisionLengths(valuesDict):
     return valuesDict
 
 def calcDeflTime(valuesDict):
+
+    # Electron density and temperatures.
     densitiesElec = valuesDict["Densities"]
     temps = valuesDict["Temperatures"]
+    # Need an estimate of the carbon and deuterium density.
+    densitiesCarbon = [den * 0.03 for den in densitiesElec]
+    densitiesDeuterium = [den * 0.03 for den in densitiesElec]
+    # Then use these to estimate the tugnsten density where using particle
+    # balance we say: ne = nD + nC/Z_C + nW/Z_W.
+
 
     # Is speed sqrt(2kT/m) or the sound speed? <-- for tungsten
+    # It is the first one.
     speedsW = []
     for index in range(0, len(temps)):
         if temps[index] is None:
@@ -224,7 +300,10 @@ def calcDeflTime(valuesDict):
         elif densitiesElec[index] is None:
             alphas.append(None)
         else:
-            alpha = 3 / (2 * zW * zE * elec**3) * (temps[index]**3 / (3.1415 * densitiesElec[index]))**(1/2)
+            # Need the mean Z of tungsten.
+            tmp = temps[index]
+            meanZofW = model.meanZofTungsten(tmp)
+            alpha = 3 / (2 * meanZofW * zE * elec**3) * (temps[index]**3 / (3.1415 * densitiesElec[index]))**(1/2)
             alphas.append(alpha)
             #print(math.log(alpha))
 
@@ -240,8 +319,10 @@ def calcDeflTime(valuesDict):
             p0s_i.append(None)
         else:
 
-            p0_e = coulConst * zE * zW * elec**2 / (massElec_kg * speedsElec[index]**2)
-            p0_i = coulConst * zD * zW * elec**2 / (massD_kg * speedsD[index]**2)
+            densElec = densitiesElec[index]
+            meanZofTungsten = model.meanZofTungsten(evalTemp=temps[index], density=densElec)
+            p0_e = coulConst * zE * meanZofTungsten * elec**2 / (massElec_kg * speedsElec[index]**2)
+            p0_i = coulConst * zD * meanZofTungsten * elec**2 / (massD_kg * speedsD[index]**2)
             #print(p0_e)
             p0s_e.append(p0_e)
             p0s_i.append(p0_i)
@@ -326,17 +407,25 @@ def plotCollLengths(valuesDict):
     elecCollisionLength = valuesDict["Elec Collision Length"]
     deutCollisionLength = valuesDict["Deut Collision Length"]
 
-    plt.plot(rminrseps, aCollLengths, label="A")
-    plt.plot(rminrseps, bCollLengths, label="B")
-    plt.plot(rminrseps, cCollLengths, label="C")
-    plt.plot(rminrseps, elecCollisionLength, label=r'$L_{e-W}$')
-    plt.plot(rminrseps, deutCollisionLength, label=r'$L_{D^+-W}$')
+    plt.semilogy(rminrseps, aCollLengths, label="A Collection Length")
+    plt.semilogy(rminrseps, bCollLengths, label="B Collection Length")
+    plt.semilogy(rminrseps, cCollLengths, label="C Collection Length")
+    plt.semilogy(rminrseps, elecCollisionLength, label=r'$L_{e-W}$ Collision Length')
+    plt.semilogy(rminrseps, deutCollisionLength, label=r'$L_{D^+-W}$ Collision Length')
     plt.xlabel("R-Rsep (cm)")
-    plt.ylabel("Collection Length (m)")
-    plt.title("Collection Lengths (W at thermal speed)")
+    plt.ylabel("Collection/Collision Length (m)")
+    plt.title("Collection vs. Collision Lengths")
     plt.legend()
     plt.show()
 
+
+def runScript():
+        valuesDict = avgAllPlunges()
+        valuesDict = collectionLengths(valuesDict)
+        valuesDict = calcDeflTime(valuesDict)
+        plotCollLengths(valuesDict)
+
+        return valuesDict
 
 #myDict = putN2dict("167192.1")
 #myDict = collectionLengths(myDict)

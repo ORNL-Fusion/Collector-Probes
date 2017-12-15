@@ -1,6 +1,6 @@
 # This script pulls the divertor langmuir probes and puts them into a dictionary,
 # among other things. It is essentially a python2 translation of the Matlab script
-# get_lp.
+# get_lp. Just import this script and run the function get_dict_of_lps(shot).
 #
 # Author: Shawn Zamperini
 

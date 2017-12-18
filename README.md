@@ -33,7 +33,7 @@ To use these functions import ProbeClass into your python2 session, then call th
 follows:   
 ```
 $ import ProbeClass as Probe  
-$ probeList = Probe.get_multiple(aNumber=2, bNumber=2, cNumber=2, MDStunnel=True)  
+$ probeList = Probe.get_multiple(aNumber=28, bNumber=10, cNumber=10, MDStunnel=True)  
 SSH into R2D2. Press enter when ready...  
 ```
 
@@ -61,7 +61,7 @@ $ ssh -Y -p 2039 -L 8000:atlas.gat.com:8000 username@cybele.gat.com
   
 _Back in the python terminal press enter:_  
 ```
-Analyzing AU2 Data...  
+Analyzing AU28 Data...  
 Shot: 167196  
 Time: 2500  
   
@@ -79,7 +79,7 @@ $ probeList[1].letter
 $ probeList[2].letter  
 'C'  
 $ probeList[0].number  
-2  
+28  
 $ probeList[0].plot_norm()
 ```
 
@@ -107,7 +107,7 @@ $ probeList[0].to_matlab()
 ```
 _Save the data to a matlab file. Useful for the curve fitting tool. You can also export to .csv:_
 ```
-$ probeList[0].to_csv(filename="A2_rbs_data")
+$ probeList[0].to_csv(filename="A28_rbs_data")
 ```
 
 ------------------------------------------------------------------------------------------------------------------

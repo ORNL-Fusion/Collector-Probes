@@ -1,6 +1,7 @@
 import get_lp as lp
 import shawn_model as model
 import compareLPtoTS_psiN as comp
+import HModeTest as test
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,14 +50,19 @@ for lp_name in lp_dict.keys():
     psin_list.append(avgPsin)
     te_list.append(avgTemp)
 
+ts_data = test.loadOMFITdata([167192])
+
 plungeLPpsin = plunge_dict["LPpsiNs"]
 plungeLPtemps = plunge_dict["LPtemps"][:61]
 
+plt.plot(ts_data[0], ts_data[1], label="Core Thomson")
 plt.plot(psin_list, te_list, ".", label="Divertor")
 plt.plot(plungeLPpsin, plungeLPtemps, label="Plunging")
-plt.title("Divertor vs. Plunging LPs Shot #167192")
+plt.title("Comparison of Te Measurements Mapped to Midplane Shot #167192")
 plt.xlabel(r"$\psi_N$")
 plt.ylabel(r"$\mathrm{T_e\ (eV)}$")
+plt.xlim([0.9, 1.4])
+plt.ylim([0,50])
 plt.legend()
 plt.text(1,1,"Divertor avg. from 1900-2000 ms")
 

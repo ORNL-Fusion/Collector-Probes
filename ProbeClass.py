@@ -147,6 +147,8 @@ class Probe():
         rminrsep_err_D     = []
         rminrsep_omp_D     = []
         rminrsep_omp_err_D = []
+        psiN_U             = []
+        psiN_D             = []
 
         # Get the Rsep data from EFIT and perform necessary operations in the
         # get_Rsep file.
@@ -179,6 +181,7 @@ class Probe():
             rminrsep_err_U.append(avg_dict_U[probe_name.lower() + '_err'][str(loc)])
             rminrsep_omp_U.append(avg_dict_U[probe_name.lower() + '_omp'][str(loc)])
             rminrsep_omp_err_U.append(avg_dict_U[probe_name.lower() + '_omp_err'][str(loc)])
+            psiN_U.append(avg_dict_U[probe_name.lower() + '_psiN'][str(loc)])
 
         probe_name = self.letter + 'D'
         for loc in self.r2d2DICT['locations_D']:
@@ -187,18 +190,21 @@ class Probe():
             rminrsep_err_D.append(avg_dict_D[probe_name.lower() + '_err'][str(loc)])
             rminrsep_omp_D.append(avg_dict_D[probe_name.lower() + '_omp'][str(loc)])
             rminrsep_omp_err_D.append(avg_dict_D[probe_name.lower() + '_omp_err'][str(loc)])
+            psiN_D.append(avg_dict_D[probe_name.lower() + '_psiN'][str(loc)])
 
         # Create atlas dictionary and store it in the class.
         self.atlasDICT = {'EFIT tree': EFIT, "EFIT start time": startTime,
                           'EFIT end time': endTime, 'EFIT time step': step,
-                          'rminrsep_U': np.array(rminrsep_U),
-                          'rminrsep_err_U': np.array(rminrsep_err_U),
-                          'rminrsep_omp_U': np.array(rminrsep_omp_U),
+                          'rminrsep_U':         np.array(rminrsep_U),
+                          'rminrsep_err_U':     np.array(rminrsep_err_U),
+                          'rminrsep_omp_U':     np.array(rminrsep_omp_U),
                           'rminrsep_omp_err_U': np.array(rminrsep_omp_err_U),
-                          'rminrsep_D': np.array(rminrsep_D),
-                          'rminrsep_err_D': np.array(rminrsep_err_D),
-                          'rminrsep_omp_D': np.array(rminrsep_omp_D),
-                          'rminrsep_omp_err_D': np.array(rminrsep_omp_err_D)}
+                          'psiN_D':             np.array(psiN_D),
+                          'rminrsep_D':         np.array(rminrsep_D),
+                          'rminrsep_err_D':     np.array(rminrsep_err_D),
+                          'rminrsep_omp_D':     np.array(rminrsep_omp_D),
+                          'rminrsep_omp_err_D': np.array(rminrsep_omp_err_D),
+                          'psiN_U':             np.array(psiN_U)}
 
     # Plot the R - Rsep data. The limit flag is to match up with the omp graph.
     # For whatever reason the last ~6 points are garbage-like. Something with

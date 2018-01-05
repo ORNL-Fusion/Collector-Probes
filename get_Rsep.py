@@ -268,7 +268,9 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
                 # each probe.
                 rminrsep_values = {'ad': [], 'au': [], 'bd': [], 'bu': [], 'cd': [], 'cu': [],
                                    'ad_omp': [], 'au_omp': [], 'bd_omp': [], 'bu_omp': [],
-                                   'cd_omp': [], 'cu_omp': []}
+                                   'cd_omp': [], 'cu_omp': [],
+                                   'ad_psiN': [], 'au_psiN': [], 'bd_psiN': [], 'bu_psiN': [],
+                                   'cd_psiN': [], 'cu_psiN': []}
                 rminrsep_values['ad'].append(rad_pos['ad'] - rSep['a'])
                 rminrsep_values['au'].append(rad_pos['au'] - rSep['a'])
                 rminrsep_values['bd'].append(rad_pos['bd'] - rSep['b'])
@@ -284,6 +286,14 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
                 rminrsep_values['cd_omp'].append(rad_pos['cd_omp'] - rSep_omp)
                 rminrsep_values['cu_omp'].append(rad_pos['cu_omp'] - rSep_omp)
 
+                # Also store in the psiN values.
+                rminrsep_values["ad_psiN"].append(psiN_AD)
+                rminrsep_values["au_psiN"].append(psiN_AU)
+                rminrsep_values["bd_psiN"].append(psiN_BD)
+                rminrsep_values["bu_psiN"].append(psiN_BU)
+                rminrsep_values["cd_psiN"].append(psiN_CD)
+                rminrsep_values["cu_psiN"].append(psiN_CU)
+
                 # Store in dictionary so these values can be used outside location loop.
                 tmp_dict[str(shot)][str(time)][str(location)] = rminrsep_values
 
@@ -292,11 +302,12 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
             count += 1
             print("\r")
         #print("\n\n")
-    # Create dictionaries to hold all the r-rep values and the averages.
+    # Create dictionaries to hold all the r-rsep values and the averages.
     all_rminrsep = {}
     avg_rminrsep = {}
     probe_list = ['ad', 'au', 'bd', 'bu', 'cd', 'cu',
-                  'ad_omp', 'au_omp', 'bd_omp', 'bu_omp', 'cd_omp', 'cu_omp']
+                  'ad_omp', 'au_omp', 'bd_omp', 'bu_omp', 'cd_omp', 'cu_omp',
+                  'ad_psiN', 'au_psiN', 'bd_psiN', 'bu_psiN', 'cd_psiN', 'cu_psiN']
     for probe in probe_list:
         all_rminrsep[probe] = {}
         avg_rminrsep[probe] = {}

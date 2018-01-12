@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
 import math
-import shawn_model as model
+#import shawn_model as model
 
 wb = xl.load_workbook("recLPdata.xlsx", data_only=True)
 dataSheet = wb.get_sheet_by_name("Sheet1")
@@ -15,10 +15,11 @@ massW = 183.84 * 931.49 * 10**6 / ((3*10**8)**2.0)
 massElec = 0.511 * 10**6 / ((3*10**8)**2.0)
 massElec_kg = 9.11*10**(-31)
 massD_kg = 2.01 * 1.66*10**(-27)
+massW_kg = 183.84 * 1.66*10**(-27)
 # Z of each element.
 zD = 1.0
 zE = 1.0
-zW = 1.0
+zW = 5.5
 # Perpendicular diffusion in m^2 s^-1
 dPerp = 1.0
 # Probe widths in m
@@ -404,31 +405,86 @@ def plotCollLengths(valuesDict):
     aCollLengths = valuesDict["A Collection Lengths"]
     bCollLengths = valuesDict["B Collection Lengths"]
     cCollLengths = valuesDict["C Collection Lengths"]
-    elecCollisionLength = valuesDict["Elec Collision Length"]
-    deutCollisionLength = valuesDict["Deut Collision Length"]
+    deutCollisionLength = valuesDict["Stacey Lengths"]
+    #elecCollisionLength = valuesDict["Elec Collision Length"]
+    #deutCollisionLengthSpit = valuesDict["Deut Collision Length"]
 
-    plt.semilogy(rminrseps, aCollLengths, label="A Collection Length")
-    plt.semilogy(rminrseps, bCollLengths, label="B Collection Length")
-    plt.semilogy(rminrseps, cCollLengths, label="C Collection Length")
-    plt.semilogy(rminrseps, elecCollisionLength, label=r'$L_{e-W}$ Collision Length')
+    plt.semilogy(rminrseps, aCollLengths, label="A2")
+    plt.semilogy(rminrseps, bCollLengths, label="B2")
+    plt.semilogy(rminrseps, cCollLengths, label="C2")
+    #plt.semilogy(rminrseps, deutCollisionLengthSpit, label=r'$L_{D^+-W}$ Collision Length Spit')
     plt.semilogy(rminrseps, deutCollisionLength, label=r'$L_{D^+-W}$ Collision Length')
     plt.xlabel("R-Rsep (cm)")
-    plt.ylabel("Collection/Collision Length (m)")
-    plt.title("Collection vs. Collision Lengths")
+    plt.ylabel("Perturbation Length (m)")
+    plt.title("'2' Probes Perturbation Lengths")
     plt.legend()
     plt.show()
 
 
+def staceyDeflLengths(valuesDict):
+    reduced_mass = massW_kg * massD_kg / (massW_kg + massD_kg)
+    print reduced_mass
+    ln_alpha = 15
+
+    lp_temps = valuesDict["Temperatures"]
+    lp_dens = valuesDict["Densities"]
+
+    # Time between deflections in the CM.
+    defl_times_cm = np.array([])
+    for index in range(0, len(lp_temps)):
+        tmp_temp = lp_temps[index]
+        tmp_dens = lp_dens[index]
+        tmp_time_cm = 2 * 3.1415 * math.sqrt(reduced_mass) * epsilon**2 * (3 * tmp_temp)**(1.5) / (tmp_dens * (zD * elec * zW * elec)**2 * ln_alpha)
+        defl_times_cm = np.append(defl_times_cm, tmp_time_cm)
+
+    # To make unit works need to multiply by (1.609x10^18)^3/2
+    defl_times_cm = defl_times_cm * (elec**(1.5))
+
+    valuesDict["Stacey Times CM"] = defl_times_cm
+
+    # But we want the time between deflections in the LAB frame.
+    defl_times_lab = defl_times_cm * (massW / massD)
+    valuesDict["Stacey Times Lab"] = defl_times_lab
+
+    # Electron temperatures.
+    temps = valuesDict["Temperatures"]
+
+    # Speed of tungsten assuming Tw = Ti = Te.
+    fudge_factor = 1.0
+    speedsW = []
+    for index in range(0, len(temps)):
+        if temps[index] is None:
+            speedsW.append(None)
+        else:
+            tmp = (2 * temps[index] * fudge_factor / massW)**(0.5)
+            speedsW.append(tmp)
+    valuesDict["W Speeds"] = speedsW
+
+    # Deflection length is just speed * time between deflections.
+    defl_lengths = np.array([])
+    for index in range(0, len(defl_times_lab)):
+        tmp_time = defl_times_lab[index]
+        tmp_speed = speedsW[index]
+        tmp_length = tmp_time * tmp_speed
+        defl_lengths = np.append(defl_lengths, tmp_length)
+
+    valuesDict["Stacey Lengths"] = defl_lengths
+
+    return valuesDict
+
 def runScript():
-        valuesDict = avgAllPlunges()
-        valuesDict = collectionLengths(valuesDict)
-        valuesDict = calcDeflTime(valuesDict)
-        plotCollLengths(valuesDict)
+    # Get the average plunging LP data.
+    valuesDict = avgAllPlunges()
 
-        return valuesDict
+    # Get the collection lengths of the probes.
+    valuesDict = collectionLengths(valuesDict)
 
-#myDict = putN2dict("167192.1")
-#myDict = collectionLengths(myDict)
-#myDict = calcCollisionLengths(myDict)
-#myDict = calcDeflTime(myDict)
-#plotCollLengths(myDict)
+    # Get the Spitzer deflection lengths
+    #valuesDict = calcDeflTime(valuesDict)
+
+    # Get the Stacey collision lengths.
+    valuesDict = staceyDeflLengths(valuesDict)
+
+    plotCollLengths(valuesDict)
+
+    return valuesDict

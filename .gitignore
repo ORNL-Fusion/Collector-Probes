@@ -1,10 +1,2 @@
 
-*.xlsx#
-
-A2\.xlsx
-
-Sandbox/EFIT
-
-Sandbox/atomic
-
-atomic
+__init__\.py

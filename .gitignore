@@ -2,3 +2,15 @@
 __init__\.py
 
 *.pyc
+
+*.xlsx
+
+*.csv
+
+*.xlsx#
+
+Sandbox/atomic
+
+Sandbox/EFIT
+
+atomic

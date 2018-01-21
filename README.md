@@ -65,10 +65,10 @@ $ ssh -Y -p 2039 -L 8000:atlas.gat.com:8000 username@cybele.gat.com
 _Back in the python terminal press enter:_  
 ```
 Analyzing AU28 Data...  
-Shot: 167196  
+Shot: 167405  
 Time: 2500  
   
-Shot: 167196  
+Shot: 167405  
 Time: 3000  
   
 ...  

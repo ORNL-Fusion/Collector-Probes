@@ -108,10 +108,15 @@ _You can use these two lists to plot W areal density vs. R-Rsep for example._
 ```
 $ probeList[0].to_matlab()
 ```
-_Save the data to a matlab file. Useful for the curve fitting tool. You can also export to .csv:_
+_Save the data to a matlab file. Useful for the curve fitting tool. You can also export to a .csv file:_
 ```
 $ probeList[0].to_csv(filename="A28_rbs_data")
 ```
+_ You can also export to an HDF5 file:_
+```
+$ Probe.dump2HDF5(probeList)
+```
+_Note that this requires the hickle package. It can be installed with "pip install hickle"._
 
 ------------------------------------------------------------------------------------------------------------------
   

@@ -112,7 +112,7 @@ _Save the data to a matlab file. Useful for the curve fitting tool. You can also
 ```
 $ probeList[0].to_csv(filename="A28_rbs_data")
 ```
-_ You can also export to an HDF5 file:_
+_You can also export to an HDF5 file:_
 ```
 $ Probe.dump2HDF5(probeList)
 ```

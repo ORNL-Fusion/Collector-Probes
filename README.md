@@ -6,9 +6,11 @@ python2.
 **ProbeClass.py**
 
     Highest level program that incorporates the others. Most users will use this script to access the data. 
+    
 **meas\_locations.py**
 
-    Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py.   
+    Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py. 
+    
 **pull\_data\_dp.py**
     Pulls RBS data from the MDS+ tree on the R2D2 server.  
 **get\_Rsep.py**

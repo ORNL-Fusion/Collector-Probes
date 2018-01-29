@@ -323,8 +323,9 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
         cProbe = Probe('C', int(cNumber))
         pList.append(cProbe)
 
-    # Get the R2D2 data.
-    raw_input("SSH into R2D2. Press enter when finished...")
+    # Get the R2D2 data. No need to wait for SSH if not tunneling.
+    if MDStunnel is True:
+        raw_input("SSH into R2D2. Press enter when finished...")
     if MDStunnel:
         server = 'localhost'
     else:
@@ -333,7 +334,8 @@ def get_multiple(aNumber=None, bNumber=None, cNumber=None, MDStunnel=False, star
         p.r2d2(server=server)
 
     # Get the Atlas data.
-    raw_input("SSH into Atlas. Press enter when finished...")
+    if MDStunnel is True:
+        raw_input("SSH into Atlas. Press enter when finished...")
     for p in pList:
         if MDStunnel:
             server = 'localhost'

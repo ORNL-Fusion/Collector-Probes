@@ -14,8 +14,10 @@ python2.
                    ```
                    $ ln -s /path/to/EFIT
                    ```
+                   
 **get\_avgZmag\_and\_rsep.py** - Returns a dictionary of the average Z of the magnetic axis and Rsep. Consider this as a 
 lite version of get\_Rsep.py
+
 **get\_lp.py** - Returns dictionary of the divertor Langmuir probes for a shot. 
   
 The highest level program is ProbeClass.py, and the main function used is "get\_multiple". This function will return a list 

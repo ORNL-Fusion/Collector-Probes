@@ -119,7 +119,7 @@ $ Probe.dump2HDF5(probeList)
 _Note that this requires the hickle package. It can be installed with "pip install hickle"._
 
 ------------------------------------------------------------------------------------------------------------------
-# Cloning the Repositories on Iris
+**Cloning the Repositories on Iris**
 
 Cloning the repositories to Iris is not as straightforward as cloning to your local machine. It requires adding a new
 ssh key to your github account. The instructions located here worked for me:

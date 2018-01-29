@@ -3,15 +3,23 @@
 These are files related to the creation and accessing of the deposition probe MDSplus tree. Everything is written in
 python2. 
 
-**ProbeClass.py** - Highest level program that incorporates the others. Most users will use this script to access the data. 
-**meas\_locations.py** - Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py.   
-**pull\_data\_dp.py** - Pulls RBS data from the MDS+ tree on the R2D2 server.  
-**get\_Rsep.py** - Uses meas\_locations and load\_gfile\_d3d from the EFIT github repository to find the average R-Rsep and
-                   R\_omp - Rsep\_omp using EFIT. One option is putting a soft link to your local EFIT repository in your
-                   Collector-Probes folder:
-                   ```
-                   $ ln -s /path/to/EFIT
-                   ```
+**ProbeClass.py**
+    Highest level program that incorporates the others. Most users will use this script to access the data. 
+**meas\_locations.py**
+    Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py.   
+**pull\_data\_dp.py**
+    Pulls RBS data from the MDS+ tree on the R2D2 server.  
+**get\_Rsep.py**
+    Uses meas\_locations and load\_gfile\_d3d from the EFIT github repository to find the average R-Rsep and
+    R\_omp - Rsep\_omp using EFIT. One option is putting a soft link to your local EFIT repository in your
+    Collector-Probes folder:
+    ```
+    $ ln -s /path/to/EFIT
+    ```
+**get\_avgZmag\_and\_rsep.py**
+    Returns a dictionary of the average Z of the magnetic axis and Rsep. Consider this as a lite version of get\_Rsep.py
+**get\_lp.py**
+    Returns dictionary of the divertor Langmuir probes for a shot. 
   
 The highest level program is ProbeClass.py, and the main function used is "get\_multiple". This function will return a list 
 of up three probes (an A, B, and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The

@@ -13,7 +13,7 @@ python2.
                    $ ln -s /path/to/EFIT
                    ```
   
-The highest level program is ProbeClass.py, and the main function used is "get\_multiple". This function will return a list
+The highest level program is ProbeClass.py, and the main function used is "get\_multiple". This function will return a list 
 of up three probes (an A, B, and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The
 Probe class includes two dictionaries: one with data from the R2D2 server, and another with data analyzed using EFIT on
 atlas. The parameters passed to get\_multiple are:
@@ -118,6 +118,15 @@ $ Probe.dump2HDF5(probeList)
 ```
 _Note that this requires the hickle package. It can be installed with "pip install hickle"._
 
+------------------------------------------------------------------------------------------------------------------
+# Cloning the Repositories on Iris
+
+Cloning the repositories to Iris is not as straightforward as cloning to your local machine. It requires adding a new
+ssh key to your github account. The instructions located here worked for me:
+https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account/
+where Step 1 (the one with xclip) is being run on Iris. You then copy that key to your account. Then in order to clone
+the EFIT and Collector-Probe repositories, you run "git clone [Clone With SSH Link]" on Iris. Don't forget to add the
+soft link to EFIT inside the Collector-Probe directory (or clone EFIT directly into it). 
 ------------------------------------------------------------------------------------------------------------------
   
 Email any questions to Shawn Zamperini at zamp@utk.edu.

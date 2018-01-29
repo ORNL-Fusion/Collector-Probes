@@ -122,9 +122,9 @@ _Note that this requires the hickle package. It can be installed with "pip insta
 # Cloning the Repositories on Iris
 
 Cloning the repositories to Iris is not as straightforward as cloning to your local machine. It requires adding a new
-ssh key to your github account. The instructions located here worked for me
+ssh key to your github account. The instructions located here worked for me:
 
-(Adding new SSH Key Instructions)[https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account/]
+[Adding new SSH Key Instructions](https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account/)
 
 where Step 1 (the one with xclip) is being run on Iris. You then copy that key to your account. Then in order to clone
 the EFIT and Collector-Probe repositories, you run 'git clone \[Clone With SSH Link\]' on Iris. Don't forget to add the

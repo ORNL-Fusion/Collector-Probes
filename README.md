@@ -8,6 +8,7 @@ python2.
 **meas\_locations.py** - Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py. 
     
 **pull\_data\_dp.py** - Pulls RBS data from the MDS+ tree on the R2D2 server.  
+
 **get\_Rsep.py** - Uses meas\_locations and load\_gfile\_d3d from the EFIT github repository to find the average R-Rsep and
                    R\_omp - Rsep\_omp using EFIT. One option is putting a soft link to your local EFIT repository in your
                    Collector-Probes folder:

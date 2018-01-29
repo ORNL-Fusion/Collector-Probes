@@ -119,15 +119,15 @@ $ Probe.dump2HDF5(probeList)
 _Note that this requires the hickle package. It can be installed with "pip install hickle"._
 
 ------------------------------------------------------------------------------------------------------------------
-**Cloning the Repositories on Iris**
+# Cloning the Repositories on Iris
 
 Cloning the repositories to Iris is not as straightforward as cloning to your local machine. It requires adding a new
 ssh key to your github account. The instructions located here worked for me:
 
-https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account/
+(Adding new SSH Key Instructions)[https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account/]
 
 where Step 1 (the one with xclip) is being run on Iris. You then copy that key to your account. Then in order to clone
-the EFIT and Collector-Probe repositories, you run "git clone Clone With SSH Link" on Iris. Don't forget to add the
+the EFIT and Collector-Probe repositories, you run 'git clone \[Clone With SSH Link\]' on Iris. Don't forget to add the
 soft link to EFIT inside the Collector-Probe directory (or clone EFIT directly into it). 
 ------------------------------------------------------------------------------------------------------------------
   

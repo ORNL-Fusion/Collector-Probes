@@ -102,17 +102,11 @@ def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     return simmsDF
 
 
-def getCPenrichment(fileNAM="AU17.xlsx", shNAM='TriPlot', rowSTART=2,
-                    enrichCOLS=[1, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-                    rbsCOLS=[20, 21, 22, 24, 25, 26]):
-
-    # Obtain the data
-    enrichDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=enrichCOLS,
-                             index_col=[0], engine='xlrd')
-    rbsDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=rbsCOLS,
-                          skip_footer=360, engine='xlrd')
+def getCPenrichment(fileNAM="AU32_dict.csv"):
+    enrichDF = pd.read_csv(fileNAM,  index_col=[0], usecols=[1,14,15,16,17,18,19,20,21,22,23])
     enrichDF.DFname = fileNAM[0:4]
-    return rbsDF, enrichDF
+    enrichDF.columns = ['W180R', 'W180 error', 'W182R', 'W182 error', 'W183R', 'W183 error', 'W184R', 'W184 error', 'W186R', 'W186 error']
+    return enrichDF
 
 
 def pltCPenrichment(DF):

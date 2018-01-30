@@ -7,10 +7,10 @@ def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     STANDdic = makSTANDARDS()
 
     # Now what through the analysis for each ratio
-    Rprob_8082 = pd.Series(data=enrichDF['W180R']/enrichDF['W182R'],
+    Rprob_8082 = pd.Series(data=enrichDF['EF180']/enrichDF['EF182'],
                            index=enrichDF.index)
-    Rprob_8082_err = Rprob_8082 * np.sqrt((enrichDF['W180 error'] / enrichDF['W180R'])**2 +
-                                          (enrichDF['W182 error'] / enrichDF['W182R'])**2)
+    Rprob_8082_err = Rprob_8082 * np.sqrt((enrichDF['EF180err'] / enrichDF['EF180'])**2 +
+                                          (enrichDF['EF182err'] / enrichDF['EF182'])**2)
     delW_probe_8082 = (Rprob_8082/STANDdic['Rnist_8082']) - 1.
     err_delW_probe_8082 = delW_probe_8082*np.sqrt((Rprob_8082_err / Rprob_8082)**2 +
                                                   (STANDdic['err_Rnist_8082'] /
@@ -24,10 +24,10 @@ def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
                                           STANDdic['delW_shelf_8082'])**2)
     Ffloor_8082 = 1 - Fshelf_8082 - BGfrac
 
-    Rprob_8382 = pd.Series(data=enrichDF['W183R']/enrichDF['W182R'],
+    Rprob_8382 = pd.Series(data=enrichDF['EF183']/enrichDF['EF182'],
                            index=enrichDF.index)
-    Rprob_8382_err = Rprob_8382 * np.sqrt((enrichDF['W183 error'] / enrichDF['W183R'])**2 +
-                                          (enrichDF['W182 error'] / enrichDF['W182R'])**2)
+    Rprob_8382_err = Rprob_8382 * np.sqrt((enrichDF['EF183err'] / enrichDF['EF183'])**2 +
+                                          (enrichDF['EF182err'] / enrichDF['EF182'])**2)
     delW_probe_8382 = (Rprob_8382/STANDdic['Rnist_8382']) - 1.
     err_delW_probe_8382 = delW_probe_8382*np.sqrt((Rprob_8382_err / Rprob_8382)**2 +
                                                   (STANDdic['err_Rnist_8382'] /
@@ -41,9 +41,9 @@ def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
                                           STANDdic['delW_shelf_8382'])**2)
     Ffloor_8382 = 1 - Fshelf_8382 - BGfrac
 
-    Rprob_8482 = enrichDF['W184R']/enrichDF['W182R']
-    Rprob_8482_err = Rprob_8482 * np.sqrt((enrichDF['W184 error'] / enrichDF['W184R'])**2 +
-                                          (enrichDF['W182 error'] / enrichDF['W182R'])**2)
+    Rprob_8482 = enrichDF['EF184']/enrichDF['EF182']
+    Rprob_8482_err = Rprob_8482 * np.sqrt((enrichDF['EF184err'] / enrichDF['EF184'])**2 +
+                                          (enrichDF['EF182err'] / enrichDF['EF182'])**2)
     delW_probe_8482 = (Rprob_8482/STANDdic['Rnist_8482']) - 1.
     err_delW_probe_8482 = delW_probe_8482*np.sqrt((Rprob_8482_err / Rprob_8482)**2 +
                                                   (STANDdic['err_Rnist_8482'] /
@@ -57,9 +57,9 @@ def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
                                           STANDdic['delW_shelf_8482'])**2)
     Ffloor_8482 = 1 - Fshelf_8482 - BGfrac
 
-    Rprob_8682 = enrichDF['W186R']/enrichDF['W182R']
-    Rprob_8682_err = Rprob_8682 * np.sqrt((enrichDF['W186 error'] / enrichDF['W186R'])**2 +
-                                          (enrichDF['W182 error'] / enrichDF['W182R'])**2)
+    Rprob_8682 = enrichDF['EF186']/enrichDF['EF182']
+    Rprob_8682_err = Rprob_8682 * np.sqrt((enrichDF['EF186err'] / enrichDF['EF186'])**2 +
+                                          (enrichDF['EF182err'] / enrichDF['EF182'])**2)
     delW_probe_8682 = (Rprob_8682/STANDdic['Rnist_8682']) - 1.
     err_delW_probe_8682 = delW_probe_8682*np.sqrt((Rprob_8682_err / Rprob_8682)**2 +
                                                   (STANDdic['err_Rnist_8682'] /
@@ -102,22 +102,26 @@ def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     return simmsDF
 
 
-def getCPenrichment(fileNAM="AU17.xlsx", shNAM='TriPlot', rowSTART=2,
-                    enrichCOLS=[1, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-                    rbsCOLS=[20, 21, 22, 24, 25, 26]):
+def getCPenrichment(fileNAM="AU17_dict.csv", datFOLDpath='/.'):
 
     # Obtain the data
-    enrichDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=enrichCOLS,
-                             index_col=[0], engine='xlrd')
+    useCOLS = [1, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    enrichDF = pd.read_csv(datFOLDpath+fileNAM, index_col=0, usecols=useCOLS)
+    # enrichDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=enrichCOLS,
+                             # index_col=[0], engine='xlrd')
+    enrichDF.DFname = fileNAM[0:4]
+    return enrichDF
+
+
+def makRBS_DF(fileNAM, rbsCOLS=[20, 21, 22, 24, 25, 26]):
     rbsDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=rbsCOLS,
                           skip_footer=360, engine='xlrd')
-    enrichDF.DFname = fileNAM[0:4]
-    return rbsDF, enrichDF
+    return rbsDF
 
 
 def pltCPenrichment(DF):
-    nams = ['W180R', 'W182R', 'W183R', 'W184R', 'W186R']
-    namsERR = ['W180 error', 'W182 error', 'W183 error', 'W184 error', 'W186 error']
+    nams = ['EF180', 'EF182', 'EF183', 'EF184', 'EF186']
+    namsERR = ['EF180err', 'EF182err', 'EF183err', 'EF184err', 'EF186err']
 
     ax = DF.plot(y=nams[0], yerr=namsERR[0], logy=True, ylim=(0.0001, 1.0), marker='o',
                  linestyle='None', ms=3, mfc='none', alpha=0.5)

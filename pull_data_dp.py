@@ -42,7 +42,7 @@ def pull_rbs_wCounts(conn, probe, run):
         wcounts = conn.get(path).data()
         return wcounts
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_shots(conn, probe):
@@ -63,9 +63,9 @@ def pull_rbs_loc(conn, probe, run):
             loc = conn.get(path).data()
             return loc
         except:
-            print "No data for run  " + str(run) + "."
+            print("No data for run  " + str(run) + ".")
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_rbs_microcol(conn, probe, run):
@@ -78,7 +78,7 @@ def pull_rbs_microcol(conn, probe, run):
         micro = conn.get(path).data()
         return micro
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_rbs_areal(conn, probe, run):
@@ -91,7 +91,7 @@ def pull_rbs_areal(conn, probe, run):
         areal = conn.get(path).data()
         return areal
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_rbs_areal_err(conn, probe, run):
@@ -104,7 +104,7 @@ def pull_rbs_areal_err(conn, probe, run):
         areal_err = conn.get(path).data()
         return areal_err
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_rbs_ref_au_counts(conn):
@@ -146,7 +146,7 @@ def pull_standard_conc(conn, probe, loc, stan):
         stan_conc = conn.get(path).data()
         return stan_conc
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_conc(conn, probe, loc, spectrum):
@@ -155,7 +155,7 @@ def pull_conc(conn, probe, loc, spectrum):
         conc = conn.get(path).data()
         return conc
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 def pull_icpms_pos(conn, probe, loc):
@@ -164,7 +164,7 @@ def pull_icpms_pos(conn, probe, loc):
         position = conn.get(path).data()
         return position
     else:
-        print "Incorrect probe entry"
+        print("Incorrect probe entry")
 
 
 # Note these last two require the tree, not the connection.
@@ -174,7 +174,7 @@ def pull_icpms_signal(conn, probe, spectrum, loc):
         raw_sig = conn.get('_s = '+path+', raw_of(_s)').data()
         return raw_sig
     else:
-        print "Incorrect probe entry"
+        print("Incorrect probe entry")
 
 
 def pull_standard_data(conn, probe, loc, stan):
@@ -183,7 +183,7 @@ def pull_standard_data(conn, probe, loc, stan):
         raw_sig = conn.get('_s = '+path+', raw_of(_s)').data()
         return raw_sig
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 # The functions you care about.
@@ -216,7 +216,7 @@ def rbs_dict(probe, probe_number, run, server='r2d2.gat.com'):
         return rbs_dict
 
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 # Get all relevant icpms data.
@@ -248,7 +248,7 @@ def icpms_dict(probe, probe_number, loc_number, spectrum_number, stan_number):
         return icpms_dict
 
     else:
-        print "Incorrect probe entry."
+        print("Incorrect probe entry.")
 
 
 # Get a dict involving the relevant rbs data for plotting. Only uses thin
@@ -275,7 +275,7 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
 
         for run in range(1, 1000):
             try:
-                print "Run " + str(run)
+                print("Run " + str(run))
                 # Read location, then convert from mm to cm.
                 loc = pull_rbs_loc(conn, probe, run) / 10.0
                 areal = pull_rbs_areal(conn, probe, run)
@@ -287,7 +287,7 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
                 rbs_dict['rbs w counts'].append(counts)
 
             except:
-                print "Broke at run " + str(run)
+                print("Broke at run " + str(run))
                 break
 
         # Use loc to get corresponding r-rsep value.
@@ -305,7 +305,7 @@ def rbs_profile_dict(probe, probe_number, server='r2d2.gat.com'):
         return rbs_dict
 
     else:
-            print "Incorrect probe entry."
+            print("Incorrect probe entry.")
 
 
 def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_step=500.,
@@ -341,10 +341,10 @@ def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_st
 
         for run in range(1, 1000):
             try:
-                print "Run " + str(run)
+                print("Run " + str(run))
                 # Convert mm to cm.
                 loc = pull_rbs_loc(conn, probe, run) / 10.0
-                print "Loc: " + str(loc)
+                print("Loc: " + str(loc))
                 areal = pull_rbs_areal(conn, probe, run)
                 areal_err = pull_rbs_areal_err(conn, probe, run)
                 counts = pull_rbs_wCounts(conn, probe, run)
@@ -356,7 +356,7 @@ def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_st
                 rbs_dict['rbs raw spectrum'].append(raw)
 
             except:
-                print "Broke at run " + str(run)
+                print("Broke at run " + str(run))
                 break
 
         # Use loc to get corresponding r-rsep value.
@@ -379,4 +379,4 @@ def rbs_profile_dict_all(probe, probe_number, R_tstart=2500., R_tend=5000., R_st
         return rbs_dict
 
     else:
-            print "Incorrect probe entry."
+            print("Incorrect probe entry.")

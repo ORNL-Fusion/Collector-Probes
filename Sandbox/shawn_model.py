@@ -2,14 +2,15 @@
 # basis is net_flux = maxFlux - loss_flux, where loss_flux is due to sputtering.
 
 
-from __future__ import print_function
-import numpy as np
-import openpyxl as xl
-import collLengths as coll
-import scipy.integrate as integrate
+from __future__     import print_function
+from scipy          import interpolate
+from scipy.optimize import curve_fit
+import numpy             as np
+import openpyxl          as xl
+import collLengths       as coll
+import scipy.integrate   as integrate
 import math
-import atomic.atomic as atomic
-from scipy import interpolate
+import atomic.atomic     as atomic
 import matplotlib.pyplot as plt
 
 
@@ -18,13 +19,16 @@ import matplotlib.pyplot as plt
 aSize = 3.0 / 100.0
 bSize = 1.0 / 100.0
 cSize = 0.5 / 100.0
-# Mass of tungsten in eV s^2 m^-2
-massW = 183.84 * 931.49 * 10**6.0 / ((3*10**8.0)**2.0)
-# Mass of Deuterium
-massD = 2.01 * 931.49 * 10**6 / ((3*10**8)**2.0)
-# Charge state of tungsten and deuterium
-chargeW = 74.0
-chargeD = 1.0
+# Mass of tungsten, deuterium, iron and carbon in eV s^2 m^-2
+massW  = 183.84 * 931.49 * 10**6.0 / ((3*10**8.0)**2.0)
+massD  = 2.01 * 931.49 * 10**6 / ((3*10**8)**2.0)
+massFe = 55.85 * 931.49 * 10**6 / ((3*10**8)**2.0)
+massC  = 12.01 * 931.49 * 10**6 / ((3*10**8)**2.0)
+# Z of elements.
+chargeW  = 74.0
+chargeD  = 1.0
+chargeFe = 26.0
+chargeC  = 12.0
 # Perpendicular diffusion in m^2 s^-1
 dPerp = 1.0
 # Approx U_0 as the heat of sublimation of tungsten in eV
@@ -98,7 +102,39 @@ def sputt_flux(ne=10**18, Ti=25.0, Te=25.0):
     func = lambda E: 0.528 * alpha * chargeD * (massD / (u0*(massD + massW))) * 0.059 * (E+3*Ti) ** (1.0/3.0) * soundSpeed * ne * 2 * (E/3.1415)**0.5 * (1/float(Ti))**(1.5) * math.exp(-E/Ti)
     ans, err = integrate.quad(func, eThresh, np.inf)
 
-    print("Sputtered Flux:      " + str(ans))
+    print("Sputtered Flux (D):       " + str(ans))# The flux of W off the probe due to sputtering. sputt_flux = yield * flux of dueterium.
+
+    return ans
+
+
+# The flux of W off the probe due to sputtering. sputt_flux = yield * flux of dueterium.
+def sputt_flux_iron(ne=10**18, Ti=25.0, Te=25.0):
+    # Sputtering energy threshold of tungsten oxide in eV. Note pure W is 160 eV.
+    eThresh = 65
+    soundSpeed = ((float(Te) + float(Ti)) / massD)**0.5
+    frac_of_D_flux = 0.005
+
+    # Use lambda function for use in integrate,
+    func = lambda E: 0.528 * alpha * chargeFe * (massFe / (u0*(massFe + massW))) * 0.059 * (E+3*Ti) ** (1.0/3.0) * soundSpeed * frac_of_D_flux * ne * 2 * (E/3.1415)**0.5 * (1/float(Ti))**(1.5) * math.exp(-E/Ti)
+    ans, err = integrate.quad(func, eThresh, np.inf)
+
+    print("Sputtered Flux (Fe):      " + str(ans))
+    #print("Sputtered Flux Error: " + str(err/ans * 100) + "%")
+
+    return ans
+
+# The flux of W off the probe due to sputtering. sputt_flux = yield * flux of dueterium.
+def sputt_flux_carbon(ne=10**18, Ti=25.0, Te=25.0):
+    # Sputtering energy threshold of tungsten oxide in eV. Note pure W is 160 eV.
+    eThresh = 65
+    soundSpeed = ((float(Te) + float(Ti)) / massD)**0.5
+    frac_of_D_flux = 0.01
+
+    # Use lambda function for use in integrate,
+    func = lambda E: 0.528 * alpha * chargeC * (massC / (u0*(massC + massW))) * 0.059 * (E+3*Ti) ** (1.0/3.0) * soundSpeed * frac_of_D_flux * ne * 2 * (E/3.1415)**0.5 * (1/float(Ti))**(1.5) * math.exp(-E/Ti)
+    ans, err = integrate.quad(func, eThresh, np.inf)
+
+    print("Sputtered Flux (C):       " + str(ans))
     #print("Sputtered Flux Error: " + str(err/ans * 100) + "%")
 
     return ans
@@ -137,7 +173,16 @@ def loss_flux(ne=10**18, Ti=25.0, Te=25.0, probe="A"):
     print("Fraction Ionized:    " + str(frac))
 
     # Thus the fraction lost is 1-frac of the sputtered flux.
-    fracFluxLost = (1 - frac) * sputt_flux(ne=ne, Ti=Ti, Te=Te)
+    # Due to D, Fe and C.
+    #fracFluxLost = (1 - frac) * (sputt_flux(ne=ne, Ti=Ti, Te=Te) + sputt_flux_iron(ne=ne, Ti=Ti, Te=Te) + sputt_flux_carbon(ne=ne, Ti=Ti, Te=Te))
+    # Due to D and C.
+    #fracFluxLost = (1 - frac) * (sputt_flux(ne=ne, Ti=Ti, Te=Te) + sputt_flux_carbon(ne=ne, Ti=Ti, Te=Te))
+    # Due to just D
+    fracFluxLost = (1 - frac) * (sputt_flux(ne=ne, Ti=Ti, Te=Te))
+    # Due to just C.
+    #fracFluxLost = (1 - frac) * (sputt_flux_carbon(ne=ne, Ti=Ti, Te=Te))
+    # Due to just Fe.
+    #fracFluxLost = (1 - frac) * (sputt_flux_iron(ne=ne, Ti=Ti, Te=Te))
     print("Flux Lost:           " + str(fracFluxLost))
 
     return fracFluxLost
@@ -274,6 +319,45 @@ def max_flux(probe="AD"):
     return max_dict
 
 
+def fit_exp_to_total(max_dict, min_rmin=None, max_rmin=None):
+
+    # x and y values to be fit.
+    x = max_dict["rminrsep"]
+    y = max_dict["max_flux"]
+
+    # Assign the R-Rsep range to be fit.
+    if min_rmin is None and max_rmin is None:
+        min_rmin = min(x)
+        max_rmin = max(x)
+    elif min_rmin is None and max_rmin is not None:
+        min_rmin = min(x)
+    elif min_rmin is not None and max_rmin is None:
+        max_rmin = max(x)
+    else:
+        print("R-Rsep range entered.")
+
+    print("R-Rsep range: (" + str(min_rmin) + ", " + str(max_rmin) + ")")
+
+    # Function to define the fit.
+    def exp_fit(x, a, b, c):
+        return a * np.exp(-b * (x - min_rmin)) + c
+
+    guess = (10**17, 1, 1)
+    popt, pcov = curve_fit(exp_fit, x, y, guess, maxfev=5000)
+    print("Exp. Parameters:")
+    print("  a:      " + str(popt[0]))
+    print("  b:      " + str(popt[1]))
+    print("  c:      " + str(popt[2]))
+    print("  lambda: " + str(1.0 / popt[1]) + "\n")
+
+    x_fit = np.arange(min_rmin, max_rmin, 0.1)
+    fit_to_total = exp_fit(x_fit, *popt)
+
+    exp_dict = {"rminrsep": x_fit, "exp_fit":fit_to_total}
+
+    return exp_dict
+
+
 def plotFluxes(probe):
     myDict = max_flux(probe)
 
@@ -281,10 +365,14 @@ def plotFluxes(probe):
     max = myDict["max_flux"]
     net = myDict["net_flux"]
     loss = myDict["loss_flux"]
+    exp_dict = fit_exp_to_total(myDict)
+    x_exp = exp_dict["rminrsep"]
+    y_exp = exp_dict["exp_fit"]
 
-    plt.plot(x, max, label="Real Flux Onto Probe")
-    plt.plot(x, net, label="Net Flux (Real - Loss)")
-    plt.plot(x, loss, label="Loss Flux Off Probe Due to Sputtering")
+    plt.plot(x, max, label="Total Flux")
+    plt.plot(x, net, label="Net Flux")
+    plt.plot(x, loss, label="Loss Flux")
+    #plt.plot(x_exp, y_exp, label="Exp. Fit")
     plt.legend()
     plt.xlabel(r"${\rm R - R_{sep}\ (cm)}$")
     plt.ylabel(r"${\rm Flux\ (cm^{-2} s^{-1})}$")

@@ -4,16 +4,24 @@ These are files related to the creation and accessing of the deposition probe MD
 python2. 
 
 **ProbeClass.py** - Highest level program that incorporates the others. Most users will use this script to access the data. 
-**meas\_locations.py** - Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py.   
+    
+**meas\_locations.py** - Accounts for the 13 degree angle the probes are inserted in by. Feeds into get\_Rsep.py. 
+    
 **pull\_data\_dp.py** - Pulls RBS data from the MDS+ tree on the R2D2 server.  
+
 **get\_Rsep.py** - Uses meas\_locations and load\_gfile\_d3d from the EFIT github repository to find the average R-Rsep and
                    R\_omp - Rsep\_omp using EFIT. One option is putting a soft link to your local EFIT repository in your
                    Collector-Probes folder:
                    ```
                    $ ln -s /path/to/EFIT
                    ```
+                   
+**get\_avgZmag\_and\_rsep.py** - Returns a dictionary of the average Z of the magnetic axis and Rsep. Consider this as a 
+lite version of get\_Rsep.py
+
+**get\_lp.py** - Returns dictionary of the divertor Langmuir probes for a shot. 
   
-The highest level program is ProbeClass.py, and the main function used is "get\_multiple". This function will return a list
+The highest level program is ProbeClass.py, and the main function used is "get\_multiple". This function will return a list 
 of up three probes (an A, B, and/or C), ONLY IF RBS data is available. Each object in the list will be of "Probe" class. The
 Probe class includes two dictionaries: one with data from the R2D2 server, and another with data analyzed using EFIT on
 atlas. The parameters passed to get\_multiple are:
@@ -65,10 +73,10 @@ $ ssh -Y -p 2039 -L 8000:atlas.gat.com:8000 username@cybele.gat.com
 _Back in the python terminal press enter:_  
 ```
 Analyzing AU28 Data...  
-Shot: 167196  
+Shot: 167405  
 Time: 2500  
   
-Shot: 167196  
+Shot: 167405  
 Time: 3000  
   
 ...  
@@ -108,10 +116,27 @@ _You can use these two lists to plot W areal density vs. R-Rsep for example._
 ```
 $ probeList[0].to_matlab()
 ```
-_Save the data to a matlab file. Useful for the curve fitting tool. You can also export to .csv:_
+_Save the data to a matlab file. Useful for the curve fitting tool. You can also export to a .csv file:_
 ```
 $ probeList[0].to_csv(filename="A28_rbs_data")
 ```
+_You can also export to an HDF5 file:_
+```
+$ Probe.dump2HDF5(probeList)
+```
+_Note that this requires the hickle package. It can be installed with "pip install hickle"._
+
+------------------------------------------------------------------------------------------------------------------
+# Cloning the Repositories on Iris
+
+Cloning the repositories to Iris is not as straightforward as cloning to your local machine. It requires adding a new
+ssh key to your github account. The instructions located here worked for me:
+
+[Adding new SSH Key Instructions](https://help.github.com/articles/adding-a-new-ssh-key-to-your-github-account/)
+
+where Step 1 (the one with xclip) is being run on Iris. You then copy that key to your account. Then in order to clone
+the EFIT and Collector-Probe repositories, you run `git clone [Clone With SSH Link]` on Iris. Don't forget to add the
+soft link to EFIT inside the Collector-Probe directory (or clone EFIT directly into it). 
 
 ------------------------------------------------------------------------------------------------------------------
   

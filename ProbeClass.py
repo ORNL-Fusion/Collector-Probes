@@ -4,8 +4,8 @@
 # R - Rsep_omp. These can then be plotted using the plot functions or the data
 # can be used in whatever way seen fit.
 
-import pull_data_dp as pull
-import get_Rsep as get
+import Collector_Probes.pull_data_dp as pull
+import Collector_Probes.get_Rsep as get
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -76,7 +76,7 @@ class Probe():
         shots = np.delete(shots, ind)
 
         # Data from R2D2.
-        print "\n"
+        print("\n")
         for run in range(1, 1000):
             # U-face data.
             try:
@@ -87,12 +87,12 @@ class Probe():
                 locations_U.append(loc)
                 w_areal_U.append(areal)
                 w_areal_err_U.append(areal_err)
-                print "\033[F \033[F"
-                print self.letter + "U Run: " + str(run)
+                print("\033[F \033[F")
+                print(self.letter + "U Run: " + str(run))
             except:
                 break
 
-        print "\n"
+        print("\n")
         for run in range(1, 1000):
             # D-face data.
             try:
@@ -103,8 +103,8 @@ class Probe():
                 locations_D.append(loc)
                 w_areal_D.append(areal)
                 w_areal_err_D.append(areal_err)
-                print "\033[F \033[F"
-                print self.letter + "D Run: " + str(run)
+                print("\033[F \033[F")
+                print(self.letter + "D Run: " + str(run))
             except:
                 break
 
@@ -154,7 +154,7 @@ class Probe():
         # get_Rsep file.
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            print "Analyzing " + self.letter + "U" + str(self.number) + " data..."
+            print("Analyzing " + self.letter + "U" + str(self.number) + " data...")
             avg_dict_U = get.avg_Rsep_all(self.r2d2DICT['shots'],
                                           self.r2d2DICT['r_probe']+probe_tip_corr,
                                           self.r2d2DICT['locations_U'],
@@ -163,7 +163,7 @@ class Probe():
                                           startTime=startTime,
                                           endTime=endTime,
                                           step=step)
-            print "Analyzing " + self.letter + "D" + str(self.number) + " data..."
+            print("Analyzing " + self.letter + "D" + str(self.number) + " data...")
             avg_dict_D = get.avg_Rsep_all(self.r2d2DICT['shots'],
                                           self.r2d2DICT['r_probe']+probe_tip_corr,
                                           self.r2d2DICT['locations_D'],
@@ -390,7 +390,7 @@ def dump2HDF5(pList):
         suffix += str(j.letter) + str(j.number)
 
     fnam = 'CPdata_mdsplus_'+suffix+'.h5'
-    print "HDF5 dump: to "+fnam
+    print("HDF5 dump: to "+fnam)
 
     hkl.dump(pList[0].r2d2DICT, fnam, 'w', path='/'+str(pList[0].letter) + str(pList[0].number) + "_r2d2")
     hkl.dump(pList[0].atlasDICT, fnam, 'r+', path='/'+str(pList[0].letter) + str(pList[0].number) + "_atlas")

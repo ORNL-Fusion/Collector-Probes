@@ -1,20 +1,22 @@
 # This script pulls the divertor langmuir probes and puts them into a dictionary,
-# among other things. It is essentially a python2 translation of the Matlab script
+# among other things. It is essentially a python translation of the Matlab script
 # get_lp. Just import this script and run the function get_dict_of_lps(shot).
 #
 # Author: Shawn Zamperini
-
 import MDSplus as mds
 
 
-def get_mds_active_probes(shot):
+def get_mds_active_probes(shot, tunnel=True):
     """
     Get the probes that were active during the shot. Used in main function.
         shot: the shot you want
     """
 
     # MDSplus connection to atlas where the data is store on the "LANGMUIR" tree.
-    conn = mds.Connection('atlas.gat.com')
+    if tunnel:
+        conn = mds.Connection("localhost")
+    else:
+        conn = mds.Connection('atlas.gat.com')
     conn.openTree("LANGMUIR", shot)
 
     tmin = conn.get("\LANGMUIR::TOP.TMIN").data()
@@ -45,12 +47,12 @@ def get_mds_active_probes(shot):
         # It will be '0' or blank if the MDS entry isn;t used. Otherwise it will
         # have the actual probe number in it.
         if check_pnum > 0:
-            print "Probe " + str(check_pnum) + " is MDS probe " + str(mds_pnum)
+            print("Probe " + str(check_pnum) + " is MDS probe " + str(mds_pnum))
             mds_index.append(mds_pnum)
             found_probes.append(check_pnum)
 
     number_of_probes = len(found_probes)
-    print "Found data for " + str(number_of_probes) + " probes."
+    print("Found data for " + str(number_of_probes) + " probes.")
 
     # Store in dictionary and return it.
     active = {}
@@ -62,7 +64,7 @@ def get_mds_active_probes(shot):
 
     return active
 
-def get_mds_lp_data(shot, mds_index):
+def get_mds_lp_data(shot, mds_index, tunnel=True):
     """
     Get LP data for a single probe. Used in main function.
         shot: the shot you want
@@ -71,7 +73,10 @@ def get_mds_lp_data(shot, mds_index):
     """
 
     # MDS connection required through atlas tunnel.
-    conn = mds.Connection("atlas.gat.com")
+    if tunnel:
+        conn = mds.Connection("localhost")
+    else:
+        conn = mds.Connection("atlas.gat.com")
     conn.openTree("LANGMUIR", shot)
 
     # Use correct form of probe name.
@@ -113,7 +118,7 @@ def get_mds_lp_data(shot, mds_index):
     return lp_data
 
 
-def get_dict_of_lps(shot):
+def get_dict_of_lps(shot, tunnel=True):
     """
     Run this function to get the Langmuir probe data in a dictionary
     of dictionaries. Each entry will be all the probe data in the form
@@ -125,7 +130,7 @@ def get_dict_of_lps(shot):
 
     # Get a dictionary with the probe active during this shot.
     active = get_mds_active_probes(shot)
-    print ""
+    print("")
 
     # Get a dictionary of each probe data, then store it all in one big dictionary.
     lps = {}
@@ -133,6 +138,6 @@ def get_dict_of_lps(shot):
         lp_data = get_mds_lp_data(shot, mds_index)
         probe_name = "probe " + str(lp_data["pnum"])
         lps[probe_name] = lp_data
-        print "Data stored for " + str(probe_name) + " (MDS index " + str(mds_index) + ")."
+        print("Data stored for " + str(probe_name) + " (MDS index " + str(mds_index) + ").")
 
     return lps

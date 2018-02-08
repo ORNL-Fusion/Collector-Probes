@@ -6,6 +6,7 @@
 import MDSplus as mds
 import numpy as np
 import scipy.interpolate as scinter
+import math
 
 
 def load_gfile_mds(shot, time, tree="EFIT01", exact=False, connection=None, tunnel=True):
@@ -36,9 +37,9 @@ def load_gfile_mds(shot, time, tree="EFIT01", exact=False, connection=None, tunn
 
     if (time != time0):
         if exact:
-            raise RuntimeError(tree + ' does not exactly contain time ' + str(time) + '  ->  Abort')
+            raise RuntimeError(tree + ' does not exactly contain time %.2f' %time + '  ->  Abort')
         else:
-            print('Warning: ' + tree + ' does not exactly contain time ' + str(time) + ' the closest time is ' + str(time0))
+            print('Warning: ' + tree + ' does not exactly contain time %.2f' %time + ' the closest time is ' + str(time0))
             print('Fetching time slice ' + str(time0))
             time = time0
 
@@ -266,9 +267,9 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
 
         # Interpolation functions of psin(R, Z) and R(psin, Z).
         f_psiN = scinter.Rbf(Rs[Rs_trunc], Zs[Rs_trunc],
-                             gfile['psiRZn'][Rs_trunc], function='linear')
+                             gfile['psiRZn'][Rs_trunc])
         #f_psiN = scinter.interp2d(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
-        f_Romp = scinter.interp2d(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
+        #f_Romp = scinter.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
 
         # Temporary array to hold psins.
         psins = np.array([])
@@ -324,8 +325,9 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
 
         # Get the std. dev. of the temp and ne values over this time range.
         # Note: High errors in divertor system may be from strike point sweeping.
-        tmp_avg_te_err = np.std(tmp_te)
-        tmp_avg_ne_err = np.std(tmp_ne) * 10**18
+        num_samples = len(tmp_te)
+        tmp_avg_te_err = np.std(tmp_te) / math.sqrt(num_samples)
+        tmp_avg_ne_err = np.std(tmp_ne) * 10**18 / math.sqrt(num_samples)
         avg_tes = np.append(avg_tes, tmp_avg_te)
         avg_nes = np.append(avg_nes, tmp_avg_ne)
         avg_tes_err = np.append(avg_tes_err, tmp_avg_te_err)

@@ -3,6 +3,7 @@ import numpy as np
 import EFIT.load_gfile_d3d as loadg
 import MDSplus as mds
 import scipy.interpolate as scinter
+import math
 
 def return_avg_Z(shots, startTime=2500, endTime=5000, timeStep=500, server='localhost'):
     print "Z Location of A Probe: -0.18 m \nZ Location of B Probe: -0.1546 m \nZ Location of C Probe: -0.2054 m"
@@ -45,14 +46,16 @@ def return_avg_Z(shots, startTime=2500, endTime=5000, timeStep=500, server='loca
             time += timeStep
 
     avgZ = np.mean(zArray)
-    err = np.std(zArray)
+    std_dev = np.std(zArray)
+    num_of_samples = len(shots) * int((endTime-startTime)/timeStep)
+    err = std_dev / math.sqrt(num_of_samples)
 
     avgRsepA = np.mean(rSepArrayA)
     avgRsepB = np.mean(rSepArrayB)
     avgRsepC = np.mean(rSepArrayC)
-    avgRsepA_err = np.std(rSepArrayA)
-    avgRsepB_err = np.std(rSepArrayB)
-    avgRsepC_err = np.std(rSepArrayC)
+    avgRsepA_err = np.std(rSepArrayA) / math.sqrt(num_of_samples)
+    avgRsepB_err = np.std(rSepArrayB) / math.sqrt(num_of_samples)
+    avgRsepC_err = np.std(rSepArrayC) / math.sqrt(num_of_samples)
 
     returned_info = {"Average Z Magnetic Axis":avgZ, "Z Error":err,
                      "Average Rsep at A Probe":avgRsepA, "A Error":avgRsepA_err,

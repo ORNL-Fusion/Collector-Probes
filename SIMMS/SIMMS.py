@@ -1,6 +1,16 @@
 import numpy as np
 import pandas as pd
 
+def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpath='/.'):
+
+    efFOLDpath = FOLDpath+'CP_LAMS_Dictionary/'
+    efDF = getCPenrichment(fileNAM=EFfileNAM,datFOLDpath=efFOLDpath)
+
+    rbsFOLDpath = FOLDpath+'RminRsep_RBS_Dictionary/'
+    rbsDIC = makRBS_DIC(RBSfileNAM, datFOLDpath=rbsFOLDpath)
+
+    simmsDF = makSIMMS(efDF, BGfrac=0.0435, HDFdump=0)
+    return simmsDF
 
 def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     # First get the source standard numbers
@@ -113,10 +123,15 @@ def getCPenrichment(fileNAM="AU17_dict.csv", datFOLDpath='/.'):
     return enrichDF
 
 
-def makRBS_DF(fileNAM, rbsCOLS=[20, 21, 22, 24, 25, 26]):
-    rbsDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=rbsCOLS,
-                          skip_footer=360, engine='xlrd')
-    return rbsDF
+def makRBS_DIC(fileNAM, datFOLDpath='/.'):
+    rbs_U_COLS = [1, 3, 4, 7, 8, 12, 13]
+    rbsDF_U = pd.read_csv(datFOLDpath+fileNAM, index_col=2, usecols=rbs_U_COLS)
+
+    rbs_D_COLS = [0, 2, 5, 6, 9, 10, 11]
+    rbsDF_D = pd.read_csv(datFOLDpath+fileNAM, index_col=5, usecols=rbs_D_COLS)
+
+    rbsDIC = {'Udf':rbsDF_U, 'Ddf':rbsDF_D}
+    return rbsDIC
 
 
 def pltCPenrichment(DF):

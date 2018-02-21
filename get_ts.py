@@ -244,7 +244,7 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     # Get the gfiles one time slice at a time.
     for time in times_for_gfile:
 
-        # Load gfile.
+        # Load gfile. Cast to int since gfiles don't have decimal times.
         gfile = load_gfile_mds(shot, int(time), tree=tree, connection=conn)
 
         # Create grid of R's and Z's.

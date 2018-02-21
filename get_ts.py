@@ -245,29 +245,29 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     for time in times_for_gfile:
 
         # Load gfile.
-        gfile = load_gfile_mds(shot, time, tree=tree, connection=conn)
+        gfile = load_gfile_mds(shot, int(time), tree=tree, connection=conn)
 
         # Create grid of R's and Z's.
         Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
 
         # Coordinates of magnetic axis.
-        Z_axis = gfile['ZmAxis']
-        R_axis = gfile['RmAxis']
+        #Z_axis = gfile['ZmAxis']
+        #R_axis = gfile['RmAxis']
 
         # Get R's and Z's of the lcfs. Just the right half of it.
-        Zes = np.copy(gfile['lcfs'][:, 1][13:-12])
-        Res = np.copy(gfile['lcfs'][:, 0][13:-12])
+        #Zes = np.copy(gfile['lcfs'][:, 1][13:-12])
+        #Res = np.copy(gfile['lcfs'][:, 0][13:-12])
 
         # Interpolate to create function where you give a Z, and it gives you
         # the R of the lcfs.
-        f_Rs = scinter.interp1d(Zes, Res, assume_sorted=False)
+        #f_Rs = scinter.interp1d(Zes, Res, assume_sorted=False)
 
         # Only R's on the right half.
-        Rs_trunc = Rs > R_axis
+        #Rs_trunc = Rs > R_axis
 
         # Interpolation functions of psin(R, Z) and R(psin, Z).
-        f_psiN = scinter.Rbf(Rs[Rs_trunc], Zs[Rs_trunc],
-                             gfile['psiRZn'][Rs_trunc])
+        #f_psiN = scinter.Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
+        f_psiN = scinter.Rbf(Rs, Zs, gfile['psiRZn'])
         #f_psiN = scinter.interp2d(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
         #f_Romp = scinter.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
 

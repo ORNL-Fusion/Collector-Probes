@@ -23,14 +23,14 @@ wb = xl.load_workbook("link_to_lp_with_fits.xlsx", data_only=True)
 sheet = wb.get_sheet_by_name("LP Data")
 
 # We will use 167192 plunge #2 since it goes a little further in.
-lp_r  = returnArray(sheet, "K3", "K55") / 100.0 - 0.016   # cm to m
+lp_r  = (returnArray(sheet, "K3", "K55") - 0.16) / 100.0   # cm to m
 lp_te = returnArray(sheet, "M3", "M55")
 
 if True:
     # Now lets map these R's to psin's, so we can compare with the TS.
     # Grab time 2960 since it's about the middle time for the LP data.
     MDSconn = mds.Connection("localhost")
-    gfile = ts.load_gfile_mds(167192, 2960, connection=MDSconn)
+    gfile = ts.load_gfile_mds(167196, 2960, connection=MDSconn)
 
     # Create grid of R's and Z's.
     Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])

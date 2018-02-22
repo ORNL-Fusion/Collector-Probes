@@ -203,19 +203,10 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     times = ts_dict["temp"]["X"]
     range_wanted = np.arange(tmin, tmax, tstep)
 
-    # Find first index where times is >= tmin, and where times is >= tmax.
-    index = 0
-    for time in times:
-        if time >= tmin:
-            min_index = index
-            break
-        index = index + 1
-    index = 0
-    for time in times:
-        if time >= tmax:
-            max_index = index
-            break
-        index = index + 1
+    # Get index where the times start and end for the requested range.
+    min_index = np.argmax(times>tmin)
+    max_index = np.argmax(times>tmax)
+
     print("Time range used: [" + str(times[min_index]) + ", " + str(times[max_index]) + "]")
 
     # Get the actual min and max times. Fill array of times for gfiles to request.
@@ -230,7 +221,7 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     ts_Zs = ts_dict["z"]["Y"]
     channels = ts_dict["channel"]["Y"]
     temp = ts_dict["temp"]["Y"]
-    density = ts_dict["density"]["Y"]
+    dens = ts_dict["density"]["Y"]
 
     # Create connection here then pass it to gfile function so you don't have to
     # create a new connection every time. Saves a lot of time.
@@ -239,6 +230,8 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     # 2D array to hold all the psin values. The index of each row corresponds to
     # a certain channel/chord.
     all_psins = np.zeros((num_of_times, len(channels)))
+    all_tes   = np.zeros((num_of_times, len(channels)))
+    all_nes   = np.zeros((num_of_times, len(channels)))
     row_index = 0
 
     # Get the gfiles one time slice at a time.
@@ -250,29 +243,13 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
         # Create grid of R's and Z's.
         Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
 
-        # Coordinates of magnetic axis.
-        #Z_axis = gfile['ZmAxis']
-        #R_axis = gfile['RmAxis']
-
-        # Get R's and Z's of the lcfs. Just the right half of it.
-        #Zes = np.copy(gfile['lcfs'][:, 1][13:-12])
-        #Res = np.copy(gfile['lcfs'][:, 0][13:-12])
-
-        # Interpolate to create function where you give a Z, and it gives you
-        # the R of the lcfs.
-        #f_Rs = scinter.interp1d(Zes, Res, assume_sorted=False)
-
-        # Only R's on the right half.
-        #Rs_trunc = Rs > R_axis
-
         # Interpolation functions of psin(R, Z) and R(psin, Z).
-        #f_psiN = scinter.Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
         f_psiN = scinter.Rbf(Rs, Zs, gfile['psiRZn'])
-        #f_psiN = scinter.interp2d(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
-        #f_Romp = scinter.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc])
 
         # Temporary array to hold psins.
         psins = np.array([])
+        tes   = np.array([])
+        nes   = np.array([])
         for index in range(0, len(channels)):
 
             # The R and Z of each channel.
@@ -282,70 +259,61 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
             # This is the psin at this specific time.
             tmp_psin = f_psiN(tmp_R, tmp_Z)
 
-            # Add it to psins, where in order it is the channels.
-            psins = np.append(psins, tmp_psin)
+            # This is the corresponding Te at this time.
+            te_index = np.argmax(times>time)
+            tmp_te   = temp[index][te_index]
+            tmp_ne   = dens[index][te_index]
 
-        # Put row into all the psins. So a 2D array, where each row is the psins
+            # Add it to psins/tes, where in order it is the channels.
+            psins = np.append(psins, tmp_psin)
+            tes = np.append(tes, tmp_te)
+            nes = np.append(nes, tmp_ne)
+
+
+        # Put row into all the psins. So a 2D array, where each row is the psins/Tes
         # of every channel at a time.
         all_psins[row_index] = psins
+        all_tes[row_index]   = tes
+        all_nes[row_index]   = nes
+
         row_index = row_index + 1
 
-    # Now reorganize all_psins to a 2D array where each row corresponds to the psins
-    # of a specific chord across the time range.
-    all_psins_org = np.zeros((len(channels), num_of_times))
-    avg_psins_org = np.zeros(len(channels))
-    avg_psins_org_err = np.zeros(len(channels))
-    row_index = 0
-    for chord in range(0, len(channels)):
-        chord_psins = np.array([])
-        for psins_at_time in all_psins:
-            #print(*psins_at_time)
-            chord_psin_at_time = psins_at_time[chord]
-            chord_psins = np.append(chord_psins, chord_psin_at_time)
-        avg_chord_psin = np.mean(chord_psins)
-        avg_chord_psin_err = np.std(chord_psins)
-        avg_psins_org[row_index] = avg_chord_psin
-        avg_psins_org_err[row_index] = avg_chord_psin_err
-        all_psins_org[row_index] = chord_psins
-        row_index = row_index + 1
+    def organize_2d(all_vals):
+        """
+        Function to reorganize the 2D array daya of Te, ne and psin into an
+        array where each row corresponds to the data from a specific chord
+        (normally each row is the data from all the chords at a specific time).
+        """
+        all_vals_org     = np.zeros((len(channels), num_of_times))
+        avg_vals_org     = np.zeros(len(channels))
+        avg_vals_org_err = np.zeros(len(channels))
+        row_index   = 0
+        for chord in range(0, len(channels)):
+            chord_vals = np.array([])
+            for vals_at_time in all_vals:
+                chord_vals_at_time = vals_at_time[chord]
+                chord_vals = np.append(chord_vals, chord_vals_at_time)
+            avg_chord_vals     = np.mean(chord_vals)
+            avg_chord_vals_err = np.std(chord_vals)
+            avg_vals_org[row_index]     = avg_chord_vals
+            avg_vals_org_err[row_index] = avg_chord_vals_err
+            all_vals_org[row_index]     = chord_vals
+            row_index = row_index + 1
+        return all_vals_org, avg_vals_org, avg_vals_org_err
 
-    # Now the Te data. temp is a 2D array, where each row is all the Te data for
-    # a particular chord. We want the average value in the time range we requested,
-    # thus temp[chord that we want][min_index:max_index]. Average of this.
-    avg_tes = np.array([])
-    avg_nes = np.array([])
-    avg_tes_err = np.array([])
-    avg_nes_err = np.array([])
-    for chord in range(0, len(channels)):
-        # Scale ne down avoid large sums in mean and std dev.
-        tmp_ne = density[chord][min_index:max_index] / 10**18
-        tmp_te = temp[chord][min_index:max_index]
-        tmp_avg_te = np.mean(tmp_te)
-        tmp_avg_ne = np.mean(tmp_ne) * 10**18
-
-        # Get the std. dev. of the temp and ne values over this time range.
-        # Note: High errors in divertor system may be from strike point sweeping.
-        num_samples = len(tmp_te)
-        tmp_avg_te_err = np.std(tmp_te) / math.sqrt(num_samples)
-        tmp_avg_ne_err = np.std(tmp_ne) * 10**18 / math.sqrt(num_samples)
-        avg_tes = np.append(avg_tes, tmp_avg_te)
-        avg_nes = np.append(avg_nes, tmp_avg_ne)
-        avg_tes_err = np.append(avg_tes_err, tmp_avg_te_err)
-        avg_nes_err = np.append(avg_nes_err, tmp_avg_ne_err)
+    # Get the organized 2D arrays of the psin, Te and ne data.
+    all_psins_org, avg_psins_org, avg_psins_org_err = organize_2d(all_psins)
+    all_tes_org,   avg_tes_org,   avg_tes_org_err   = organize_2d(all_tes)
+    all_nes_org,   avg_nes_org,   avg_nes_org_err   = organize_2d(all_nes)
 
     # Put these bad boys into the dictionary under psin to keep it organized.
-    psins_dict = {"channels":channels, "psins":all_psins_org, "avg_psins":avg_psins_org,
-                  "avg_Tes":avg_tes, "avg_nes":avg_nes, "avg_Tes_err":avg_tes_err,
-                  "avg_nes_err":avg_nes_err, "avg_psins_err":avg_psins_org_err}
+    psins_dict = {"channels":channels,           "all_psins":all_psins_org,
+                  "avg_psins":avg_psins_org,     "avg_Tes":avg_tes_org,
+                  "avg_nes":avg_nes_org,         "avg_Tes_err":avg_tes_org_err,
+                  "avg_nes_err":avg_nes_org_err, "avg_psins_err":avg_psins_org_err,
+                  "all_Tes":all_tes_org,         "all_nes":all_nes_org}
+
     ts_dict["psins"] = psins_dict
-
-    return ts_dict
-
-
-def test_script():
-    #ts_dict = get_ts(167195, system="core", tunnel=True)
-    #ts_dict = assign_psins(ts_dict, tmin=2500, tmax=3500, tstep=200)
-
     return ts_dict
 
 

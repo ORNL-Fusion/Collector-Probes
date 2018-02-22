@@ -4,8 +4,10 @@
 # R - Rsep_omp. These can then be plotted using the plot functions or the data
 # can be used in whatever way seen fit.
 
-import Collector_Probes.pull_data_dp as pull
-import Collector_Probes.get_Rsep as get
+#import Collector_Probes.pull_data_dp as pull
+#import Collector_Probes.get_Rsep as get
+import pull_data_dp as pull
+import get_Rsep as get
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -299,6 +301,7 @@ class Probe():
             filename = self.letter + str(self.number) + '.csv'
         with open(filename, 'wb') as f:
             w = csv.writer(f)
+            w.writerow(["W areal units are (W/cm^2). Location and R-Rsep units are (cm)."])
             w.writerow(combo_dict.keys())
             w.writerows(zip(*combo_dict.values()))
 

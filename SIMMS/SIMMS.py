@@ -1,7 +1,9 @@
 import numpy as np
+import scipy.interpolate as sinter
 import pandas as pd
 
-def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpath='/.'):
+def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpath='/.',
+          HDFdump=0):
 
     efFOLDpath = FOLDpath+'CP_LAMS_Dictionary/'
     efDF = getCPenrichment(fileNAM=EFfileNAM,datFOLDpath=efFOLDpath)
@@ -9,8 +11,113 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
     rbsFOLDpath = FOLDpath+'RminRsep_RBS_Dictionary/'
     rbsDIC = makRBS_DIC(RBSfileNAM, datFOLDpath=rbsFOLDpath)
 
-    simmsDF = makSIMMS(efDF, BGfrac=0.0435, HDFdump=0)
-    return simmsDF
+    simmDF = makSIMMS(efDF, BGfrac=0.0435, HDFdump=0)
+
+    # get R-R_sep
+    rbsDICnam = efDF.DFname[1]+"df"
+    rminrsepNAM = "rminrsep_"+efDF.DFname[1]
+    arealNAM = "w_areal_"+efDF.DFname[1]
+    err_arealNAM = "w_areal_err_"+efDF.DFname[1]
+
+    dprobe_fracsimm_mm = np.array(rbsDIC[rbsDICnam].index[::-1])*10.
+
+    simm_dprobe = np.around(np.array(simmDF.index), decimals=2)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8082'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Ffloor_8082_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8082'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Ffloor_8082_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8382'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Ffloor_8382_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8382'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Ffloor_8382_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8482'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Ffloor_8482_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8482'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Ffloor_8482_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8682'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Ffloor_8682_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8682'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Ffloor_8682_interp = ftemp(dprobe_fracsimm_mm)
+
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Fshelf_8082'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Fshelf_8082_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Fshelf_8082'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Fshelf_8082_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Fshelf_8382'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Fshelf_8382_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Fshelf_8382'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Fshelf_8382_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Fshelf_8482'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Fshelf_8482_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Fshelf_8482'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Fshelf_8482_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['Fshelf_8682'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    Fshelf_8682_interp = ftemp(dprobe_fracsimm_mm)
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Fshelf_8682'], kind='slinear',
+                        fill_value=0.0, assume_sorted = True)
+    err_Fshelf_8682_interp = ftemp(dprobe_fracsimm_mm)
+
+    # simmFRAC_floor = (Ffloor_8082_interp + Ffloor_8382_interp +
+    #                   Ffloor_8482_interp + Ffloor_8682_interp) / 4.0
+    # err_simmFRAC_floor = np.sqrt(err_Ffloor_8082_interp**2 + err_Ffloor_8382_interp**2 +
+                                 # err_Ffloor_8482_interp**2 + err_Ffloor_8682_interp**2)
+
+    simm_floor_AVG = (Ffloor_8382_interp + Ffloor_8482_interp +
+                      Ffloor_8682_interp)/3.0
+    err_simm_floor_AVG = np.sqrt(err_Ffloor_8382_interp**2 +
+                                 err_Ffloor_8482_interp**2 +
+                                 err_Ffloor_8682_interp**2)
+
+    simm_shelf_AVG = (Fshelf_8382_interp + Fshelf_8482_interp +
+                      Fshelf_8682_interp)/3.0
+    err_simm_shelf_AVG = np.sqrt(err_Fshelf_8382_interp**2 +
+                                 err_Fshelf_8482_interp**2 +
+                                 err_Fshelf_8682_interp**2)
+
+    arealFRAC_floor = simm_floor_AVG * rbsDIC[rbsDICnam][arealNAM].values[::-1]*1e15
+    err_arealFRAC_floor = arealFRAC_floor * np.sqrt((err_simm_floor_AVG / simm_floor_AVG)**2 +
+                                                    (rbsDIC[rbsDICnam][err_arealNAM].values[::-1] /
+                                                     rbsDIC[rbsDICnam][arealNAM].values[::-1])**2)
+    arealFRAC_shelf = simm_shelf_AVG * rbsDIC[rbsDICnam][arealNAM].values[::-1]*1e15
+    err_arealFRAC_shelf = arealFRAC_shelf * np.sqrt((err_simm_shelf_AVG / simm_shelf_AVG)**2 +
+                                                    (rbsDIC[rbsDICnam][err_arealNAM].values[::-1] /
+                                                     rbsDIC[rbsDICnam][arealNAM].values[::-1])**2)
+    arealFRACdic = {
+                   'frac_areal_rminrsep': np.array(rbsDIC[rbsDICnam][rminrsepNAM][::-1]),
+                   'frac_areal_d_probe_mm': dprobe_fracsimm_mm,
+                   'err_arealFRAC_floor': err_arealFRAC_floor,
+                   'arealFRAC_floor': arealFRAC_floor,
+                   'err_arealFRAC_shelf': err_arealFRAC_shelf,
+                   'arealFRAC_shelf': arealFRAC_shelf
+                   }
+    arealfrDF = pd.DataFrame(arealFRACdic)
+
+    if HDFdump:
+        HDFfilename = str(efDF.DFname)+'_arealFRAC_full_2igor.h5'
+
+        hdf = pd.HDFStore(HDFfilename)
+        hdf.put(str(simmDF.DFname), simmDF, format='table', data_columns=True)
+        hdf.put(str(efDF.DFname)+"_ef", efDF, format='table', data_columns=True, append=True)
+        hdf.put(str(efDF.DFname)+"_rbs", rbsDIC[rbsDICnam], format='table', data_columns=True, append=True)
+        hdf.put(str(efDF.DFname)+"_arealF", arealfrDF, format='table', data_columns=True, append=True)
+        hdf.close()
+
+    return simmDF,rbsDIC,efDF,arealfrDF
 
 def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     # First get the source standard numbers
@@ -120,6 +227,7 @@ def getCPenrichment(fileNAM="AU17_dict.csv", datFOLDpath='/.'):
     # enrichDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=enrichCOLS,
                              # index_col=[0], engine='xlrd')
     enrichDF.DFname = fileNAM[0:4]
+
     return enrichDF
 
 

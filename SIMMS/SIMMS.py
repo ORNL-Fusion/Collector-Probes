@@ -2,11 +2,12 @@ import numpy as np
 import scipy.interpolate as sinter
 import pandas as pd
 
+
 def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpath='/.',
           HDFdump=0):
 
     efFOLDpath = FOLDpath+'CP_LAMS_Dictionary/'
-    efDF = getCPenrichment(fileNAM=EFfileNAM,datFOLDpath=efFOLDpath)
+    efDF = getCPenrichment(fileNAM=EFfileNAM, datFOLDpath=efFOLDpath)
 
     rbsFOLDpath = FOLDpath+'RminRsep_RBS_Dictionary/'
     rbsDIC = makRBS_DIC(RBSfileNAM, datFOLDpath=rbsFOLDpath)
@@ -23,16 +24,16 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
 
     simm_dprobe = np.around(np.array(simmDF.index), decimals=2)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8082'], kind='slinear',
-                        fill_value=0.0, assume_sorted = True)
+                            fill_value=0.0, assume_sorted=True)
     Ffloor_8082_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8082'], kind='slinear',
-                        fill_value=0.0, assume_sorted = True)
+                            fill_value=0.0, assume_sorted=True)
     err_Ffloor_8082_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8382'], kind='slinear',
-                        fill_value=0.0, assume_sorted = True)
+                            fill_value=0.0, assume_sorted=True)
     Ffloor_8382_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8382'], kind='slinear',
-                        fill_value=0.0, assume_sorted = True)
+                            fill_value=0.0, assume_sorted=True)
     err_Ffloor_8382_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8482'], kind='slinear',
                         fill_value=0.0, assume_sorted = True)
@@ -118,6 +119,7 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
         hdf.close()
 
     return simmDF,rbsDIC,efDF,arealfrDF
+
 
 def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     # First get the source standard numbers

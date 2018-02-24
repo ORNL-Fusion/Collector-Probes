@@ -36,10 +36,10 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
                             fill_value=0.0, assume_sorted=True)
     err_Ffloor_8382_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8482'], kind='slinear',
-                        fill_value=0.0, assume_sorted = True)
+                            fill_value=0.0, assume_sorted=True)
     Ffloor_8482_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['err_Ffloor_8482'], kind='slinear',
-                        fill_value=0.0, assume_sorted = True)
+                            fill_value=0.0, assume_sorted=True)
     err_Ffloor_8482_interp = ftemp(dprobe_fracsimm_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['Ffloor_8682'], kind='slinear',
                         fill_value=0.0, assume_sorted = True)
@@ -104,7 +104,10 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
                    'err_arealFRAC_floor': err_arealFRAC_floor,
                    'arealFRAC_floor': arealFRAC_floor,
                    'err_arealFRAC_shelf': err_arealFRAC_shelf,
-                   'arealFRAC_shelf': arealFRAC_shelf
+                   'arealFRAC_shelf': arealFRAC_shelf,
+                   'simm_shelf_AVG': simm_shelf_AVG,
+                   'err_simm_shelf_AVG': err_simm_shelf_AVG,
+                   'arealFRAC_floor': arealFRAC_floor
                    }
     arealfrDF = pd.DataFrame(arealFRACdic)
 
@@ -114,11 +117,13 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
         hdf = pd.HDFStore(HDFfilename)
         hdf.put(str(simmDF.DFname), simmDF, format='table', data_columns=True)
         hdf.put(str(efDF.DFname)+"_ef", efDF, format='table', data_columns=True, append=True)
-        hdf.put(str(efDF.DFname)+"_rbs", rbsDIC[rbsDICnam], format='table', data_columns=True, append=True)
-        hdf.put(str(efDF.DFname)+"_arealF", arealfrDF, format='table', data_columns=True, append=True)
+        hdf.put(str(efDF.DFname)+"_rbs", rbsDIC[rbsDICnam], format='table', data_columns=True,
+                append=True)
+        hdf.put(str(efDF.DFname)+"_arealF", arealfrDF, format='table', data_columns=True,
+                append=True)
         hdf.close()
 
-    return simmDF,rbsDIC,efDF,arealfrDF
+    return simmDF, rbsDIC, efDF, arealfrDF
 
 
 def makSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
@@ -226,10 +231,8 @@ def getCPenrichment(fileNAM="AU17_dict.csv", datFOLDpath='/.'):
     # Obtain the data
     useCOLS = [1, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
     enrichDF = pd.read_csv(datFOLDpath+fileNAM, index_col=0, usecols=useCOLS)
-    # enrichDF = pd.read_excel(fileNAM, skiprows=rowSTART, sheetname=shNAM, usecols=enrichCOLS,
-                             # index_col=[0], engine='xlrd')
-    enrichDF.DFname = fileNAM[0:4]
 
+    enrichDF.DFname = fileNAM[0:4]
     return enrichDF
 
 
@@ -240,7 +243,7 @@ def makRBS_DIC(fileNAM, datFOLDpath='/.'):
     rbs_D_COLS = [0, 2, 5, 6, 9, 10, 11]
     rbsDF_D = pd.read_csv(datFOLDpath+fileNAM, index_col=5, usecols=rbs_D_COLS)
 
-    rbsDIC = {'Udf':rbsDF_U, 'Ddf':rbsDF_D}
+    rbsDIC = {'Udf': rbsDF_U, 'Ddf': rbsDF_D}
     return rbsDIC
 
 

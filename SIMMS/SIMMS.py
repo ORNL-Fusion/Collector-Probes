@@ -85,22 +85,22 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
     ftemp = sinter.interp1d(simm_dprobe, simmDF['simm_floor_AVG'], kind='cubic',
                             fill_value=0.0, assume_sorted=True)
     Ffloor_AVG_interp = ftemp(rbs_dprobe_mm)
-    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_simm_floor_AVG'], kind='cubic',
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_simm_floor_AVG'], kind='slinear',
                             fill_value=0.0, assume_sorted=True)
     err_Ffloor_AVG_interp = ftemp(rbs_dprobe_mm)
     ftemp = sinter.interp1d(simm_dprobe, simmDF['simm_shelf_AVG'], kind='cubic',
                             fill_value=0.0, assume_sorted=True)
     Fshelf_AVG_interp = ftemp(rbs_dprobe_mm)
-    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_simm_shelf_AVG'], kind='cubic',
+    ftemp = sinter.interp1d(simm_dprobe, simmDF['err_simm_shelf_AVG'], kind='slinear',
                             fill_value=0.0, assume_sorted=True)
     err_Fshelf_AVG_interp = ftemp(rbs_dprobe_mm)
 
     arealFRAC_floor = Ffloor_AVG_interp * rbsTEMP
-    err_arealFRAC_floor = arealFRAC_floor * np.sqrt((err_Ffloor_AVG_interp / Ffloor_AVG_interp)**2 +
-                                                    (err_rbsTEMP / rbsTEMP)**2)
+    err_arealFRAC_floor = np.abs(arealFRAC_floor * np.sqrt((err_Ffloor_AVG_interp / Ffloor_AVG_interp)**2 +
+                                                    (err_rbsTEMP / rbsTEMP)**2))
     arealFRAC_shelf = Fshelf_AVG_interp * rbsTEMP
-    err_arealFRAC_shelf = arealFRAC_shelf * np.sqrt((err_Fshelf_AVG_interp / Fshelf_AVG_interp)**2 +
-                                                    (err_rbsTEMP / rbsTEMP)**2)
+    err_arealFRAC_shelf = np.abs(arealFRAC_shelf * np.sqrt((err_Fshelf_AVG_interp / Fshelf_AVG_interp)**2 +
+                                                    (err_rbsTEMP / rbsTEMP)**2))
     arealFRACdic = {
                    'arealFRAC_dprobe_mm': pd.Series(rbs_dprobe_mm, index=frac_areal_rminrsep),
                    'arealFRAC_floor': pd.Series(arealFRAC_floor, index=frac_areal_rminrsep),
@@ -133,9 +133,12 @@ def mak2sourceSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     Rprob_8082 = enrichDF['EF180']/enrichDF['EF182']
     Rprob_8082 = np.nan_to_num(Rprob_8082)
     Rprob_8082[Rprob_8082 > 2.0] = 2.0
-    Rprob_8082[Rprob_8082 < -2.0] = -2.0
+    Rprob_8082[Rprob_8082 < -2.0] = 0.0
     Rprob_8082_err = Rprob_8082 * np.sqrt((enrichDF['EF180err'] / enrichDF['EF180'])**2 +
                                           (enrichDF['EF182err'] / enrichDF['EF182'])**2)
+    Rprob_8082_err = np.nan_to_num(Rprob_8082_err)
+    Rprob_8082_err[Rprob_8082_err > 1.0] = 1.0
+    Rprob_8082_err[Rprob_8082_err < -1.0] = 1.0
     delW_probe_8082 = (Rprob_8082/STANDdic['Rnist_8082']) - 1.
     err_delW_probe_8082 = delW_probe_8082*np.sqrt((Rprob_8082_err / Rprob_8082)**2 +
                                                   (STANDdic['err_Rnist_8082'] /
@@ -155,13 +158,15 @@ def mak2sourceSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     Rprob_8382[Rprob_8382 < -2.0] = -2.0
     Rprob_8382_err = Rprob_8382 * np.sqrt((enrichDF['EF183err'] / enrichDF['EF183'])**2 +
                                           (enrichDF['EF182err'] / enrichDF['EF182'])**2)
+    Rprob_8382_err = np.nan_to_num(Rprob_8382_err)
+    Rprob_8382_err[Rprob_8382_err > 1.0] = 1.0
+    Rprob_8382_err[Rprob_8382_err < -1.0] = 1.0
     delW_probe_8382 = (Rprob_8382/STANDdic['Rnist_8382']) - 1.
     err_delW_probe_8382 = delW_probe_8382*np.sqrt((Rprob_8382_err / Rprob_8382)**2 +
                                                   (STANDdic['err_Rnist_8382'] /
                                                   STANDdic['Rnist_8382'])**2)
     Fshelf_8382 = (delW_probe_8382 - (STANDdic['delW_floor_8382'] * (1-BGfrac))) / \
                   (STANDdic['delW_shelf_8382'] - STANDdic['delW_floor_8382'])
-    Fshelf_8382 = np.nan_to_num(Fshelf_8382)
     err_Fshelf_8382 = Fshelf_8382*np.sqrt((err_delW_probe_8382/delW_probe_8382)**2 +
                                           (STANDdic['err_delW_floor_8382'] /
                                           STANDdic['delW_floor_8382'])**2 +
@@ -175,6 +180,9 @@ def mak2sourceSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     Rprob_8482[Rprob_8482 < -2.0] = -2.0
     Rprob_8482_err = Rprob_8482 * np.sqrt((enrichDF['EF184err'] / enrichDF['EF184'])**2 +
                                           (enrichDF['EF182err'] / enrichDF['EF182'])**2)
+    Rprob_8482_err = np.nan_to_num(Rprob_8482_err)
+    Rprob_8482_err[Rprob_8482_err > 1.0] = 1.0
+    Rprob_8482_err[Rprob_8482_err < -1.0] = 1.0
     delW_probe_8482 = (Rprob_8482/STANDdic['Rnist_8482']) - 1.
     err_delW_probe_8482 = delW_probe_8482*np.sqrt((Rprob_8482_err / Rprob_8482)**2 +
                                                   (STANDdic['err_Rnist_8482'] /
@@ -194,6 +202,9 @@ def mak2sourceSIMMS(enrichDF, BGfrac=0.0435, HDFdump=0):
     Rprob_8682[Rprob_8682 < -2.0] = -2.0
     Rprob_8682_err = Rprob_8682 * np.sqrt((enrichDF['EF186err'] / enrichDF['EF186'])**2 +
                                           (enrichDF['EF182err'] / enrichDF['EF182'])**2)
+    Rprob_8682_err = np.nan_to_num(Rprob_8682_err)
+    Rprob_8682_err[Rprob_8682_err > 1.0] = 1.0
+    Rprob_8682_err[Rprob_8682_err < -1.0] = 1.0
     delW_probe_8682 = (Rprob_8682/STANDdic['Rnist_8682']) - 1.
     err_delW_probe_8682 = delW_probe_8682*np.sqrt((Rprob_8682_err / Rprob_8682)**2 +
                                                   (STANDdic['err_Rnist_8682'] /

@@ -294,7 +294,7 @@ def pltCPenrichment(DF):
     for i, j in enumerate(nams[1::]):
         DF.plot(y=nams[i+1], yerr=namsERR[i+1], ylim=(0.0001, 1.0), marker='o', linestyle='None',
                 ms=3, mfc='none', alpha=0.5, ax=ax, logy=True, title='CP enrichments')
-    ax.legend()
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     return
 
 

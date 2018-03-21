@@ -3,7 +3,7 @@ import scipy.interpolate as sinter
 import pandas as pd
 
 def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpath='/.',
-          HDFdump=0):
+          HDFdump=0, BGfrac=0.0435):
 
     efFOLDpath = FOLDpath+'CP_LAMS_Dictionary/'
     efDF = getCPenrichment(fileNAM=EFfileNAM,datFOLDpath=efFOLDpath)
@@ -11,7 +11,7 @@ def doALL(EFfileNAM="AU02_dict.csv", RBSfileNAM="A02_RminRsep_data.csv", FOLDpat
     rbsFOLDpath = FOLDpath+'RminRsep_RBS_Dictionary/'
     rbsDIC = makRBS_DIC(RBSfileNAM, datFOLDpath=rbsFOLDpath)
 
-    simmDF = makSIMMS(efDF, BGfrac=0.0435, HDFdump=0)
+    simmDF = makSIMMS(efDF, BGfrac=BGfrac, HDFdump=0)
 
     # get R-R_sep
     rbsDICnam = efDF.DFname[1]+"df"

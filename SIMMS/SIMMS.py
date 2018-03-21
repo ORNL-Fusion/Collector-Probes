@@ -297,6 +297,18 @@ def pltCPenrichment(DF):
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     return
 
+def pltArealFRAC(arealfrDF): #arealfrDF
+    nams = ['arealFRAC_floor', 'arealFRAC_shelf']
+    namsERR = ['err_arealFRAC_floor', 'err_arealFRAC_shelf']
+
+    ax = arealfrDF.plot(y=nams[0], yerr=namsERR[0], logy=False, marker='o',
+                 linestyle='None', ms=3, mfc='none', alpha=0.5)
+
+    for i, j in enumerate(nams[1::]):
+        arealfrDF.plot(y=nams[i+1], yerr=namsERR[i+1], marker='o', linestyle='None',
+                ms=3, mfc='none', alpha=0.5, ax=ax, logy=False, title='Fractional Areal Density')
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    return
 
 def makSTANDARDS():
     # Standards go like W-180, W-182, W-183, W-184, W-186

@@ -232,6 +232,7 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     all_psins = np.zeros((num_of_times, len(channels)))
     all_tes   = np.zeros((num_of_times, len(channels)))
     all_nes   = np.zeros((num_of_times, len(channels)))
+    all_omps  = np.zeros((num_of_times, len(channels)))
     row_index = 0
 
     # Get the gfiles one time slice at a time.
@@ -242,14 +243,25 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
 
         # Create grid of R's and Z's.
         Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
+        Z_axis = gfile['ZmAxis']
+        R_axis = gfile['RmAxis']
+        Zes = np.copy(gfile['lcfs'][:, 1][13:-17])
+        Res = np.copy(gfile['lcfs'][:, 0][13:-17])
+        Rs_trunc = Rs > R_axis
 
         # Interpolation functions of psin(R, Z) and R(psin, Z).
-        f_psiN = scinter.Rbf(Rs, Zs, gfile['psiRZn'])
+        f_psiN = scinter.Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
+        f_Romp = scinter.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
+        f_Rs = scinter.interp1d(Zes, Res, assume_sorted=False)
+
+        # R value of separatrix at omp.
+        rSep_omp = f_Rs(Z_axis)
 
         # Temporary array to hold psins.
         psins = np.array([])
         tes   = np.array([])
         nes   = np.array([])
+        rminrsep_omp = np.array([])
         for index in range(0, len(channels)):
 
             # The R and Z of each channel.
@@ -258,6 +270,9 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
 
             # This is the psin at this specific time.
             tmp_psin = f_psiN(tmp_R, tmp_Z)
+
+            # R at the omp of this psin.
+            tmp_Romp = f_Romp(tmp_psin, Z_axis)
 
             # This is the corresponding Te at this time.
             te_index = np.argmax(times>time)
@@ -269,12 +284,16 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
             tes = np.append(tes, tmp_te)
             nes = np.append(nes, tmp_ne)
 
+            # The R-Rsep_omp position.
+            tmp_romp = tmp_Romp - rSep_omp
+            rminrsep_omp = np.append(rminrsep_omp, tmp_romp)
 
         # Put row into all the psins. So a 2D array, where each row is the psins/Tes
         # of every channel at a time.
         all_psins[row_index] = psins
         all_tes[row_index]   = tes
         all_nes[row_index]   = nes
+        all_omps[row_index]  = rminrsep_omp
 
         row_index = row_index + 1
 
@@ -305,13 +324,17 @@ def assign_psins(ts_dict, tmin=2500, tmax=5000, tstep=100, tree="EFIT01"):
     all_psins_org, avg_psins_org, avg_psins_org_err = organize_2d(all_psins)
     all_tes_org,   avg_tes_org,   avg_tes_org_err   = organize_2d(all_tes)
     all_nes_org,   avg_nes_org,   avg_nes_org_err   = organize_2d(all_nes)
+    all_omps_org,  avg_omps_org,  avg_omps_org_err  = organize_2d(all_omps)
 
     # Put these bad boys into the dictionary under psin to keep it organized.
     psins_dict = {"channels":channels,           "all_psins":all_psins_org,
                   "avg_psins":avg_psins_org,     "avg_Tes":avg_tes_org,
                   "avg_nes":avg_nes_org,         "avg_Tes_err":avg_tes_org_err,
                   "avg_nes_err":avg_nes_org_err, "avg_psins_err":avg_psins_org_err,
-                  "all_Tes":all_tes_org,         "all_nes":all_nes_org}
+                  "all_Tes":all_tes_org,         "all_nes":all_nes_org,
+                  "all_omps":all_omps_org,       "avg_omps":avg_omps_org,
+                  "avg_omps_err":avg_omps_org_err,
+                  "times":times_for_gfile}
 
     ts_dict["psins"] = psins_dict
     return ts_dict

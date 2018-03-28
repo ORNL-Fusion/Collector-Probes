@@ -5,7 +5,7 @@ import MDSplus as mds
 import scipy.interpolate as scinter
 import math
 
-def return_avg_Z(shots, startTime=2500, endTime=5000, timeStep=500, server='localhost'):
+def return_avg(shots, startTime=2500, endTime=5000, timeStep=500, server='localhost'):
     print "Z Location of A Probe: -0.18 m \nZ Location of B Probe: -0.1546 m \nZ Location of C Probe: -0.2054 m"
 
 

@@ -97,7 +97,7 @@ def avg_Rsep_all(shots, r_probe, locations, writeToFile=False,
 
             # R_Sep for each z location of the three probes.
             rSep = {}
-            rSep['a'] = f_Rs(-0.18)
+            rSep['a'] = f_Rs(-0.188)
             rSep['b'] = f_Rs(-0.1546)
             rSep['c'] = f_Rs(-0.2054)
 

@@ -301,7 +301,7 @@ class Probe():
             filename = self.letter + str(self.number) + '.csv'
         with open(filename, 'wb') as f:
             w = csv.writer(f)
-            w.writerow(["W areal units are (W/cm^2). Location and R-Rsep units are (cm)."])
+            w.writerow(["W areal units are (10^15 W/cm^2). Location and R-Rsep units are (cm)."])
             w.writerow(combo_dict.keys())
             w.writerows(zip(*combo_dict.values()))
 

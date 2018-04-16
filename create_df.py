@@ -339,7 +339,7 @@ def rbs_df_stats(rbs_df, U_or_D, verbal=False):
 def get_rbs(number, probe, start=2500, end=5000, step=500, remote=True, verbal=False):
     """
     This function can be considered a wrapper for the above functions. Use this
-    function to get the rbs_df that you most likely want.
+    function to get the rbs_df (which is probably what you want).
 
     number: The probe number.
     probe:  One of A, B or C.
@@ -370,3 +370,4 @@ def get_rbs(number, probe, start=2500, end=5000, step=500, remote=True, verbal=F
     return stat_df
 
 def get_lams(number, probe):
+    pass

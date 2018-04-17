@@ -4,7 +4,7 @@ import create_df
 import pull_mdsplus as pull
 
 
-print("Script related to retrieving collector probe data from r2d2 and atlas.")
+print("\nScript related to retrieving collector probe data from r2d2 and atlas.")
 print("This requires an account on Cybele/Iris as well as R2D2. Try")
 print("'help(get_cp_data.get_probe_data)' for info and an example.")
 
@@ -19,6 +19,7 @@ class Probe:
         self.time_start = start
         self.time_end   = end
         self.time_step  = step
+        self.lams_avail = True
 
     def get_rbs(self, remote=True):
         """
@@ -47,7 +48,8 @@ class Probe:
         """
         writer = pd.ExcelWriter(filename)
         self.rbs_data.to_excel(writer, 'RBS Data')
-        self.lams_data.to_excel(writer, 'LAMS Data')
+        if self.lams_avail:
+            self.lams_data.to_excel(writer, 'LAMS Data')
         writer.save()
 
     def to_hdf5(self, filename):
@@ -72,7 +74,7 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
     time_end:
         End time of the above.
     time_step:
-        Time step for the above. Having five or times seems to work fine.
+        Time step for the above. Having five or so times seems to work fine.
     remote:
         Set to True if accessing outside DIII-D network. This requires ssh linking
         either r2d2 or atlas to your localhost. An example way of doing this is
@@ -104,8 +106,15 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
     p_list = []
     for probe in probes_to_get:
         p = Probe(probe[0], probe[1:], time_start, time_end, time_step)
-        p.get_rbs(remote)
-        p.get_lams(remote)
+        try:
+            p.get_rbs(remote)
+        except:
+            print("No RBS data available.")
+        try:
+            p.get_lams(remote)
+        except:
+            print("No LAMS data available.")
+            p.lams_avail = False
         p_list.append(p)
 
     ans = input("Save to Excel files (y/n)? ")

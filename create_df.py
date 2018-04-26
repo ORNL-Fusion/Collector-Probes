@@ -139,6 +139,7 @@ def rbs_into_df(number, probe, start=2500, end=5000, step=500, remote=True, verb
     # Get shots probe was in for and Rprobe. Same for U and D sides, obviously.
     shots  = pull.pull_shots(conn, probe + 'U', verbal=verbal)
     rprobe = pull.pull_rprobe(conn, probe + 'U', probe_corr=True, verbal=verbal)
+    print("Shots to be analyzed: " + str(shots))
 
     # Then pull the RBS data.
     print('\nLoading ' + probe + 'U' + str(number) + ' data...')

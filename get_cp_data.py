@@ -119,7 +119,10 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
 
     ans = input("Save to Excel files (y/n)? ")
     if ans == 'y':
-        for p in p_list:
-            p.save_excel(p.letter + str(p.number) + '.xlsx')
+        try:
+            for p in p_list:
+                p.save_excel(p.letter + str(p.number) + '.xlsx')
+        except:
+            print("Error saving probe data: " + p)
 
     return p_list

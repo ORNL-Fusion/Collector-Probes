@@ -127,7 +127,9 @@ def rbs_into_df(number, probe, start=2500, end=5000, step=500, remote=True, verb
 
     # Create MDSplus connection to R2D2.
     if verbal:
-        print("Connecting to r2d2...", end="")
+        #print("Connecting to r2d2...", end="")
+        print("Connecting to r2d2...")
+        print("\033[F")
     if remote:
         server = 'localhost'
     else:
@@ -206,7 +208,9 @@ def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote=True, verbal=False)
 
     # Create MDSplus connection to atlas.
     if verbal:
-        print("Connecting to atlas...", end="")
+        #print("Connecting to atlas...", end="")
+        print("Connecting to atlas...")
+        print("\033[F")
     if remote:
         server = 'localhost'
     else:
@@ -284,8 +288,10 @@ def rbs_df_stats(rbs_df, U_or_D, verbal=False):
     if False:
         print("Aggregating statistics over all shots and times...")
 
-    # First get how many locations there are.
-    locs  = np.unique(rbs_df.index.get_level_values('locs').values)
+    # First get how many locations there are. np.unique will sort them (don't want),
+    # so return index will give the indices to preserve order.
+    locs, order  = np.unique(rbs_df.index.get_level_values('locs').values, return_index=True)
+    locs = locs[order]
     nlocs = locs.size
 
     # The DataFrames that will hold our results.

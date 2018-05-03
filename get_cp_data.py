@@ -125,6 +125,6 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
             for p in p_list:
                 p.save_excel(p.letter + str(p.number) + '.xlsx')
         except:
-            print("Error saving probe data: " + p.letter + p.number)
+            print("Error saving probe data: " + p.letter + str(p.number))
 
     return p_list

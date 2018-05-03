@@ -114,7 +114,7 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
             p.get_rbs(remote)
         except:
             print("No RBS data available.")
-            self.rbs_avail = False
+            p.rbs_avail = False
         try:
             p.get_lams(remote)
         except:

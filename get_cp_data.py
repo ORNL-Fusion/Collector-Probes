@@ -34,6 +34,8 @@ class Probe:
         if remote:
             input("SSH link r2d2 to localhost. Press enter to continue...")
             conn = pull.thin_connect(self.number, server='localhost')
+        else:
+            conn = pull.thin_connect(self.number, server='r2d2.gat.com')
         lams_dict_U    = pull.pull_lams(conn, self.number, self.letter + 'U', verbal=True)
         lams_dict_D    = pull.pull_lams(conn, self.number, self.letter + 'D', verbal=True)
         lams_df_U      = pd.DataFrame(lams_dict_U)

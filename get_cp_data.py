@@ -20,6 +20,7 @@ class Probe:
         self.time_end   = end
         self.time_step  = step
         self.lams_avail = True
+        self.rbs_avail  = True
 
     def get_rbs(self, remote=True):
         """
@@ -49,7 +50,8 @@ class Probe:
         own sheet.
         """
         writer = pd.ExcelWriter(filename)
-        self.rbs_data.to_excel(writer, 'RBS Data')
+        if self.rbs_avail:
+            self.rbs_data.to_excel(writer, 'RBS Data')
         if self.lams_avail:
             self.lams_data.to_excel(writer, 'LAMS Data')
         writer.save()
@@ -112,6 +114,7 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
             p.get_rbs(remote)
         except:
             print("No RBS data available.")
+            self.rbs_avail = False
         try:
             p.get_lams(remote)
         except:

@@ -5,7 +5,7 @@ import pull_mdsplus as pull
 
 
 print("\nScript related to retrieving collector probe data from r2d2 and atlas.")
-print("This requires an account on Cybele/Iris as well as R2D2. Try")
+print("and atlas. This requires an account on Cybele/Iris as well as R2D2. Try")
 print("'help(get_cp_data.get_probe_data)' for info and an example.")
 
 class Probe:
@@ -22,27 +22,17 @@ class Probe:
         self.lams_avail = True
         self.rbs_avail  = True
 
-    def get_rbs(self, remote=True):
+    def get_rbs_and_lams(self, remote=True):
         """
         Pull all the RBS relevant data stored on r2d2 and return it as a DataFrame.
         """
-        self.rbs_data = create_df.get_rbs(self.number, self.letter, self.time_start,
-                                          self.time_end, self.time_step, remote, True)
-    def get_lams(self, remote=True):
-        """
-        Pull all the LAMS relevant data stored on r2d2 and return it as a DataFrame.
-        """
-        if remote:
-            input("SSH link r2d2 to localhost. Press enter to continue...")
-            conn = pull.thin_connect(self.number, server='localhost')
-        else:
-            conn = pull.thin_connect(self.number, server='r2d2.gat.com')
-        lams_dict_U    = pull.pull_lams(conn, self.number, self.letter + 'U', verbal=True)
-        lams_dict_D    = pull.pull_lams(conn, self.number, self.letter + 'D', verbal=True)
-        lams_df_U      = pd.DataFrame(lams_dict_U)
-        lams_df_D      = pd.DataFrame(lams_dict_D)
-        lams_df        = pd.concat((lams_df_U, lams_df_D), axis=1)
-        self.lams_data = lams_df
+        self.rbs_data, self.lams_data = create_df.get_rbs_and_lams(self.number,
+                                                                   self.letter,
+                                                                   self.time_start,
+                                                                   self.time_end,
+                                                                   self.time_step,
+                                                                   remote,
+                                                                   True)
 
     def save_excel(self, filename):
         """
@@ -50,9 +40,9 @@ class Probe:
         own sheet.
         """
         writer = pd.ExcelWriter(filename)
-        if self.rbs_avail:
+        if self.rbs_data is not None:
             self.rbs_data.to_excel(writer, 'RBS Data')
-        if self.lams_avail:
+        if self.lams_data is not None:
             self.lams_data.to_excel(writer, 'LAMS Data')
         writer.save()
 
@@ -107,21 +97,17 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
 
     """
 
+    # The list to hold the returned Probe objects.
     p_list = []
     for probe in probes_to_get:
         p = Probe(probe[0], probe[1:], time_start, time_end, time_step)
         try:
-            p.get_rbs(remote)
+            p.get_rbs_and_lams(remote)
         except:
-            print("No RBS data available.")
-            p.rbs_avail = False
-        try:
-            p.get_lams(remote)
-        except:
-            print("No LAMS data available.")
-            p.lams_avail = False
+            print("Error retrieving data.")
         p_list.append(p)
 
+    # Ask if user wants to save data in an Excel file.
     ans = input("Save to Excel files (y/n)? ")
     if ans == 'y':
         try:
@@ -130,4 +116,5 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
         except:
             print("Error saving probe data: " + p.letter + str(p.number))
 
+    # Return the list of Probe objects for the user to use in a terminal.
     return p_list

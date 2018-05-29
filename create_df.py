@@ -221,47 +221,50 @@ def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote=True, verbal=False)
 
     for shot in shots:
         for time in times:
-            # Load gfile.
-            gfile = load_gfile_mds(shot, time, connection=conn, tunnel=True)
+            try:
+                # Load gfile.
+                gfile = load_gfile_mds(shot, time, connection=conn, tunnel=True)
 
-            # Create grid of R's and Z's.
-            Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
+                # Create grid of R's and Z's.
+                Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
 
-            # Z and R of magnetic axis (where omp is), in m.
-            Z_axis = gfile['ZmAxis']
-            R_axis = gfile['RmAxis']
+                # Z and R of magnetic axis (where omp is), in m.
+                Z_axis = gfile['ZmAxis']
+                R_axis = gfile['RmAxis']
 
-            # Z's and R's of the separatrix, in m.
-            Zes = np.copy(gfile['lcfs'][:, 1][13:-17])
-            Res = np.copy(gfile['lcfs'][:, 0][13:-17])
+                # Z's and R's of the separatrix, in m.
+                Zes = np.copy(gfile['lcfs'][:, 1][13:-17])
+                Res = np.copy(gfile['lcfs'][:, 0][13:-17])
 
-            # Only want right half of everything.
-            Rs_trunc = Rs > R_axis
+                # Only want right half of everything.
+                Rs_trunc = Rs > R_axis
 
-            # Interpolation functions of psin(R, Z) and R(psin, Z).
-            f_psin = interpolate.Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
-            f_Romp = interpolate.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
-            f_Rs   = interpolate.interp1d(Zes, Res, assume_sorted=False)
+                # Interpolation functions of psin(R, Z) and R(psin, Z).
+                f_psin = interpolate.Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
+                f_Romp = interpolate.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
+                f_Rs   = interpolate.interp1d(Zes, Res, assume_sorted=False)
 
-            # R of the separatrix at each probe Z in cm.
-            Rsep     = f_Rs(Z_probe) * 100.0
-            Rsep_omp = f_Rs(Z_axis)  * 100.0
+                # R of the separatrix at each probe Z in cm.
+                Rsep     = f_Rs(Z_probe) * 100.0
+                Rsep_omp = f_Rs(Z_axis)  * 100.0
 
-            # Get R of each location along the probe in cm, then R-Rsep.
-            R_locs_U   = geo.calc_R_meas(rprobe, locs_U, probe + 'U')
-            RminRsep_U = R_locs_U - Rsep
-            R_locs_D   = geo.calc_R_meas(rprobe, locs_D, probe + 'D')
-            RminRsep_D = R_locs_D - Rsep
+                # Get R of each location along the probe in cm, then R-Rsep.
+                R_locs_U   = geo.calc_R_meas(rprobe, locs_U, probe + 'U')
+                RminRsep_U = R_locs_U - Rsep
+                R_locs_D   = geo.calc_R_meas(rprobe, locs_D, probe + 'D')
+                RminRsep_D = R_locs_D - Rsep
 
-            # Get the corresponding psins of each location along the probe.
-            psin_locs_U = f_psin(R_locs_U / 100.0, np.full((len(R_locs_U),), Z_probe))
-            psin_locs_D = f_psin(R_locs_D / 100.0, np.full((len(R_locs_D),), Z_probe))
+                # Get the corresponding psins of each location along the probe.
+                psin_locs_U = f_psin(R_locs_U / 100.0, np.full((len(R_locs_U),), Z_probe))
+                psin_locs_D = f_psin(R_locs_D / 100.0, np.full((len(R_locs_D),), Z_probe))
 
-            # Calculate R_loc at the omp, then R-Rsep omp.
-            R_locs_omp_U   = f_Romp(psin_locs_U, np.full((len(psin_locs_U),), Z_axis)) * 100.0
-            RminRsep_omp_U = R_locs_omp_U - Rsep_omp
-            R_locs_omp_D   = f_Romp(psin_locs_D, np.full((len(psin_locs_D),), Z_axis)) * 100.0
-            RminRsep_omp_D = R_locs_omp_D - Rsep_omp
+                # Calculate R_loc at the omp, then R-Rsep omp.
+                R_locs_omp_U   = f_Romp(psin_locs_U, np.full((len(psin_locs_U),), Z_axis)) * 100.0
+                RminRsep_omp_U = R_locs_omp_U - Rsep_omp
+                R_locs_omp_D   = f_Romp(psin_locs_D, np.full((len(psin_locs_D),), Z_axis)) * 100.0
+                RminRsep_omp_D = R_locs_omp_D - Rsep_omp
+            except:
+                print("Error loading this time.")
 
             # Finally store all these in the corresponding part of the DataFrame.
             rbs_df_U.loc[shot].loc[time]['R-Rsep (cm)']     = pd.Series(RminRsep_U,     index=rbs_df_U.loc[shot].loc[time].index)

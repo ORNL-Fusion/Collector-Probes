@@ -111,7 +111,7 @@ def pull_rbs_areal_err(conn, probe, verbal=False):
         print("Incorrect probe entry.")
         return None
 
-def pull_all_rbs(conn, shot, probe, server='r2d2.gat.com', verbal=False):
+def pull_all_rbs(conn, shot, probe, verbal=False):
     """
     Pull RBS data and return it all in a dictionary.
     conn:  An MDSplus connection. Get from the above 'thin_connect' function.
@@ -133,7 +133,7 @@ def pull_lams(conn, shot, probe, verbal=False):
     """
 
     if verbal:
-        print("Retrieving LAMS data...")
+        print("Retrieving " + probe + str(shot) + " LAMS data...")
     path = '\\DP_PROBES::TOP.' + probe[0] + '.' + probe + '.LAMS'
 
     lams_dict = {}

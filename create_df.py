@@ -106,17 +106,17 @@ def load_gfile_mds(shot, time, tree="EFIT01", exact=False, connection=None, tunn
 
     return g
 
-def rbs_into_df(number, probe, start=2500, end=5000, step=500, remote=True, verbal=False):
+def rbs_into_df(number, probe, conn, start=2500, end=5000, step=500, verbal=False):
     """
     Pulls RBS data from the MDSplus tree 'dp_probes' and puts it into a
     DataFrame ready for analysis. Require ssh to r2d2 if remote.
 
     number: Probe number.
     probe:  One of A, B or C.
+    conn:   An MDSplus Connection returned via the pull.thin_connect function.
     start:  Start of time that will be analyzed (i.e. the first gfile loaded).
     end:    End of time for analysis (i.e. the last gfile loaded).
     step:   Time step for the above.
-    remote: Set to True if using outside the DIII-D network.
 
     returns: A DataFrame formatted and ready to be filled with data (R-Rsep,
              R-Rsep_omp, etc.)
@@ -125,19 +125,6 @@ def rbs_into_df(number, probe, start=2500, end=5000, step=500, remote=True, verb
     # Create array of times to be sampled.
     times = np.arange(start, end, step)
 
-    # Create MDSplus connection to R2D2.
-    if verbal:
-        #print("Connecting to r2d2...", end="")
-        print("Connecting to r2d2...")
-        print("\033[F")
-    if remote:
-        server = 'localhost'
-    else:
-        server = 'r2d2.gat.com'
-    conn = pull.thin_connect(number, server=server)
-    if verbal:
-        print(" Connected.")
-
     # Get shots probe was in for and Rprobe. Same for U and D sides, obviously.
     shots  = pull.pull_shots(conn, probe + 'U', verbal=verbal)
     rprobe = pull.pull_rprobe(conn, probe + 'U', probe_corr=True, verbal=verbal)
@@ -145,9 +132,9 @@ def rbs_into_df(number, probe, start=2500, end=5000, step=500, remote=True, verb
 
     # Then pull the RBS data.
     print('\nLoading ' + probe + 'U' + str(number) + ' data...')
-    rbs_dict_U = pull.pull_all_rbs(conn, number, probe + 'U', server=server, verbal=verbal)
+    rbs_dict_U = pull.pull_all_rbs(conn, number, probe + 'U', verbal=verbal)
     print('\nLoading ' + probe + 'D' + str(number) + ' data...')
-    rbs_dict_D = pull.pull_all_rbs(conn, number, probe + 'D', server=server, verbal=verbal)
+    rbs_dict_D = pull.pull_all_rbs(conn, number, probe + 'D', verbal=verbal)
 
     # Now prepare the DataFrame. Will have set of data at each time, at each
     # shot. So essentially len(times)*len(shots) DataFrames stacked together.
@@ -166,12 +153,9 @@ def rbs_into_df(number, probe, start=2500, end=5000, step=500, remote=True, verb
     rbs_df_U = pd.concat(list(itertools.repeat(rbs_df_U, len(shots))), keys=shots, names=['shots'])
     rbs_df_D = pd.concat(list(itertools.repeat(rbs_df_D, len(shots))), keys=shots, names=['shots'])
 
-    if verbal:
-        print("\nData from r2d2 pulled.\n")
-
     return rbs_df_U, rbs_df_D, rprobe
 
-def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote=True, verbal=False):
+def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, conn, verbal=False):
     """
     Takes the rbs_df from above and fill it in with R-Rsep, R-Rsep_omp, etc. It
     returns all if it, so that it may then be averaged and get the std. dev. of
@@ -180,7 +164,8 @@ def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote=True, verbal=False)
     rbs_df_U: The DataFrame returned from rbs_into_df. Likewise for D.
     probe:    One of A, B or C.
     rprobe:   Radial position of probe tip returned from rbs_into_df.
-    remote:   Set to to True if using outside DIII-D network.
+    conn:     An MDSplus Connection object from the mds.Connection function (different
+              procedure compared to connecting to r2d2).
 
     returns: Filled in rbs_df.
     """
@@ -188,11 +173,14 @@ def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote=True, verbal=False)
     if verbal:
         print("Analyzing atlas relevant data...")
 
-    # Get the shots, times and locs from the rbs_df index.
+    # Get the shots, times and locs from the rbs_df index. np.unique will sort
+    # the locs (don't want), so returning the indices and reordering will fix this.
     shots   = np.unique(rbs_df_U.index.get_level_values('shots').values)
     times   = np.unique(rbs_df_U.index.get_level_values('times').values)
-    locs_U  = np.unique(rbs_df_U.index.get_level_values('locs').values)
-    locs_D  = np.unique(rbs_df_D.index.get_level_values('locs').values)
+    locs_U, order_U  = np.unique(rbs_df_U.index.get_level_values('locs').values, return_index=True)
+    locs_D, order_D  = np.unique(rbs_df_D.index.get_level_values('locs').values, return_index=True)
+    locs_U  = locs_U[order_U]
+    locs_D  = locs_D[order_D]
 
     # Extra columns to be filled out.
     rbs_df_U['R-Rsep (cm)']     = pd.Series(); rbs_df_D['R-Rsep (cm)']     = pd.Series()
@@ -205,19 +193,6 @@ def fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote=True, verbal=False)
     elif probe == 'B': Z_probe = -0.1546
     elif probe == 'C': Z_probe = -0.2054
     else: print("Error in probe entry.")
-
-    # Create MDSplus connection to atlas.
-    if verbal:
-        #print("Connecting to atlas...", end="")
-        print("Connecting to atlas...")
-        print("\033[F")
-    if remote:
-        server = 'localhost'
-    else:
-        server='atlas.gat.com'
-    conn = mds.Connection(server)
-    if verbal:
-        print(" Connected.")
 
     for shot in shots:
         for time in times:
@@ -346,7 +321,26 @@ def rbs_df_stats(rbs_df, U_or_D, verbal=False):
 
     return rbs_stat_df
 
-def get_rbs(number, probe, start=2500, end=5000, step=500, remote=True, verbal=False):
+def get_lams(number, probe, conn, verbal):
+    """
+    This functions pulls in the LAMS data and returns it as a Dataframe.
+    number: The probe number.
+    probe:  One of A, B or C.
+    conn:   An MDSplus connection to r2d2 returned via the pull.thin_connect function.
+    verbal: Set to True if you want feedback as the program runs.
+    """
+
+    print("")
+    # Pull the LAMS data and put it into a dataframe.
+    lams_dict_U    = pull.pull_lams(conn, number, probe + 'U', verbal=True)
+    lams_dict_D    = pull.pull_lams(conn, number, probe + 'D', verbal=True)
+    lams_df_U      = pd.DataFrame(lams_dict_U)
+    lams_df_D      = pd.DataFrame(lams_dict_D)
+    lams_df        = pd.concat((lams_df_U, lams_df_D), axis=1)
+
+    return lams_df
+
+def get_rbs_and_lams(number, probe, start=2500, end=5000, step=500, remote=True, verbal=False):
     """
     This function can be considered a wrapper for the above functions. Use this
     function to get the rbs_df (which is probably what you want).
@@ -359,25 +353,70 @@ def get_rbs(number, probe, start=2500, end=5000, step=500, remote=True, verbal=F
     remote: Set to True if accessing from outside DIII-D network.
     verbal: Set to True if you want feedback as program runs.
 
-    returns: DataFrame with plasma coordinates of each location along the probe.
+    returns: DataFrame of RBS data with plasma coordinates of each location along
+             the probe and Dataframe of the LAMS data (i.e. enrichment fractions).
     """
 
+    # Flags telling if RBS or LAMS data is available.
+    rbs_avail  = True
+    lams_avail = True
+
+    # Establish an MDSplus connection to r2d2.
     if remote:
         input("SSH link r2d2 to localhost. Press enter to continue...")
-    # Get r2d2 data df, and rprobe (with correction already applied).
-    rbs_df_U, rbs_df_D, rprobe = rbs_into_df(number, probe, start, end, step, remote, verbal)
+        server = 'localhost'
+    else:
+        server = 'r2d2.gat.com'
+    if verbal:
+        print("Connecting to r2d2...", end="")
+        #print("\033[F")
+    conn = pull.thin_connect(number, server=server)
+    if verbal:
+        print(" Connected.")
 
-    if remote:
-        input("SSH link atlas to localhost. Press enter to continue...")
-    # Get atlas related data.
-    rbs_df_U, rbs_df_D = fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, remote, verbal)
+    # Try and get the rbs data if it's there. If not, set the flag to false and
+    # make the returned rbs dataframe None.
+    try:
+        # Get r2d2 data df, and rprobe (with correction already applied).
+        rbs_df_U, rbs_df_D, rprobe = rbs_into_df(number, probe, conn, start, end, step, verbal)
+    except:
+        print("No RBS data for " + probe + str(number))
+        rbs_avail = False
+        stat_df   = None
 
-    # Do statistics, creating much smaller df.
-    stat_df_U = rbs_df_stats(rbs_df_U, 'U', verbal)
-    stat_df_D = rbs_df_stats(rbs_df_D, 'D', verbal)
-    stat_df = pd.concat([stat_df_U, stat_df_D], axis=1)
+    # Likewise for the LAMS data.
+    try:
+        # Now get the LAMS dataframe.
+        lams_df = get_lams(number, probe, conn, verbal)
+    except:
+        print("No LAMS data for " + probe + str(number))
+        lams_avail = False
+        lams_df    = None
 
-    return stat_df
+    if verbal:
+        print("\nData from r2d2 pulled.\n")
 
-def get_lams(number, probe):
-    pass
+    # Only do this if rbs data is available.
+    if rbs_avail:
+        # Establish an MDSplus connection to atlas.
+        if remote:
+            input("SSH link atlas to localhost. Press enter to continue...")
+            server = 'localhost'
+        else:
+            server = 'atlas.gat.com'
+        if verbal:
+            print("Connecting to atlas...", end="")
+            #print("\033[F")
+        conn = mds.Connection(server)
+        if verbal:
+            print(" Connected.")
+
+        # Get atlas related data.
+        rbs_df_U, rbs_df_D = fill_in_rbs_df(rbs_df_U, rbs_df_D, probe, rprobe, conn, verbal)
+
+        # Do statistics, creating much smaller df.
+        stat_df_U = rbs_df_stats(rbs_df_U, 'U', verbal)
+        stat_df_D = rbs_df_stats(rbs_df_D, 'D', verbal)
+        stat_df = pd.concat([stat_df_U, stat_df_D], axis=1)
+
+    return stat_df, lams_df

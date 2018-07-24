@@ -379,7 +379,8 @@ def get_rbs_and_lams(number, probe, start=2500, end=5000, step=500, remote=True,
     try:
         # Get r2d2 data df, and rprobe (with correction already applied).
         rbs_df_U, rbs_df_D, rprobe = rbs_into_df(number, probe, conn, start, end, step, verbal)
-    except:
+    except Exception as err:
+        print('Error: {}'.format(err))
         print("No RBS data for " + probe + str(number))
         rbs_avail = False
         stat_df   = None

@@ -113,8 +113,9 @@ def get_probe_data(probes_to_get, time_start=2500, time_end=5000, time_step=500,
         try:
             for p in p_list:
                 p.save_excel(p.letter + str(p.number) + '.xlsx')
-        except:
+        except Exception as e:
             print("Error saving probe data: " + p.letter + str(p.number))
+            print("Error message: " + e)
 
     # Return the list of Probe objects for the user to use in a terminal.
     return p_list

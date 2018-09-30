@@ -175,11 +175,11 @@ def get_ts(shot, system="core", tunnel=True):
                         data_dim = conn.get("dim_of(" + path + ")").data()
                         data_dict = {"Time":data_dim, subnode.lower():data}
                         ts_dict[node.lower() + "." + subnode.lower()] = data_dict
-                    except mds.MdsIpException:
+                    except (mds.MdsIpException, mds.TreeNODATA):
                         print("  Node has no data.")
 
         # This error is returned if the node is empty. Catch it.
-        except mds.MdsIpException:
+        except (mds.MdsIpException, mds.TreeNODATA):
             print("  Node has no data.")
 
     ts_dict["system"] = system

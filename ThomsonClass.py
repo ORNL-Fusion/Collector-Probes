@@ -2,7 +2,9 @@ import numpy   as np
 import pandas  as pd
 import MDSplus as mds
 import matplotlib.pyplot as plt
-from scipy.interpolate import Rbf
+from scipy import interpolate
+from matplotlib import ticker, cm, colors
+import matplotlib as mpl
 
 
 class ThomsonClass:
@@ -17,6 +19,9 @@ class ThomsonClass:
         self.system = system
         self.conn = None
         self.ts_dict = {}
+
+    def __repr__(self):
+        return "ThomsonClass Object\n  Shot:   " + str(self.shot) + "\n  System: "+ str(self.system)
 
     def load_ts(self, tunnel=True):
         """
@@ -102,7 +107,7 @@ class ThomsonClass:
             except (mds.MdsIpException, mds.TreeNODATA):
                 print("  Node has no data.")
 
-    def load_gfile_mds(shot, time, tree="EFIT01", exact=False, connection=None, tunnel=True):
+    def load_gfile_mds(self, shot, time, tree="EFIT01", exact=False, connection=None, tunnel=True, verbal=True):
         """
         This is scavenged from the load_gfile_d3d script on the EFIT repository,
         except updated to run on python3.
@@ -129,10 +134,11 @@ class ThomsonClass:
         base = 'RESULTS:GEQDSK:'
 
         # get time slice
-        print("\nLoading gfile:")
-        print("  Shot: " + str(shot))
-        print("  Tree: " + tree)
-        print("  Time: " + str(time))
+        if verbal:
+            print("Loading gfile:")
+            print("  Shot: " + str(shot))
+            print("  Tree: " + tree)
+            print("  Time: " + str(time))
         signal = 'GTIME'
         k = np.argmin(np.abs(connection.get(base + signal).data() - time))
         time0 = int(connection.get(base + signal).data()[k])
@@ -141,8 +147,9 @@ class ThomsonClass:
             if exact:
                 raise RuntimeError(tree + ' does not exactly contain time %.2f' %time + '  ->  Abort')
             else:
-                print('Warning: ' + tree + ' does not exactly contain time %.2f' %time + ' the closest time is ' + str(time0))
-                print('Fetching time slice ' + str(time0))
+                if verbal:
+                    print('Warning: ' + tree + ' does not exactly contain time %.2f' %time + ' the closest time is ' + str(time0))
+                    print('Fetching time slice ' + str(time0))
                 time = time0
 
         # store data in dictionary
@@ -201,7 +208,7 @@ class ThomsonClass:
 
         return g
 
-    def map_to_efit(self, times=None):
+    def map_to_efit(self, times=None, average_ts=5):
         """
         This function will use EFIT to map the machine coordinates to psin and
         rho coordinates. Really easy to do with pandas.
@@ -210,56 +217,164 @@ class ThomsonClass:
                or list.
         """
 
+        # Store times for later use in plotting function.
+        self.times = np.array(times)
+
         # Pull these into DataFrames, a logical and easy way to represent the
         # data. Initially the rows are each a TS chord, and the columns are at
         # each time.
-
-        temp_df = pd.DataFrame(columns=ts.ts_dict['temp']['X'],    data=ts.ts_dict['temp']['Y'])
-        dens_df = pd.DataFrame(columns=ts.ts_dict['density']['X'], data=ts.ts_dict['density']['Y'])
-        temp_df.index.name   = 'Chord'
-        temp_df.columns.name = 'Time (ms)'
-        dens_df.index.name   = 'Chord'
-        dens_df.columns.name = 'Time (ms)'
+        self.temp_df = pd.DataFrame(columns=self.ts_dict['temp']['X'],    data=self.ts_dict['temp']['Y'])
+        self.dens_df = pd.DataFrame(columns=self.ts_dict['density']['X'], data=self.ts_dict['density']['Y'])
+        self.temp_df.index.name   = 'Chord'
+        self.temp_df.columns.name = 'Time (ms)'
+        self.dens_df.index.name   = 'Chord'
+        self.dens_df.columns.name = 'Time (ms)'
 
         # Transpose the data so each row is at a specific time, and the columns
         # are the chords.
-        temp_df = temp_df.tranpose()
-        dens_df = dens_df.tranpose()
+        self.temp_df = self.temp_df.transpose()
+        self.dens_df = self.dens_df.transpose()
 
         # Will create a DataFrame where the index is the psin location and the data
         # is either the temp/dens at the requested time or averaged over the
         # times, if multiple times passed.
 
         # Load gfile(s).
-        psin_df = pd.DataFrame()
+        self.ref_df = pd.DataFrame()
+        self.ref_df.index.name =   'Chord'
+        self.ref_df.columns.name = 'Time (R, Z)'
+        count = 1
+
+        # Current implementation makes the first time the reference frame.
+        ref_flag = True
         for time in times:
-            gfile = load_gfile_mds(self.shot, time, connection=self.conn)
+            print('Loading gfile (' + str(count) + '/' + str(len(times)) + ')...')
+            gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True)
 
             # Create grid of R's and Z's.
-            Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
+            #Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
 
             # Z and R of magnetic axis (where omp is), in m.
-            Z_axis = gfile['ZmAxis']
-            R_axis = gfile['RmAxis']
+            #Z_axis = gfile['ZmAxis']
+            #R_axis = gfile['RmAxis']
 
             # Z's and R's of the separatrix, in m.
-            Zes = np.copy(gfile['lcfs'][:, 1][13:-17])
-            Res = np.copy(gfile['lcfs'][:, 0][13:-17])
+            Zes = np.copy(gfile['lcfs'][:, 1])
+            Res = np.copy(gfile['lcfs'][:, 0])
 
             # Only want right half of everything, otherwise we're asking too much
             # from the interpolation coming up. It should be accurate to assume
             # the TS system is to the right of the magnetic axis, simplifying
-            # the interpolation.
-            Rs_trunc = Rs > R_axis
+            # the interpolation. IGNORE FOR NOW. MIGHT BE UNNECESSARY.
+            #Rs_trunc = Rs > R_axis
 
-            # Interpolation functions of psin(R, Z) and R(psin, Z).
-            f_psin = interpolate.Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
-            f_Romp = interpolate.Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
-            #f_Rs   = interpolate.interp1d(Zes, Res, assume_sorted=False)
+            # The location of the X-point is here where the lowest Z is (LSN).
+            xpoint_idx = np.where(Zes == Zes.min())[0][0]
+            Rx = Res[xpoint_idx]
+            Zx = Zes[xpoint_idx]
+            print('X-point (R, Z): ({:.2f}, {:.2f})'.format(Rx, Zx))
 
-            # We know the (R, Z) of each chord, so use f_psin to get the psin of
-            # it, then store in DataFrame. Will do the averaging and such after
-            # the loop for the sake of being modular. For now, just get the data.
+            # Use polar coordinates with the X-point as the origin.
+            # The distance from the X-point is just the distance formula.
             rs = self.ts_dict['r']['Y']; zs = self.ts_dict['z']['Y']
-            psins = f_psin(r, z)
-            psin_df[time] = psins
+
+            # If this is the first time(the reference frame), save these values.
+            # These ref rs, zs are already (R, Z) in the reference frame (obviously),
+            # so we don't need to convert to polar and then back to (R, Z) in the
+            # reference frame.
+            if ref_flag:
+                Rx_ref = Rx; Zx_ref = Zx
+                rs_ref = rs; zs_ref = zs
+                self.ref_df[str(time)] = list(zip(rs_ref, zs_ref))
+                ref_flag = False
+            else:
+                # The angle is computed using arctan2 to get the correct quadrant (radians).
+                theta = np.arctan2(zs - Zx, rs - Rx)
+                #print("Theta: ", end=''); print(*theta, sep=', ')
+                d = np.sqrt((rs - Rx)**2 + (zs - Zx)**2)
+                #print("Distance from X-point: ", end=''); print(*d, sep=', ')
+
+                # Now convert back to (R, Z), but in the reference frame.
+                rs_into_ref = d * np.cos(theta) + Rx_ref
+                zs_into_ref = d * np.sin(theta) + Zx_ref
+                self.ref_df[str(time)] = list(zip(rs_into_ref, zs_into_ref))
+
+            # Find the Te and ne data to put in for these times as well. Average
+            # the neighboring +/-"average_ts" points. Ex. If average_ts = 5, and
+            # the time is 2000, it will take the last 5 and next 5 TS points and
+            # average the resulting 11 profiles together into one for 2000 ms.
+
+            # First find closest time in the index.
+            idx = np.abs(self.temp_df.index.values - time).argmin()
+
+            # Average the desired range of values.
+            self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
+            self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
+
+            # Append this to our ref_df.
+            self.ref_df['Te at ' + str(time)] = self.avg_temp_df
+            self.ref_df['Ne at ' + str(time)] = self.avg_dens_df
+
+            count += 1
+
+    def heatmap(self, ref_time, te_clip=80, ne_clip=2e20):
+
+        # First make sure ref_time is in self.times.
+        if ref_time in self.times:
+            # Get the gfile for plotting the walls and such.
+            gfile = self.load_gfile_mds(shot=self.shot, time=ref_time, connection=self.conn, verbal=True)
+
+            # Create empty arrays to hold Rs, Zs, Tes and Nes.
+            rs  = np.zeros((len(self.ref_df.index), len(self.times)))
+            zs  = np.zeros((len(self.ref_df.index), len(self.times)))
+            tes = np.zeros((len(self.ref_df.index), len(self.times)))
+            nes = np.zeros((len(self.ref_df.index), len(self.times)))
+
+            idx = 0
+            for time in self.times:
+                rs[:, idx]  = [p[0] for p in self.ref_df[str(time)].values]
+                zs[:, idx]  = [p[1] for p in self.ref_df[str(time)].values]
+                tes[:, idx] = [p for p in self.ref_df['Te at ' + str(time)].values]
+                nes[:, idx] = [p for p in self.ref_df['Ne at ' + str(time)].values]
+                idx += 1
+
+            # Perform clipping so it isn't skewed toward higher values.
+            #tes = np.clip(tes, 0, te_clip)
+            #nes = np.clip(nes, 0, ne_clip)
+
+            fig = plt.figure()
+
+            # Te plot.
+            ax1 = fig.add_subplot(121)
+            ax1.plot(gfile['wall'][:, 0], gfile['wall'][:, 1], 'k')
+            ax1.plot(gfile['lcfs'][:, 0], gfile['lcfs'][:, 1], 'k-')
+            #cont1 = ax1.contourf(rs, zs, tes, 6, cmap='Reds', locator=ticker.LogLocator(), vmin=1, vmax=100)
+            cont1 = ax1.contourf(rs, zs, tes, levels=[0,10,20,30,40,50,60,70,80,90,100], cmap='Reds')
+            ax1.set_xlim([1.2, 1.7])
+            ax1.set_ylim([-1.4, -0.9])
+            ax1.set_xlabel('R (m)')
+            ax1.set_ylabel('Z (m)')
+            ax1.set_title('Te (eV)')
+            cbar1 = fig.colorbar(cont1)
+            cbar1.ax.set_ylabel('Te (eV)', size=24)
+
+            # Ne plot.
+            ax2 = fig.add_subplot(122)
+            ax2.plot(gfile['wall'][:, 0], gfile['wall'][:, 1], 'k')
+            ax2.plot(gfile['lcfs'][:, 0], gfile['lcfs'][:, 1], 'k-')
+            #cont2 = ax2.contourf(rs, zs, nes, 6, cmap='Blues', locator=ticker.LogLocator(), vmin=10e19, vmax=10e21)
+            cont2 = ax2.contourf(rs, zs, nes,
+                                 levels=[1e19, 2.5e19, 5e19, 7.5e19, 1e20, 2.5e20, 5e20, 7.5e20, 1e21],
+                                 cmap='Blues', norm=colors.LogNorm())
+            ax2.set_xlim([1.2, 1.7])
+            ax2.set_ylim([-1.4, -0.9])
+            ax2.set_xlabel('R (m)')
+            ax2.set_ylabel('Z (m)')
+            ax2.set_title('ne (m-3)')
+            cbar2 = fig.colorbar(cont2)
+            cbar2.ax.set_ylabel('ne (m-3)', size=24)
+
+            fig.tight_layout()
+            fig.show()
+        else:
+            print("Error: ref_time not one of the times in map_to_efit.")

@@ -55,7 +55,6 @@ class Readout:
             for plot_num in range(1, grid_shape[0] * grid_shape[1] + 1):
                 self.master_fig.add_subplot(grid_shape[0], grid_shape[1], plot_num)
 
-
         def print_readout(self):
             """
             Output a table with relevant info from the netcdf file.
@@ -81,7 +80,6 @@ class Readout:
             for key, val in output.items():
                 print("* {:15}{:<{pad}} *".format(key, val, pad=pad))
             print("*"*num_stars)
-
 
         def centerline(self, plot_num):
             """
@@ -126,7 +124,6 @@ class Readout:
             ax.legend(fontsize=fontsize)
             ax.set_xlabel('Distance along probe (m)', fontsize=fontsize)
             ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
-
 
         def deposition_contour(self, plot_num, side, probe_width=0.015, rad_cutoff=0.1):
             """
@@ -196,7 +193,6 @@ class Readout:
             ax.set_ylim([-probe_width, probe_width])
             props = dict(facecolor='white')
             ax.text(0.75, 0.85, side, bbox=props, fontsize=fontsize*1.5, transform=ax.transAxes)
-
 
         def velocity_contour_pol(self, pol_slice=0):
             """

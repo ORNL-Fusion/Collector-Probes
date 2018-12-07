@@ -1,7 +1,17 @@
 from Readout import Readout
+from tkinter import filedialog, Tk
 
 
-grid = Readout()
+# Ask user for location to netCDF file.
+root = Tk(); root.withdraw()
+netcdf_path = filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
+
+if netcdf_path == ():
+    print("Using testfile...")
+    netcdf_path = None
+
+# Controlling routine for Readout.
+grid = Readout(netcdf_file=netcdf_path)
 grid.print_readout()
 grid.centerline(0)
 grid.avg_imp_vely(1)

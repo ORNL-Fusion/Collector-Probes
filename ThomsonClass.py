@@ -4,21 +4,24 @@ import MDSplus as mds
 import matplotlib.pyplot as plt
 from matplotlib import ticker, cm, colors
 import matplotlib as mpl
+from scipy.interpolate import Rbf, interp1d
+import sys, os
 
-
-print("Use ThomsonClass object as:")
-print("  ts = ThomsonClass.ThomsonClass(176343, 'divertor')")
-print("  ts.load_ts()")
-print("  ts.map_to_efit(times=np.linspace(2000, 5000, 5), ref_time=2000)")
-print("  ts.heatmap()\n")
-print("Note: ref_time must be in times. It will be the drawn profile. Can also")
-print("just use for load_ts to load the TS data for whatever purpose.")
 
 class ThomsonClass:
     """
-    This object will be written to hold a set of functions, as well as
-    dictionaries (or DataFrames) of the Thomson Scattering (TS) data. There
-    will also be functions that can make 1D and 2D plots of the data.
+    Examples of how to use ThomsonClass object.
+
+    Example #1:
+      ts = ThomsonClass(176343, 'divertor')
+      ts.load_ts()
+      ts.map_to_efit(times=np.linspace(2500, 5000, 10), ref_time=2500)
+      ts.heatmap(detach_front_te=5, offset=0.1)
+
+    Example #2:
+      ts = ThomsonClass(176343, 'core')
+      ts.map_to_efit=np.linspace(2500, 5000, 10)
+      ***write how to use average omp values***
     """
 
     def __init__(self, shot, system):
@@ -28,7 +31,9 @@ class ThomsonClass:
         self.ts_dict = {}
 
     def __repr__(self):
-        return "ThomsonClass Object\n  Shot:   " + str(self.shot) + "\n  System: "+ str(self.system)
+        return "ThomsonClass Object\n" \
+               + "  Shot:   " + str(self.shot) + "\n" \
+               + "  System: " + str(self.system)
 
     def load_ts(self, tunnel=True):
         """
@@ -123,6 +128,21 @@ class ThomsonClass:
             except mds.TreeNNF:
                 print("  Node not found.")
 
+        # Pull these into DataFrames, a logical and easy way to represent the
+        # data. Initially the rows are each a TS chord, and the columns are at
+        # each time.
+        self.temp_df = pd.DataFrame(columns=self.ts_dict['temp']['X'],    data=self.ts_dict['temp']['Y'])
+        self.dens_df = pd.DataFrame(columns=self.ts_dict['density']['X'], data=self.ts_dict['density']['Y'])
+        self.temp_df.index.name   = 'Chord'
+        self.temp_df.columns.name = 'Time (ms)'
+        self.dens_df.index.name   = 'Chord'
+        self.dens_df.columns.name = 'Time (ms)'
+
+        # Transpose the data so each row is at a specific time, and the columns
+        # are the chords.
+        self.temp_df = self.temp_df.transpose()
+        self.dens_df = self.dens_df.transpose()
+
     def load_gfile_mds(self, shot, time, tree="EFIT01", exact=False,
                        connection=None, tunnel=True, verbal=True):
         """
@@ -166,8 +186,8 @@ class ThomsonClass:
                                    %time + '  ->  Abort')
             else:
                 if verbal:
-                    print('Warning: ' + tree + ' does not exactly contain time \
-                          %.2f' %time + ' the closest time is ' + str(time0))
+                    print('Warning: ' + tree + ' does not exactly contain time' \
+                          '%.2f' %time + ' the closest time is ' + str(time0))
                     print('Fetching time slice ' + str(time0))
                 time = time0
 
@@ -235,7 +255,7 @@ class ThomsonClass:
 
         return g
 
-    def map_to_efit(self, times=None, ref_time=None, average_ts=5):
+    def map_to_efit(self, times=None, ref_time=None, average_ts=5, debug=False):
         """
         This function uses the gfiles of each time in times to find the location
         of each TS chord relative to the X-point in polar coordinates, (d, theta).
@@ -253,110 +273,190 @@ class ThomsonClass:
                       average them.
         """
 
+        # Just use the first time as the ref_time (this may be run without
+        # needing it so catch it).
+        if ref_time is None:
+            ref_time = times[0]
+
+        times = np.array(times)
+
         # Store times for later use in plotting function.
         self.times = np.array(times)
         self.ref_time = ref_time
+        self.temp_df_omp = pd.DataFrame()
+        self.dens_df_omp = pd.DataFrame()
 
-        if ref_time in times:
+        # Load gfile(s).
+        self.ref_df = pd.DataFrame()
+        self.ref_df.index.name =   'Chord'
+        self.ref_df.columns.name = 'Time (R, Z)'
+        count = 1
 
-            # Pull these into DataFrames, a logical and easy way to represent the
-            # data. Initially the rows are each a TS chord, and the columns are at
-            # each time.
-            self.temp_df = pd.DataFrame(columns=self.ts_dict['temp']['X'],    data=self.ts_dict['temp']['Y'])
-            self.dens_df = pd.DataFrame(columns=self.ts_dict['density']['X'], data=self.ts_dict['density']['Y'])
-            self.temp_df.index.name   = 'Chord'
-            self.temp_df.columns.name = 'Time (ms)'
-            self.dens_df.index.name   = 'Chord'
-            self.dens_df.columns.name = 'Time (ms)'
+        # Current implementation makes the first time the reference frame. So make
+        # times have the ref_time in front.
+        ref_idx = np.where(times == ref_time)[0][0]
+        times = np.append(ref_time, np.append(times[:ref_idx], times[ref_idx+1:]))
+        ref_flag = True
+        for time in times:
+            print('\nLoading gfile (' + str(count) + '/' + str(len(times)) + ')...')
+            gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True)
 
-            # Transpose the data so each row is at a specific time, and the columns
-            # are the chords.
-            self.temp_df = self.temp_df.transpose()
-            self.dens_df = self.dens_df.transpose()
+            # Store for plotting function.
+            if ref_flag:
+                self.ref_gfile = gfile
 
-            # Will create a DataFrame where the index is the psin location and the data
-            # is either the temp/dens at the requested time or averaged over the
-            # times, if multiple times passed.
+            # Z's and R's of the separatrix, in m.
+            Zes = np.copy(gfile['lcfs'][:, 1])
+            Res = np.copy(gfile['lcfs'][:, 0])
 
-            # Load gfile(s).
-            self.ref_df = pd.DataFrame()
-            self.ref_df.index.name =   'Chord'
-            self.ref_df.columns.name = 'Time (R, Z)'
-            count = 1
-
-            # Current implementation makes the first time the reference frame. So make
-            # times have the ref_time in front.
-            ref_idx = np.where(times == ref_time)[0][0]
-            times = np.append(ref_time, np.append(times[:ref_idx], times[ref_idx+1:]))
-            ref_flag = True
-            for time in times:
-                print('Loading gfile (' + str(count) + '/' + str(len(times)) + ')...')
-                gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True)
-
-                # Store for plotting function.
-                if ref_flag:
-                    self.ref_gfile = gfile
-
-                # Z's and R's of the separatrix, in m.
-                Zes = np.copy(gfile['lcfs'][:, 1])
-                Res = np.copy(gfile['lcfs'][:, 0])
-
-                # The location of the X-point is here where the lowest Z is (LSN).
-                xpoint_idx = np.where(Zes == Zes.min())[0][0]
-                Rx = Res[xpoint_idx]
-                Zx = Zes[xpoint_idx]
+            # The location of the X-point is here where the lowest Z is (LSN).
+            xpoint_idx = np.where(Zes == Zes.min())[0][0]
+            Rx = Res[xpoint_idx]
+            Zx = Zes[xpoint_idx]
+            if debug:
                 print('X-point (R, Z): ({:.2f}, {:.2f})'.format(Rx, Zx))
 
-                # Use polar coordinates with the X-point as the origin.
-                # The distance from the X-point is just the distance formula.
-                rs = self.ts_dict['r']['Y']; zs = self.ts_dict['z']['Y']
+            # Use polar coordinates with the X-point as the origin.
+            # The distance from the X-point is just the distance formula.
+            rs = self.ts_dict['r']['Y']; zs = self.ts_dict['z']['Y']
 
-                # If this is the first time(the reference frame), save these values.
-                # These ref rs, zs are already (R, Z) in the reference frame (obviously),
-                # so we don't need to convert to polar and then back to (R, Z) in the
-                # reference frame.
-                if ref_flag:
-                    Rx_ref = Rx; Zx_ref = Zx
-                    rs_ref = rs; zs_ref = zs
-                    self.ref_df[str(time)] = list(zip(rs_ref, zs_ref))
-                    ref_flag = False
-                else:
-                    # The angle is computed using arctan2 to get the correct quadrant (radians).
-                    theta = np.arctan2(zs - Zx, rs - Rx)
-                    #print("Theta: ", end=''); print(*theta, sep=', ')
-                    d = np.sqrt((rs - Rx)**2 + (zs - Zx)**2)
-                    #print("Distance from X-point: ", end=''); print(*d, sep=', ')
+            # If this is the first time(the reference frame), save these values.
+            # These ref rs, zs are already (R, Z) in the reference frame (obviously),
+            # so we don't need to convert to polar and then back to (R, Z) in the
+            # reference frame.
+            if ref_flag:
+                Rx_ref = Rx; Zx_ref = Zx
+                rs_ref = rs; zs_ref = zs
+                self.ref_df[str(time)] = list(zip(rs_ref, zs_ref))
+                ref_flag = False
+            else:
+                # The angle is computed using arctan2 to get the correct quadrant (radians).
+                theta = np.arctan2(zs - Zx, rs - Rx)
+                #print("Theta: ", end=''); print(*theta, sep=', ')
+                d = np.sqrt((rs - Rx)**2 + (zs - Zx)**2)
+                #print("Distance from X-point: ", end=''); print(*d, sep=', ')
 
-                    # Now convert back to (R, Z), but in the reference frame.
-                    rs_into_ref = d * np.cos(theta) + Rx_ref
-                    zs_into_ref = d * np.sin(theta) + Zx_ref
-                    self.ref_df[str(time)] = list(zip(rs_into_ref, zs_into_ref))
+                # Now convert back to (R, Z), but in the reference frame.
+                rs_into_ref = d * np.cos(theta) + Rx_ref
+                zs_into_ref = d * np.sin(theta) + Zx_ref
+                self.ref_df[str(time)] = list(zip(rs_into_ref, zs_into_ref))
 
-                # Find the Te and ne data to put in for these times as well. Average
-                # the neighboring +/-"average_ts" points. Ex. If average_ts = 5, and
-                # the time is 2000, it will take the last 5 and next 5 TS points and
-                # average the resulting 11 profiles together into one for 2000 ms.
+            # Find the Te and ne data to put in for these times as well. Average
+            # the neighboring +/-"average_ts" points. Ex. If average_ts = 5, and
+            # the time is 2000, it will take the last 5 and next 5 TS points and
+            # average the resulting 11 profiles together into one for 2000 ms.
 
-                # First find closest time in the index.
-                idx = np.abs(self.temp_df.index.values - time).argmin()
+            # First find closest time in the index.
+            idx = np.abs(self.temp_df.index.values - time).argmin()
 
-                # Average the desired range of values.
-                self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
-                self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
+            # Average the desired range of values.
+            self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
+            self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
 
-                # Append this to our ref_df.
-                self.ref_df['Te at ' + str(time)] = self.avg_temp_df
-                self.ref_df['Ne at ' + str(time)] = self.avg_dens_df
+            # Append this to our ref_df.
+            self.ref_df['Te at ' + str(time)] = self.avg_temp_df
+            self.ref_df['Ne at ' + str(time)] = self.avg_dens_df
 
-                count += 1
+            # Let's also map each chord to R-Rsep omp and store in a DataFrame.
+            # Get the additional information needed for this.
+            Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
+            Z_axis = gfile['ZmAxis']
+            R_axis = gfile['RmAxis']
+            Rs_trunc = Rs > R_axis
 
-        else:
-            print("Error: ref_time not in times.")
+            # Only want the outboard half since thats where we're mapping R-Rsep OMP to.
+            Zes_outboard = np.copy(gfile['lcfs'][:, 1][13:-17])
+            Res_outboard = np.copy(gfile['lcfs'][:, 0][13:-17])
 
-    def heatmap(self, te_clip=1e10, ne_clip=2e25, rlim_min=1.2, rlim_max=1.7,
-                zlim_min=-1.4, zlim_max=-0.9, te_lims=None, ne_lims=None):
+            try:
+                # Interpolation functions of psin(R, Z) and R(psin, Z). Rs_trunc
+                # helps with not interpolating the entire plasma, and just that
+                # to the right of the magnetic axis, which is normally good enough.
+                f_psiN = Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
+                f_Romp = Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
+                f_Rs = interp1d(Zes_outboard, Res_outboard, assume_sorted=False)
+
+                # The process is get the (R, Z) of each chord...
+                chord_rs = self.ts_dict['r']['Y']
+                chord_zs = self.ts_dict['z']['Y']
+
+                # ...then find the corresponding psin of each...
+                chord_psins = f_psiN(chord_rs, chord_zs)
+
+                # ...then use this psin to find the value at the omp (Z_axis)...
+                chord_omps = f_Romp(chord_psins, np.full(len(chord_psins), Z_axis))
+
+                # ... get the value of the separatrix at the omp the calculate
+                # R-Rsep omp...
+                rsep_omp = f_Rs(Z_axis)
+                chord_rminrsep_omps = chord_omps - rsep_omp
+
+                if debug:
+                    print("Rsep OMP: {:.3f}".format(rsep_omp))
+                    print("Chord OMPs: ", end=""); print(chord_omps)
+
+                # ...and then wrap each omp value with the corresponding temperature,
+                # and put each point into a dataframe.
+                te_idx = np.where(np.abs(self.temp_df.index.values-time) ==
+                                  np.abs(self.temp_df.index.values-time).min())[0][0]
+                chord_tes = self.temp_df.iloc[te_idx]
+                chord_nes = self.dens_df.iloc[te_idx]
+                self.temp_df_omp[time] = list(zip(chord_rminrsep_omps, chord_tes))
+                self.dens_df_omp[time] = list(zip(chord_rminrsep_omps, chord_nes))
+
+            except Exception as e:
+                print("Error in the OMP steps: \n  " + str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+
+            count += 1
+        # End "for time in times" loop.
+
+        # Create average Te and ne values mapped to the OMP.
+        self.avg_omp = {}
+        try:
+            avg_omps = np.array([])
+            avg_tes  = np.array([])
+            avg_nes  = np.array([])
+            for chord in range(0, len(self.temp_df_omp.index)):
+                tmp_omps = np.array([])
+                tmp_tes  = np.array([])
+                tmp_nes  = np.array([])
+
+                for time in range(0, tmany):
+
+                    # Get the tuple data point for this chord at this time (r-rsep_omp, Te).
+                    tmp_o = self.temp_df_omp.values[chord][time][0]
+                    tmp_t = self.temp_df_omp.values[chord][time][1]
+                    tmp_n = self.dens_df_omp.values[chord][time][1]
+                    tmp_omps = np.append(tmp_omps, tmp_o)
+                    tmp_tes  = np.append(tmp_tes,  tmp_t)
+                    tmp_nes  = np.append(tmp_nes,  tmp_n)
+
+                # Get the average for this chord. Append it to avg_omps/avg_tes.
+                avg_omps = np.append(avg_omps, tmp_omps.mean())
+                avg_tes  = np.append(avg_tes,  tmp_tes.mean())
+                avg_nes  = np.append(avg_nes,  tmp_nes.mean())
+
+            # Store in dictionary in class.
+            self.avg_omp['RminRsep_omp'] = avg_omps
+            self.avg_omp['Te_omp'] = avg_tes
+            self.avg_omp['ne_omp'] = avg_nes
+
+        except:
+            print("Error in calculating the average OMP values: \n  " + str(e))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+
+        #else:
+        #    print("Error: ref_time not in times.")
+
+    def heatmap(self, te_clip=50, ne_clip=2e25, rlim_min=1.3, rlim_max=1.6,
+                zlim_min=-1.3, zlim_max=-1.0, detach_front_te=5, offset=0):
         """
-        Function to produce the 2D maps of Te and ne on the pooloidal cross
+        Function to produce the 2D maps of Te and ne on the poloidal cross
         section of ref_time. load_ts and map_to_efit must be run first to store
         the needed data into the class!
 
@@ -390,15 +490,16 @@ class ThomsonClass:
                 nes[:, idx] = [p for p in self.ref_df['Ne at ' + str(time)].values]
                 idx += 1
 
-            # For reference in messing with the plotting limits.
-            print('Te (min/max): ({:.2f}/{:.2f})'.format(tes.min(), tes.max()))
-            print('Ne (min/max): ({:.2e}/{:.2e})'.format(nes.min(), nes.max()))
-
             # Perform clipping so it isn't skewed toward higher values.
             tes = np.clip(tes, 0, te_clip)
             nes = np.clip(nes, 0, ne_clip)
 
-            fig = plt.figure()
+            # Store rs, zs, tes, nes in class for debugging.
+            self.rs = rs; self.zs = zs; self.tes = tes; self.nes = nes
+
+            # For reference in messing with the plotting limits.
+            print('Te (min/max): ({:.2f}/{:.2f})'.format(tes.min(), tes.max()))
+            print('Ne (min/max): ({:.2e}/{:.2e})'.format(nes.min(), nes.max()))
 
             # Function to plot wall with lcfs and strike point.
             def plot_shot(fig, ax):
@@ -427,39 +528,132 @@ class ThomsonClass:
                 sp_r0 = self.ref_gfile['lcfs'][:,0][xpoint]
                 sp_z0 = self.ref_gfile['lcfs'][:,1][xpoint]
                 m = (sp_z1 - sp_z0) / (sp_r1 - sp_r0)
-                sp_rs = np.linspace(sp_r0, 1.5, 10)
+                sp_rs = np.linspace(sp_r0, 1.5, 1000)
                 b = sp_z1 - m * sp_r1
                 sp_zs = m * sp_rs + b
                 ax.plot(sp_rs, sp_zs, 'k')
 
+                # Store these values for use later in detach_length part.
+                self.sp_r0 = sp_r0; self.sp_z0 = sp_z0
+                self.sp_r1 = sp_r1; self.sp_z1 = sp_z1
+                self.sp_rs = sp_rs; self.sp_zs = sp_zs
 
             # Te plot.
+            fig = plt.figure(figsize=(13,6))
             ax1 = fig.add_subplot(121)
             plot_shot(fig, ax1)
-            #cont1 = ax1.contourf(rs, zs, tes, 6, cmap='Reds', locator=ticker.LogLocator(), vmin=1, vmax=100)
-            if te_lims is None:
-                cont1 = ax1.contourf(rs, zs, tes, levels=10, cmap='inferno')
-            else:
-                cont1 = ax1.contourf(rs, zs, tes, levels=np.linspace(te_lims[0], te_lims[1], 10), cmap='inferno')
-            ax1.set_title('Te (eV)')
+            cont1 = ax1.contourf(rs, zs, tes,
+                                 levels=[0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25],
+                                 cmap='inferno', extend='max')
             cbar1 = fig.colorbar(cont1)
+            ax1.set_title('Te (eV)')
             cbar1.ax.set_ylabel('Te (eV)', size=24)
 
             # Ne plot.
             ax2 = fig.add_subplot(122)
             plot_shot(fig, ax2)
-            #cont2 = ax2.contourf(rs, zs, nes, 6, cmap='Blues', locator=ticker.LogLocator(), vmin=10e19, vmax=10e21)
-            if ne_lims is None:
-                cont2 = ax2.contourf(rs, zs, nes, levels=10, cmap='viridis')
-            else:
-                cont2 = ax2.contourf(rs, zs, nes, levels=np.linspace(ne_lims[0], ne_lims[1], 10), cmap='viridis')
-                                 #levels=[1e19, 2.5e19, 5e19, 7.5e19, 1e20, 2.5e20, 5e20, 7.5e20, 1e21],
-                                 #cmap='Blues', norm=colors.LogNorm())
+            cont2 = ax2.contourf(rs, zs, nes, levels=10, cmap='viridis', extend='max')
             ax2.set_title('ne (m-3)')
             cbar2 = fig.colorbar(cont2)
             cbar2.ax.set_ylabel('ne (m-3)', size=24)
 
+            # Title it and plot.
+            fig.suptitle(str(self.shot) + " (raw)")
             fig.tight_layout()
             fig.show()
+
+            # Same as above, but with the interpolated data.
+            f_te = Rbf(self.rs, self.zs, self.tes, epsilon=1e-9)
+            f_ne = Rbf(self.rs, self.zs, self.nes)
+            RS, ZS = np.meshgrid(np.linspace(self.rs.min(), self.rs.max(), 100),
+                                 np.linspace(self.zs.min(), self.zs.max(), 100))
+
+            """
+
+            fig = plt.figure()
+            ax1 = fig.add_subplot(121)
+            ax2 = fig.add_subplot(122)
+
+            plot_shot(fig, ax1)
+            cont1 = ax1.contourf(RS, ZS, f_te(RS, ZS),
+                                 levels=[0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25],
+                                 cmap='inferno')
+            cbar1 = fig.colorbar(cont1, extend='max')
+            ax1.set_title('Te (eV)')
+            cbar1.ax.set_ylabel('Te (eV)', size=24)
+
+            plot_shot(fig, ax2)
+            cont2 = ax2.contourf(RS, ZS, f_ne(RS, ZS), levels=10, cmap='viridis')
+            cbar2 = fig.colorbar(cont2)
+            ax2.set_title('ne (m-3)')
+            cbar2.ax.set_ylabel('ne (m-3)', size=24)
+
+            fig.suptitle(str(self.shot) + " (interpolated)")
+            fig.tight_layout()
+            fig.show()
+
+            """
+
+            fig = plt.figure()
+            ax1 = fig.add_subplot(111)
+            plot_shot(fig, ax1)
+            cont1 = ax1.contourf(RS, ZS, np.clip(f_te(RS, ZS), 0, te_clip),
+                                 levels=[0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25],
+                                 cmap='inferno', extend='max')
+            cbar1 = fig.colorbar(cont1)
+            cbar1.ax.set_ylabel('Te (eV)', size=24)
+            ax1.set_xlabel('R (m)', fontsize=24)
+            ax1.set_ylabel('Z (m)', fontsize=24)
+            ax1.set_title(str(self.shot) + ' Te (eV)', fontsize=24)
+
+            # Routine to find how far down the leg the detachment goes.
+            # Detachment front defined here as detach_front_te.
+            if detach_front_te:
+                TES = f_te(RS, ZS)
+                def find_detach_front(offset=0):
+
+                    dist_along_leg = 0
+                    leg_rs = np.array([]); leg_zs = np.array([])
+                    for i in range(1, len(self.sp_rs)):
+
+                        # Get the point along the leg, starting at the first point
+                        # past the X-point (i starts at 1).
+                        tmp_r = self.sp_rs[i] + offset
+                        tmp_z = self.sp_zs[i]
+
+                        # Find the nearest point in the (R, Z) grid. To do this, first
+                        # find the distance between our current leg point and each
+                        # grid point.
+                        grid_dist = np.sqrt(np.abs(RS-tmp_r)**2 + np.abs(ZS-tmp_z)**2)
+
+                        # Then find index of the minimum distance.
+                        closest_grid_point = np.where(grid_dist == grid_dist.min())
+
+                        # Add the length travelled to our running distance from X-point.
+                        dist_along_leg += np.sqrt((self.sp_rs[i] - self.sp_rs[i-1])**2
+                                                + (self.sp_zs[i] - self.sp_zs[i-1])**2)
+
+                        # If we hit detach_front_te, break and our answer is dist_along_leg.
+                        if TES[closest_grid_point] < detach_front_te:
+                            print("Offset: {:.2f} cm".format(offset*100))
+                            print("Detachment front is {:.2f} cm from the X-point.".format(dist_along_leg*100))
+                            self.detach_length = dist_along_leg
+                            break
+
+                        # Add the leg point to the list for plotting after.
+                        leg_rs = np.append(leg_rs, tmp_r)
+                        leg_zs = np.append(leg_zs, tmp_z)
+
+                    return leg_rs, leg_zs
+
+
+                self.leg_rs1, self.leg_zs1 = find_detach_front(offset=0)
+                self.leg_rs2, self.leg_zs2 = find_detach_front(offset=offset)
+
+                ax1.plot(self.leg_rs1, self.leg_zs1, 'r-')
+                ax1.plot(self.leg_rs2, self.leg_zs2, 'r-')
+                fig.tight_layout()
+                fig.show()
+
         else:
             print("Error: ref_time not one of the times in map_to_efit.")

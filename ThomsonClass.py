@@ -1,11 +1,12 @@
-import numpy   as np
-import pandas  as pd
-import MDSplus as mds
-import matplotlib.pyplot as plt
-from matplotlib import ticker, cm, colors
-import matplotlib as mpl
-from scipy.interpolate import Rbf, interp1d
 import sys, os
+import numpy             as np
+import pandas            as pd
+import MDSplus           as mds
+import matplotlib        as mpl
+import matplotlib.pyplot as plt
+from matplotlib        import ticker, cm, colors
+from scipy.interpolate import Rbf, interp1d
+from gadata            import gadata
 
 
 class ThomsonClass:
@@ -20,8 +21,10 @@ class ThomsonClass:
 
     Example #2:
       ts = ThomsonClass(176343, 'core')
-      ts.map_to_efit=np.linspace(2500, 5000, 10)
-      ***write how to use average omp values***
+      ts.load_ts()
+      ts.map_to_efit(np.linspace(2500, 5000, 10))
+      ts.avg_omp  # Dictionary of average omp values.
+      
     """
 
     def __init__(self, shot, system):
@@ -35,7 +38,7 @@ class ThomsonClass:
                + "  Shot:   " + str(self.shot) + "\n" \
                + "  System: " + str(self.system)
 
-    def load_ts(self, tunnel=True):
+    def load_ts(self, times=None, tunnel=True):
         """
         Function to get all the data from the Thomson Scattering "BLESSED" tree
         on atlas. The data most people probably care about is the temperature (eV)
@@ -50,6 +53,9 @@ class ThomsonClass:
                     ssh -Y -p 2039 -L 8000:atlas.gat.com:8000 username@cybele.gat.com
 
                   should work in a separate terminal. Set to False if on DIII-D network.
+        times: Provide times that a polynomila fit will be applied to, and then
+               averaged over. This is my attempt at smoothing the TS data when
+               it's noisy (maybe to help with ELMs).
         """
 
         # Create thin connection to MDSplus on atlas. Tunnel if connection locally.
@@ -142,6 +148,39 @@ class ThomsonClass:
         # are the chords.
         self.temp_df = self.temp_df.transpose()
         self.dens_df = self.dens_df.transpose()
+
+        if times is not None:
+            # Do a polynomial fit to the data. Fifth-order.
+            self.temp_df_poly = pd.DataFrame()
+            self.dens_df_poly = pd.DataFrame()
+            xp = np.linspace(times.min(), times.max(), 1000)
+            for chord in self.temp_df:
+
+                # Limit time between desired times.
+                x = self.temp_df.index.values
+                idxs = np.where(np.logical_and(x >= times.min(), x <= times.max()))[0]
+                x = x[idxs]
+                y_te = self.temp_df[chord].values[idxs]
+                y_ne = self.dens_df[chord].values[idxs]
+                z_te = np.polyfit(x, y_te, 5) # Returns five exponents.
+                z_ne = np.polyfit(x, y_ne, 5)
+                p_te = np.poly1d(z_te) # Creates the fit with the exponents.
+                p_ne = np.poly1d(z_ne)
+                yp_te = p_te(xp) # Use the fit to create 1,000 points.
+                yp_ne = p_ne(xp)
+
+                # Put into the Dataframe.
+                self.temp_df_poly[chord] = yp_te
+                self.dens_df_poly[chord] = yp_ne
+
+            # Give the index the times.
+            self.temp_df_poly.index = xp
+            self.dens_df_poly.index = xp
+
+            # Can we just swap temp_df out with temp_df_poly?
+            self.temp_df = self.temp_df_poly
+            self.dens_df = self.dens_df_poly
+
 
     def load_gfile_mds(self, shot, time, tree="EFIT01", exact=False,
                        connection=None, tunnel=True, verbal=True):
@@ -273,6 +312,7 @@ class ThomsonClass:
                       average them.
         """
 
+
         # Just use the first time as the ref_time (this may be run without
         # needing it so catch it).
         if ref_time is None:
@@ -350,8 +390,10 @@ class ThomsonClass:
             idx = np.abs(self.temp_df.index.values - time).argmin()
 
             # Average the desired range of values.
-            self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
-            self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
+            #self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
+            #self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
+            self.avg_temp_df = self.temp_df.iloc[idx]
+            self.avg_dens_df = self.dens_df.iloc[idx]
 
             # Append this to our ref_df.
             self.ref_df['Te at ' + str(time)] = self.avg_temp_df
@@ -424,7 +466,7 @@ class ThomsonClass:
                 tmp_tes  = np.array([])
                 tmp_nes  = np.array([])
 
-                for time in range(0, tmany):
+                for time in range(0, len(times)):
 
                     # Get the tuple data point for this chord at this time (r-rsep_omp, Te).
                     tmp_o = self.temp_df_omp.values[chord][time][0]
@@ -444,17 +486,17 @@ class ThomsonClass:
             self.avg_omp['Te_omp'] = avg_tes
             self.avg_omp['ne_omp'] = avg_nes
 
-        except:
+        except Exception as e:
             print("Error in calculating the average OMP values: \n  " + str(e))
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(exc_type, fname, exc_tb.tb_lineno)
 
-        #else:
-        #    print("Error: ref_time not in times.")
+
 
     def heatmap(self, te_clip=50, ne_clip=2e25, rlim_min=1.3, rlim_max=1.6,
-                zlim_min=-1.3, zlim_max=-1.0, detach_front_te=5, offset=0):
+                zlim_min=-1.3, zlim_max=-1.0, detach_front_te=5, offset=0.01,
+                sp_hit_z=-1.25):
         """
         Function to produce the 2D maps of Te and ne on the poloidal cross
         section of ref_time. load_ts and map_to_efit must be run first to store
@@ -471,6 +513,8 @@ class ThomsonClass:
                     anything higher. Must be a tuple or None!!! Ex. (0, 100) will
                     only plot Te values in the range of 0-100 eV.
         ne_lims:  Same, but for ne.
+        sp_hit_z: The shelf is at Z = -1.25, so the SP hits at this location. Can
+                  change to the floor location if that comes around as needed.
         """
 
         # First make sure ref_time is in self.times.
@@ -548,6 +592,7 @@ class ThomsonClass:
             cbar1 = fig.colorbar(cont1)
             ax1.set_title('Te (eV)')
             cbar1.ax.set_ylabel('Te (eV)', size=24)
+            ax1.scatter(rs, zs, c=tes, edgecolor='k', cmap='inferno')
 
             # Ne plot.
             ax2 = fig.add_subplot(122)
@@ -614,12 +659,28 @@ class ThomsonClass:
 
                     dist_along_leg = 0
                     leg_rs = np.array([]); leg_zs = np.array([])
-                    for i in range(1, len(self.sp_rs)):
 
-                        # Get the point along the leg, starting at the first point
-                        # past the X-point (i starts at 1).
-                        tmp_r = self.sp_rs[i] + offset
-                        tmp_z = self.sp_zs[i]
+                    # Here's the part that measures it from the floor up.
+                    # Slope of SP.
+                    m = (self.sp_z1 - self.sp_z0) / (self.sp_r1 - self.sp_r0)
+                    b = self.sp_z1 - m * self.sp_r1
+
+                    # Find find the R of this where it hits the divertor (this is
+                    # just point-slope formula).
+                    sp_hit_r = 1/m * (sp_hit_z - self.sp_z0) + self.sp_r0
+                    self.sp_hit_r = sp_hit_r
+
+                    # Create a line between the X-point and this point where the SP hits.
+                    length_rs = np.linspace(sp_hit_r, self.sp_r0, 1000)
+                    length_zs = m * length_rs + b
+
+                    self.length_rs = length_rs
+                    self.length_zs = length_zs
+
+                    # Go up this leg one point at a time until Te is > 5 eV.
+                    for i in range(1, len(length_rs)):
+                        tmp_r = length_rs[i] + offset
+                        tmp_z = length_zs[i]
 
                         # Find the nearest point in the (R, Z) grid. To do this, first
                         # find the distance between our current leg point and each
@@ -630,13 +691,14 @@ class ThomsonClass:
                         closest_grid_point = np.where(grid_dist == grid_dist.min())
 
                         # Add the length travelled to our running distance from X-point.
-                        dist_along_leg += np.sqrt((self.sp_rs[i] - self.sp_rs[i-1])**2
-                                                + (self.sp_zs[i] - self.sp_zs[i-1])**2)
+                        dist_along_leg += np.sqrt((length_rs[i] - length_rs[i-1])**2
+                                                + (length_zs[i] - length_zs[i-1])**2)
 
                         # If we hit detach_front_te, break and our answer is dist_along_leg.
-                        if TES[closest_grid_point] < detach_front_te:
+                        #print("{:5.2f}  {:5.2f}  {5.2f}".format(tmp_r, tmp_z, TES[closest_grid_point]))
+                        if TES[closest_grid_point] > detach_front_te:
                             print("Offset: {:.2f} cm".format(offset*100))
-                            print("Detachment front is {:.2f} cm from the X-point.".format(dist_along_leg*100))
+                            print("Detachment front is {:.2f} cm from the floor.".format(dist_along_leg*100))
                             self.detach_length = dist_along_leg
                             break
 
@@ -644,6 +706,44 @@ class ThomsonClass:
                         leg_rs = np.append(leg_rs, tmp_r)
                         leg_zs = np.append(leg_zs, tmp_z)
 
+
+                        """
+                        dist_along_leg = 0
+                        leg_rs = np.array([]); leg_zs = np.array([])
+                        for i in range(1, len(self.sp_rs)):
+
+                            # This finds the distance starting from the X-point. May
+                            # be better to instead look at it from the floor up instead.
+
+                            # Get the point along the leg, starting at the first point
+                            # past the X-point (i starts at 1).
+                            tmp_r = self.sp_rs[i] + offset
+                            tmp_z = self.sp_zs[i]
+
+                            # Find the nearest point in the (R, Z) grid. To do this, first
+                            # find the distance between our current leg point and each
+                            # grid point.
+                            grid_dist = np.sqrt(np.abs(RS-tmp_r)**2 + np.abs(ZS-tmp_z)**2)
+
+                            # Then find index of the minimum distance.
+                            closest_grid_point = np.where(grid_dist == grid_dist.min())
+
+                            # Add the length travelled to our running distance from X-point.
+                            dist_along_leg += np.sqrt((self.sp_rs[i] - self.sp_rs[i-1])**2
+                                                    + (self.sp_zs[i] - self.sp_zs[i-1])**2)
+
+                            # If we hit detach_front_te, break and our answer is dist_along_leg.
+                            if TES[closest_grid_point] < detach_front_te:
+                                print("Offset: {:.2f} cm".format(offset*100))
+                                print("Detachment front is {:.2f} cm from the X-point.".format(dist_along_leg*100))
+                                self.detach_length = dist_along_leg
+                                break
+
+                            # Add the leg point to the list for plotting after.
+                            leg_rs = np.append(leg_rs, tmp_r)
+                            leg_zs = np.append(leg_zs, tmp_z)
+
+                            """
                     return leg_rs, leg_zs
 
 
@@ -657,3 +757,16 @@ class ThomsonClass:
 
         else:
             print("Error: ref_time not one of the times in map_to_efit.")
+
+    def filter_elms(self, replace='linear'):
+        """
+        Method to filter ELM data. Replace Te, ne data that was taken during an
+        ELM with either exclude or with a linear fit between the value before the ELM
+        and the value at the end. Uses FS04 signal (divertor).
+
+        replace: Either 'exclude' or 'linear'. linear will replace the intra-ELM values
+                 with a linear fit.
+        """
+
+        # First pull in the filterscope data from FS04 to detect ELMs.
+        fs04 = gadata('FS04', shot=self.shot, connection=self.conn)

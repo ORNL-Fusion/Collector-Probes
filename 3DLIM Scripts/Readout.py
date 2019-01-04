@@ -30,7 +30,7 @@ class Readout:
         output of 3DLIM. Example usage in controlling script lim_readout.py.
         """
 
-        def __init__(self, netcdf_file=None, figsize=(15,10), grid_shape=(3,3)):
+        def __init__(self, netcdf_file=None, dat_file=None, figsize=(15,10), grid_shape=(3,3)):
             """
             netcdf_file: Path to the 3DLIM netCDF file. If None is entered then
                          it will use 'colprobe-test-m2.nc' as a default, which
@@ -44,16 +44,25 @@ class Readout:
             # Create the master figure to hold all the plots.
             self.master_fig = plt.figure(figsize=figsize)
 
-            # If no netCDF file given, just use this test one.
+            # If no netCDF file given, just use this test one and the dat file.
             if netcdf_file is None:
                 self.netcdf = netCDF4.Dataset('colprobe-test-m2.nc')
+                with open('colprobe-test-m2.dat') as f:
+                    self.dat = f.read()
             else:
                 self.netcdf = netCDF4.Dataset(netcdf_file)
 
+            # Get the .dat file info as well, if supplied, otherwise it's None.
+            if dat_file:
+                with open(dat_file) as f:
+                    self.dat = f.read()
+            else:
+                self.dat = None
 
             # Create figure with array of empty plots.
             for plot_num in range(1, grid_shape[0] * grid_shape[1] + 1):
                 self.master_fig.add_subplot(grid_shape[0], grid_shape[1], plot_num)
+
 
         def print_readout(self):
             """
@@ -68,6 +77,14 @@ class Readout:
             output['Particles'] = format(self.netcdf['MAXIMP'][:].data, ',')
             output['Conn. Length'] = self.netcdf['CL'][:].data
 
+            if self.dat:
+                # Get the total CPU time used.
+                try:
+                    time = int(self.dat.split('TOTAL CPU TIME USED     (S)')[1].split('\n')[0])
+                    output['Time'] = str(time) + 's (' + format(time/3600, '.2f') + ' hours)'
+                except:
+                    pass
+
             # Find longest output for formatting.
             pad = 0
             for val in output.values():
@@ -80,6 +97,10 @@ class Readout:
             for key, val in output.items():
                 print("* {:15}{:<{pad}} *".format(key, val, pad=pad))
             print("*"*num_stars)
+
+            # Also while we're here put the figure title as the filename.
+            self.master_fig.subplots_adjust(top=0.60)
+            self.master_fig.suptitle(output['File'], fontsize=26)
 
         def centerline(self, plot_num):
             """
@@ -124,6 +145,8 @@ class Readout:
             ax.legend(fontsize=fontsize)
             ax.set_xlabel('Distance along probe (m)', fontsize=fontsize)
             ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
+
+            print("Max ITF/OTF: {:.2f}".format(itf_y.max()/otf_y.max()))
 
         def deposition_contour(self, plot_num, side, probe_width=0.015, rad_cutoff=0.1):
             """
@@ -278,8 +301,8 @@ class Readout:
             ax.set_xlim([-cl, cl])
             #ax.set_ylim([None, ca])
             ax.set_ylim([None, 0.01])  # Contour weird near edge.
-            ax.set_xlabel('Parallel (m)')
-            ax.set_ylabel('Radial (m)')
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Radial (m)', fontsize=fontsize)
             cbar = self.master_fig.colorbar(cont, ax=ax)
             cbar.set_label('Background Te (eV)')
 
@@ -340,8 +363,8 @@ class Readout:
             ax.set_xlim([-cl, cl])
             #ax.set_ylim([None, ca])
             ax.set_ylim([None, 0.01])  # Contour weird near edge.
-            ax.set_xlabel('Parallel (m)')
-            ax.set_ylabel('Radial (m)')
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Radial (m)', fontsize=fontsize)
             cbar = self.master_fig.colorbar(cont, ax=ax)
             cbar.set_label('Background ne (m-3)')
 
@@ -363,6 +386,52 @@ class Readout:
             ax.plot(x, y, '.', ms=ms, color=tableau20[6])
             ax.set_xlabel('Radial coordinates (m)', fontsize=fontsize)
             ax.set_ylabel('Average Y imp. vel. (m/s)', fontsize=fontsize)
+
+        def avg_pol_profiles(self, plot_num, probe_width=0.015, rad_cutoff=0.1):
+            """
+            Plot the average poloidal profiles for each side. Mainly to see if
+            deposition peaks on the edges.
+
+            plot_num:    Location in grid to place this plot. I.e. if the grid_shape
+                         is (3,3), then enter a number between 0-8, where the locations
+                         are labelled left to right.
+            probe_width: The half-width of the collector probe (the variable CPCO).
+                         A = 0.015, B = 0.005, C = 0.0025
+            rad_cutoff:  Only plot data from the tip down to rad_cutoff. Useful
+                         if we want to compare to LAMS since those scans only go
+                         down a certain length of the probe.
+            """
+
+            # Code copied from above function, deposition_contour. See for comments.
+            dep_arr = np.array(self.netcdf.variables['NERODS3'][0] * -1)
+            ps     = np.array(self.netcdf.variables['PS'][:].data)
+            pwids  = np.array(self.netcdf.variables['PWIDS'][:].data)
+            pol_locs = ps - pwids/2.0
+            dep_arr = dep_arr[:-1, :]
+            pol_locs = pol_locs[:-1]
+            rad_locs = np.array(self.netcdf.variables['ODOUTS'][:].data)
+            idx = np.where(np.abs(rad_locs)<rad_cutoff)[0]
+            rad_locs = rad_locs[idx]
+            dep_arr = dep_arr[:, idx]
+            idx = np.where(rad_locs > 0.0)[0]
+            X_itf, Y_itf = np.meshgrid(rad_locs[idx], pol_locs)
+            Z_itf = dep_arr[:, idx]
+            idx = np.where(rad_locs < 0.0)[0]
+            X_otf, Y_otf = np.meshgrid(np.abs(rad_locs[idx][::-1]), pol_locs)
+            Z_otf = dep_arr[:, idx][:, ::-1]
+
+            # Average along the radial direction.
+            avg_pol_itf = np.mean(Z_itf, 1)
+            avg_pol_otf = np.mean(Z_otf, 1)
+
+            # Plotting commands.
+            ax = self.master_fig.axes[plot_num]
+            ax.plot(pol_locs, avg_pol_itf, label='ITF', color=tableau20[6])
+            ax.plot(pol_locs, avg_pol_otf, label='OTF', color=tableau20[8])
+            ax.legend(fontsize=fontsize)
+            ax.set_xlabel('Poloidal (m)', fontsize=fontsize)
+            ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
+            ax.set_xlim([-probe_width, probe_width])
 
         def show_fig(self):
             """

@@ -1,9 +1,12 @@
-import numpy             as np
-import matplotlib.pyplot as plt
-import matplotlib        as mpl
+import numpy              as np
+import pandas             as pd
+import matplotlib.pyplot  as plt
+import matplotlib.patches as patches
+import matplotlib         as mpl
+from matplotlib       import colors
+from collections      import OrderedDict
+from tkinter          import filedialog, Tk
 import netCDF4
-from matplotlib import colors
-from collections import OrderedDict
 
 
 # Some plot properties to make them a bit nicer.
@@ -30,11 +33,16 @@ class Readout:
         output of 3DLIM. Example usage in controlling script lim_readout.py.
         """
 
-        def __init__(self, netcdf_file=None, dat_file=None, figsize=(15,10), grid_shape=(3,3)):
+        def __init__(self, netcdf_file=None, dat_file=None, lim_file=None,
+                     figsize=(15,10), grid_shape=(3,3)):
             """
             netcdf_file: Path to the 3DLIM netCDF file. If None is entered then
                          it will use 'colprobe-test-m2.nc' as a default, which
                          is convienent for testing.
+            dat_file:    Path to the casename.dat file. This has things like the
+                         duration of the run in it.
+            lim_file:    Path to the casename.lim file. This has the forces in it,
+                         among many, many other things.
             figsize:     Size of the figure to hold all the plots. The default of
                          (15, 10) is a good size.
             grid_shape:  The shape of the grid of plots. Change if you want to
@@ -59,10 +67,16 @@ class Readout:
             else:
                 self.dat = None
 
+            # Same with .lim file.
+            if lim_file:
+                with open(lim_file) as f:
+                    self.lim = f.read()
+            else:
+                self.lim = None
+
             # Create figure with array of empty plots.
             for plot_num in range(1, grid_shape[0] * grid_shape[1] + 1):
                 self.master_fig.add_subplot(grid_shape[0], grid_shape[1], plot_num)
-
 
         def print_readout(self):
             """
@@ -74,7 +88,7 @@ class Readout:
             output['3DLIM Version'] = self.netcdf['VERSION'][:].data.tostring().decode()
             output['Title'] = self.netcdf['TITLE'][:].data.tostring().decode()
             output['File'] = self.netcdf['JOB'][:].data.tostring().decode().split(' ')[0]
-            output['Particles'] = format(self.netcdf['MAXIMP'][:].data, ',')
+            #output['Particles'] = format(self.netcdf['MAXIMP'][:].data, ',')
             output['Conn. Length'] = self.netcdf['CL'][:].data
 
             if self.dat:
@@ -82,6 +96,12 @@ class Readout:
                 try:
                     time = int(self.dat.split('TOTAL CPU TIME USED     (S)')[1].split('\n')[0])
                     output['Time'] = str(time) + 's (' + format(time/3600, '.2f') + ' hours)'
+                except:
+                    pass
+
+                try:
+                    num = int(self.dat.split('NO OF IMPURITY IONS TO FOLLOW')[1].split('\n')[0])
+                    output['No. Imp. Ions'] = "{:,}".format(num)
                 except:
                     pass
 
@@ -100,9 +120,9 @@ class Readout:
 
             # Also while we're here put the figure title as the filename.
             self.master_fig.subplots_adjust(top=0.60)
-            self.master_fig.suptitle(output['File'], fontsize=26)
+            self.master_fig.suptitle(output['Title'], fontsize=26)
 
-        def centerline(self, plot_num):
+        def centerline(self, plot_num, mult_runs=False):
             """
             Plot the ITF and OTF deposition along the centerlines.
 
@@ -112,7 +132,8 @@ class Readout:
             """
 
             #The deposition array.
-            dep_arr = np.array(self.netcdf.variables['NERODS3'][0] * -1)
+            #dep_arr = np.array(self.netcdf.variables['NERODS3'][0] * -1)
+            dep_arr = self.get_dep_array(mult_runs)
 
             # Location of each P bin, and its width. Currently they all have the same width,
             # but it may end up such that there are custom widths so we leave it like this.
@@ -140,15 +161,16 @@ class Readout:
 
             # Plotting commands.
             ax = self.master_fig.axes[plot_num]
-            ax.plot(itf_x, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
-            ax.plot(otf_x, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
+            ax.plot(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
+            ax.plot(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
             ax.legend(fontsize=fontsize)
-            ax.set_xlabel('Distance along probe (m)', fontsize=fontsize)
+            ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
             ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
 
-            print("Max ITF/OTF: {:.2f}".format(itf_y.max()/otf_y.max()))
+            #print("Max ITF/OTF: {:.2f}".format(itf_y.max()/otf_y.max()))
+            print("Total ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
 
-        def deposition_contour(self, plot_num, side, probe_width=0.015, rad_cutoff=0.1):
+        def deposition_contour(self, plot_num, side, probe_width=0.015, rad_cutoff=0.1, mult_runs=False):
             """
             Plot the 2D tungsten distribution across the face.
 
@@ -162,10 +184,16 @@ class Readout:
                          if we want to compare to LAMS since those scans only go
                          down a certain length of the probe.
 
+            *** To-do ***
+            - Instead of entering the width, pull out CPCO(?) from the netcdf file.
+                Need to figure out the points being deposited outside the expected
+                probe width first though.
+
             """
 
             #The deposition array.
-            dep_arr = np.array(self.netcdf.variables['NERODS3'][0] * -1)
+            #dep_arr = np.array(self.netcdf.variables['NERODS3'][0] * -1)
+            dep_arr = self.get_dep_array(mult_runs)
 
             # Location of each P bin, and its width. Currently they all have the same width,
             # but it may end up such that there are custom widths so we leave it like this.
@@ -210,12 +238,15 @@ class Readout:
                 X = X_otf; Y = Y_otf; Z = Z_otf
 
             ax = self.master_fig.axes[plot_num]
-            ax.contourf(X, Y, Z, levels=levels, cmap='Reds')
-            ax.set_xlabel('Distance along probe (m)', fontsize=fontsize)
-            ax.set_ylabel('Z location (m)', fontsize=fontsize)
-            ax.set_ylim([-probe_width, probe_width])
+            ax.contourf(X*100, Y*100, Z, levels=levels, cmap='Reds')
+            ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
+            ax.set_ylabel('Z location (cm)', fontsize=fontsize)
+            ax.set_ylim([-probe_width*100, probe_width*100])
             props = dict(facecolor='white')
             ax.text(0.75, 0.85, side, bbox=props, fontsize=fontsize*1.5, transform=ax.transAxes)
+
+            # Print out the total amount collected.
+            #print("Total W Deposited ({:}): {:.2f}".format(side, Z.sum()))
 
         def velocity_contour_pol(self, pol_slice=0):
             """
@@ -387,7 +418,7 @@ class Readout:
             ax.set_xlabel('Radial coordinates (m)', fontsize=fontsize)
             ax.set_ylabel('Average Y imp. vel. (m/s)', fontsize=fontsize)
 
-        def avg_pol_profiles(self, plot_num, probe_width=0.015, rad_cutoff=0.1):
+        def avg_pol_profiles(self, plot_num, probe_width=0.015, rad_cutoff=0.5):
             """
             Plot the average poloidal profiles for each side. Mainly to see if
             deposition peaks on the edges.
@@ -424,14 +455,289 @@ class Readout:
             avg_pol_itf = np.mean(Z_itf, 1)
             avg_pol_otf = np.mean(Z_otf, 1)
 
+            # Get the centerline index (or closest to it).
+            cline = np.abs(pol_locs).min()
+            cline_idx = np.where(pol_locs == cline)[0][0]
+
+            # Get average peaking factor for each side.
+            peak1 = avg_pol_itf[:cline_idx].max() / avg_pol_itf[cline_idx]
+            peak2 = avg_pol_itf[cline_idx:].max() / avg_pol_itf[cline_idx]
+            itf_peak = (peak1 + peak2) / 2.0
+            peak1 = avg_pol_otf[:cline_idx].max() / avg_pol_otf[cline_idx]
+            peak2 = avg_pol_otf[cline_idx:].max() / avg_pol_otf[cline_idx]
+            otf_peak = (peak1 + peak2) / 2.0
+
+            print("OTF/ITF Peaking Ratio: {:.2f}".format(otf_peak/itf_peak))
+
             # Plotting commands.
             ax = self.master_fig.axes[plot_num]
-            ax.plot(pol_locs, avg_pol_itf, label='ITF', color=tableau20[6])
-            ax.plot(pol_locs, avg_pol_otf, label='OTF', color=tableau20[8])
+            ax.plot(pol_locs, avg_pol_itf/avg_pol_itf.max(), label='ITF', color=tableau20[6])
+            ax.plot(pol_locs, avg_pol_otf/avg_pol_otf.max(), label='OTF', color=tableau20[8])
             ax.legend(fontsize=fontsize)
             ax.set_xlabel('Poloidal (m)', fontsize=fontsize)
-            ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
+            ax.set_ylabel('Deposition (normalized)', fontsize=fontsize)
             ax.set_xlim([-probe_width, probe_width])
+
+        def imp_contour_plot(self, plot_num, rmin=-0.005, rmax=0, iz_state=5):
+
+            # Get positions of the center of each bin.
+            xs       = self.netcdf.variables['XS'][:].data
+            xwids    = self.netcdf.variables['XWIDS'][:].data
+            rad_locs = xs-xwids/2.0
+            ps       = self.netcdf.variables['PS'][:].data
+            pwids    = self.netcdf.variables['PWIDS'][:].data
+            pol_locs = ps-pwids/2.0
+            ys       = self.netcdf.variables['YS'][:].data
+            ywids    = self.netcdf.variables['YWIDS'][:].data
+            par_locs = ys-ywids/2.0
+
+            # Also mirror the par_locs to cover both sides (i.e. from -L to L instead of 0 to L).
+            # Need to add a zero in the as the middle point, hence two appends.
+            par_locs = np.append(np.append(-par_locs[::-1], 0), par_locs)
+
+            # Load ddlim3 variable array of the specific ionization state.
+            if type(iz_state) is list:
+                # Add capability to do a range of ionization states.
+                pass
+            else:
+                ddlim3 =self.netcdf.variables['DDLIM3'][:, iz_state, :, :].data
+
+            # Sum over the radial range to create a 2D plot.
+            sum_range = np.where(np.logical_and(rad_locs>rmin, rad_locs<rmax))[0]
+            summed_ddlim3 = ddlim3[:,:,sum_range].sum(axis=2)
+
+            # Plotting commands.
+            X, Y = np.meshgrid(par_locs, pol_locs)
+            Z    = summed_ddlim3
+            ax   = self.master_fig.axes[plot_num]
+            cont = ax.contourf(X, Y, Z)
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+            cl   = float(self.netcdf['CL'][:].data)
+            ax.set_xlim([-cl, cl])
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Poloidal (m)', fontsize=fontsize)
+            cp = patches.Rectangle((-0.2,-0.015), width=0.4, height=0.03, color='k')
+            ax.add_patch(cp)
+            textstr = r'Integration region:' + \
+                      r'\n$\mathrm{R_min}$ = ' + str(rmin) + \
+                      r'\n$\mathrm{R_max}$ = ' + str(rmax)
+            props = dict(facecolor='white')
+            #ax.text(0.05, 0.95, textstr, bbox=props)
+
+        def force_plots(self, plot_num, rad_loc=-0.01, cl=9.9, separate_plot=True):
+
+            # First, grab that while big force table, splitting it at the start
+            # of each force table for each radial location (i.e. ix location).
+            lim_sfs = self.lim.split('Static forces')[1:]
+
+            # Fix the last element so it doesn't catch everything after ([:-2]
+            # to ignore an extra \n and space that bugs the rest up).
+            lim_sfs[-1] = lim_sfs[-1].split('***')[0][:-2]
+
+            # Column names for the dataframe.
+            col_names = ['IX', 'IY', 'XOUT', 'YOUT', 'FEG', 'FIG', 'FF', 'FE',
+                         'FVH', 'FF2', 'FE2', 'FVH2', 'FTOT1', 'FTOT2', 'TEGS',
+                         'TIGS', 'CFSS', 'CFVHXS', 'VP1', 'VP2', 'FFB', 'FEB',
+                         'CVHYS', 'CEYS', 'TE', 'TI', 'NE', 'VELB']
+
+            # List to hold all the force dataframes.
+            dflist = []
+            for sf in lim_sfs:
+
+                # Split up the rows for this radial location.
+                foo = sf.split('\n')[1:]
+
+                # Split up each entry in each row (each row is one big string
+                # at this point).
+                foo = [bar.split() for bar in foo]
+
+                # Put into dataframe and append to list with all of them.
+                df = pd.DataFrame(foo, columns=col_names)
+                dflist.append(df)
+
+            # Create a single multidimensional df out of these so it's all easier
+            # to work with.
+            big_df = pd.concat(dflist, keys=np.arange(1, len(dflist)))
+
+            # Plot at a location near the tip of the probe (say R=-0.01).
+            for idx in np.unique(big_df.index.get_level_values(0).values):
+                if np.float(big_df.loc[idx]['XOUT'][0]) > rad_loc:
+                    break
+
+            # Get values from dataframe for plotting.
+            x  = np.array(big_df.loc[idx]['YOUT'].values, dtype=np.float64)
+            y1 = np.array(big_df.loc[idx]['FTOT1'].values, dtype=np.float64)
+            y2 = np.array(big_df.loc[idx]['FTOT2'].values, dtype=np.float64)
+
+            # Remove nans.
+            x = x[~np.isnan(x)]
+            y1 = y1[~np.isnan(y1)]
+            y2 = y2[~np.isnan(y2)]
+
+            # Only want values between -cl and cl.
+            valid_idx = np.where(np.logical_and(x > -cl, x < cl))
+            x  = x[valid_idx]
+            y1 = y1[valid_idx]
+            y2 = y2[valid_idx]
+
+            if plot_num == 99:
+                pass
+            else:
+                ax = self.master_fig.axes[plot_num]
+                ax.plot(x, y1, '-', color=tableau20[6], label='FTOT1')
+                ax.plot(x, y2, '-', color=tableau20[8], label='FTOT2')
+                ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+                ax.set_ylabel('Force (N?)', fontsize=fontsize)
+                ax.legend(fontsize=fontsize)
+                ax.axhline(0, linestyle='--', color='k')
+
+            # If you want a separate plot made with all the forces, more detailed.
+            if separate_plot:
+
+                x     = np.array(big_df.loc[idx]['YOUT'].values,  dtype=np.float64)[:-1]
+                valid_idx = np.where(np.logical_and(x > -cl, x < cl))
+                x     = x[valid_idx]
+
+                ftot1 = np.array(big_df.loc[idx]['FTOT1'].values, dtype=np.float64)[:-1][valid_idx]
+                ftot2 = np.array(big_df.loc[idx]['FTOT2'].values, dtype=np.float64)[:-1][valid_idx]
+                ff1   = np.array(big_df.loc[idx]['FF'].values,    dtype=np.float64)[:-1][valid_idx]
+                ff2   = np.array(big_df.loc[idx]['FF2'].values,   dtype=np.float64)[:-1][valid_idx]
+                feg   = np.array(big_df.loc[idx]['FEG'].values,   dtype=np.float64)[:-1][valid_idx]
+                figf  = np.array(big_df.loc[idx]['FIG'].values,   dtype=np.float64)[:-1][valid_idx]
+                fe    = np.array(big_df.loc[idx]['FE'].values,    dtype=np.float64)[:-1][valid_idx]
+                fvh1  = np.array(big_df.loc[idx]['FVH'].values,   dtype=np.float64)[:-1][valid_idx]
+                fvh2  = np.array(big_df.loc[idx]['FVH2'].values,  dtype=np.float64)[:-1][valid_idx]
+
+                fig = plt.figure(figsize=(7,5))
+                ax = fig.add_subplot(111)
+                ax.plot(x, ftot1, '-',  color=tableau20[2],  label='FTOT1')
+                ax.plot(x, ftot2, '--', color=tableau20[2],  label='FTOT2')
+                ax.plot(x, ff1, '-',    color=tableau20[4],  label='FF1')
+                ax.plot(x, ff2, '--',   color=tableau20[4],  label='FF2')
+                ax.plot(x, feg, '-',    color=tableau20[6],  label='FEG')
+                ax.plot(x, figf, '-',    color=tableau20[8],  label='FIG')
+                ax.plot(x, fe, '-',     color=tableau20[10], label='FE')
+                ax.plot(x, fvh1, '-',   color=tableau20[12], label='FVH1')
+                ax.plot(x, fvh2, '--',  color=tableau20[12], label='FVH2')
+                ax.legend(fontsize=fontsize)
+                ax.set_xlabel('Parallel (m)')
+                ax.set_ylabel('Force (N?)')
+                fig.tight_layout()
+                fig.show()
+
+        def vel_plots(self, plot_num, vp, cl=10.0, separate_plot=True):
+            """
+            TODO
+
+            vp: Either 'vp1' (background plasma) or 'vp2' (disturbed plasma from CP).
+            """
+
+            # These lines are copied from the above force_plots. See them for comments.
+            lim_sfs = self.lim.split('Static forces')[1:]
+            lim_sfs[-1] = lim_sfs[-1].split('***')[0][:-2]
+            col_names = ['IX', 'IY', 'XOUT', 'YOUT', 'FEG', 'FIG', 'FF', 'FE',
+                         'FVH', 'FF2', 'FE2', 'FVH2', 'FTOT1', 'FTOT2', 'TEGS',
+                         'TIGS', 'CFSS', 'CFVHXS', 'VP1', 'VP2', 'FFB', 'FEB',
+                         'CVHYS', 'CEYS', 'TE', 'TI', 'NE', 'VELB']
+            dflist = []
+            for sf in lim_sfs:
+                foo = sf.split('\n')[1:]
+                foo = [bar.split() for bar in foo]
+                df = pd.DataFrame(foo, columns=col_names)
+                dflist.append(df)
+            big_df = pd.concat(dflist, keys=np.arange(1, len(dflist)))
+
+            # Unstack the big_df into individual velocity dfs for easier plotting.
+            vp1_df = big_df['VP1'].unstack()
+            vp2_df = big_df['VP2'].unstack()
+
+            # May be a better way for this, but last column is nans, so drop them.
+            vp1_df = vp1_df[vp1_df.columns[:-1]]
+            vp2_df = vp2_df[vp2_df.columns[:-1]]
+
+            # Get the x, y values into numpy arrays. Remove nans.
+            x = np.unique(np.array(big_df['XOUT'].values, dtype=np.float64))
+            y = np.unique(np.array(big_df['YOUT'].values, dtype=np.float64))
+            x = x[~np.isnan(x)]
+            y = y[~np.isnan(y)]
+
+            # Create 2D grids for the contour plot.
+            Y, X = np.meshgrid(x, y)
+            Z1 = np.array(vp1_df.values.T, dtype=np.float64)
+            Z2 = np.array(vp2_df.values.T, dtype=np.float64)
+
+            # Choose the relevant Z. Cast to float.
+            if vp == 'vp1':
+                Z = Z1
+            elif vp =='vp2':
+                Z = Z2
+            else:
+                print("Error: vp must be either vp1 or vp2.")
+
+            # Plotting commands.
+            ax   = self.master_fig.axes[plot_num]
+            cont = ax.contourf(X, Y, Z, vmin=-Z.max(), vmax=Z.max(), cmap='coolwarm')
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+            ax.set_xlim([-cl, cl])
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Radial (m)', fontsize=fontsize)
+            cbar.set_label(vp.upper() + ' (m/s)')
+
+            if separate_plot:
+                fig = plt.figure()
+                ax1 = fig.add_subplot(211)
+                ax2 = fig.add_subplot(212)
+                cont1 = ax1.contourf(X, Y, Z1, vmin=-Z1.max(), vmax=Z1.max(), cmap='coolwarm')
+                cont2 = ax2.contourf(X, Y, Z2, vmin=-Z2.max(), vmax=Z2.max(), cmap='coolwarm')
+                cbar1 = self.master_fig.colorbar(cont1, ax=ax1)
+                cbar2 = self.master_fig.colorbar(cont2, ax=ax2)
+                ax1.set_xlim([-cl, cl])
+                ax2.set_xlim([-cl, cl])
+                ax1.set_xlabel('Parallel (m)', fontsize=fontsize)
+                ax2.set_xlabel('Parallel (m)', fontsize=fontsize)
+                ax1.set_ylabel('Radial (m)', fontsize=fontsize)
+                ax2.set_ylabel('Radial (m)', fontsize=fontsize)
+                cbar1.set_label('VP1 (m/s)')
+                cbar2.set_label('VP2 (m/s)')
+                fig.tight_layout()
+                fig.show()
+
+        def get_dep_array(self, mult_runs):
+
+            # Only load it once. Keep track if it's already been loaded by trying
+            # to see if it's been defined yet.
+            try:
+                self.dep_arr
+
+            # Not defined, so create it.
+            except AttributeError:
+
+                # Create the deposition array for the initial file.
+                dep_arr = np.array(self.netcdf.variables['NERODS3'][0] * -1)
+
+                # Add the contributions from multiple runs together.
+                if mult_runs:
+                    file_count = 1
+                    while True:
+                        try:
+
+                            # Get location to each file from user. Only .nc needed.
+                            print('Choose file #{:} (press cancel to continue)'.format(file_count+1))
+                            root = Tk(); root.withdraw()
+                            netcdf_path = filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
+                            add_netcdf  = netCDF4.Dataset(netcdf_path)
+                            add_dep     = np.array(add_netcdf.variables['NERODS3'][0] * -1)
+                            dep_arr     = dep_arr + add_dep
+                            file_count  = file_count + 1
+                        except:
+                            print('{:} files entered.'.format(file_count))
+                            break
+
+                # Define dep_arr so next time you won't have to choose all the file
+                # locations.
+                self.dep_arr = dep_arr
+
+            return self.dep_arr
 
         def show_fig(self):
             """

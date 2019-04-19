@@ -1,35 +1,83 @@
 from Readout import Readout
 from tkinter import filedialog, Tk
+import sys
 
-
-# Ask user for location to netCDF file.
-root = Tk(); root.withdraw()
-netcdf_path = filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
-
-if netcdf_path == ():
-    print("Using testfile...")
-    netcdf_path = None
-    dat_path = None
-else:
-    # Ask for .dat file as well.
-    dat_path = filedialog.askopenfilename(filetypes=(('.dat files', '*.dat'),))
-
-# Option if dat file not included.
-if dat_path == ():
-    dat_path = None
 
 # Variables for plots.
-probe_width = 0.015
-rad_cutoff = 0.05
+probe_width    = 0.015
+rad_cutoff     = 0.05
+sep_vel_plot   = False
+sep_force_plot = False
+mult_runs      = False
+
+
+# Supply the word 'test' to just run test file.
+if len(sys.argv) > 1:
+    netcdf_path = '/mnt/c/Users/Shawn/Documents/GitHub/Collector-Probes/3DLIM Scripts/colprobe-z1-001e.nc'
+    dat_path    = '/mnt/c/Users/Shawn/Documents/GitHub/Collector-Probes/3DLIM Scripts/colprobe-z1-001e.dat'
+    lim_path    = '/mnt/c/Users/Shawn/Documents/GitHub/Collector-Probes/3DLIM Scripts/colprobe-z1-001e.lim'
+
+# Ask user for location to files.
+else:
+    root = Tk(); root.withdraw()
+    netcdf_path = filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
+    dat_path    = filedialog.askopenfilename(filetypes=(('.dat files',   '*.dat'),))
+    lim_path    = filedialog.askopenfilename(filetypes=(('.lim files',   '*.lim'),))
+
+    # Option if dat file not included.
+    if dat_path == ():
+        dat_path = None
+    if lim_path == ():
+        lim_path = None
 
 # Controlling routine for Readout.
-grid = Readout(netcdf_file=netcdf_path, dat_file=dat_path)
+grid = Readout(netcdf_file=netcdf_path, dat_file=dat_path, lim_file=lim_path)
 grid.print_readout()
-grid.centerline(0)
-grid.avg_imp_vely(1)
-grid.te_contour(2)
-grid.deposition_contour(3, probe_width=probe_width, rad_cutoff=rad_cutoff, side='ITF')
-grid.deposition_contour(4, probe_width=probe_width, rad_cutoff=rad_cutoff, side='OTF')
-grid.ne_contour(5)
-grid.avg_pol_profiles(6, probe_width=probe_width, rad_cutoff=rad_cutoff)
+
+try:
+    grid.centerline(0, mult_runs)
+except:
+    print("Error: Centerline plot.")
+
+#try:
+#    grid.avg_imp_vely(1)
+#except:
+#    print("Error: Average impurity velocity plot.")
+
+try:
+    grid.te_contour(1)
+except:
+    print("Error: Te contour plot.")
+
+try:
+    grid.ne_contour(2)
+except:
+    print("Error: ne contour plot.")
+
+try:
+    grid.deposition_contour(3, probe_width=probe_width, rad_cutoff=rad_cutoff, side='ITF')
+    grid.deposition_contour(4, probe_width=probe_width, rad_cutoff=rad_cutoff, side='OTF')
+except:
+    print("Error: Deposition plots.")
+
+try:
+    grid.avg_pol_profiles(5, probe_width=probe_width, rad_cutoff=rad_cutoff)
+except:
+    print("Error: Poloidal plot.")
+
+try:
+    grid.imp_contour_plot(6)
+except:
+    print('Error: Impurity contour plot.')
+
+try:
+    grid.force_plots(7, separate_plot=sep_force_plot)
+except:
+    print('Error: Force plots.')
+
+try:
+    grid.vel_plots(8, vp='vp2', separate_plot=sep_vel_plot)
+except:
+    print('Error: VP2 plot.')
+
 grid.show_fig()

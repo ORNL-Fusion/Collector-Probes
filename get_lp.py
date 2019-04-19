@@ -4,6 +4,8 @@
 #
 # Author: Shawn Zamperini
 import MDSplus as mds
+import numpy   as np
+import matplotlib.pyplot as plt
 
 
 def get_mds_active_probes(shot, tunnel=True):
@@ -47,7 +49,7 @@ def get_mds_active_probes(shot, tunnel=True):
         # It will be '0' or blank if the MDS entry isn;t used. Otherwise it will
         # have the actual probe number in it.
         if check_pnum > 0:
-            print("Probe " + str(check_pnum) + " is MDS probe " + str(mds_pnum))
+            #print("Probe " + str(check_pnum) + " is MDS probe " + str(mds_pnum))
             mds_index.append(mds_pnum)
             found_probes.append(check_pnum)
 
@@ -141,3 +143,120 @@ def get_dict_of_lps(shot, tunnel=True):
         print("Data stored for " + str(probe_name) + " (MDS index " + str(mds_index) + ").")
 
     return lps
+
+def plot_lps(shot, tmin, tmax, filter='median', bins=5):
+
+    # Load lp data.
+    lps = get_dict_of_lps(shot)
+
+    # Arrays to hold final values for plotting.
+    all_te       = np.array([])
+    all_ne       = np.array([])
+    all_jsat     = np.array([])
+    all_rminrsep = np.array([])
+
+    # Output arrays.
+    pnames_filt   = np.array([])
+    rminrsep_filt = np.array([])
+    te_filt       = np.array([])
+    ne_filt       = np.array([])
+    jsat_filt     = np.array([])
+
+    # Go through one probe at a time to get data for plotting.
+    for key in lps.keys():
+
+        # Get times and restrict to given time range.
+        times = lps[key]['time']
+        idx = np.logical_and(times > tmin, times < tmax)
+        times = times[idx]
+
+        # Get Te, ne and jsat. Also get R-Rsep out.
+        te       = lps[key]['temp'][idx]
+        ne       = lps[key]['dens'][idx]
+        jsat     = lps[key]['jsat'][idx]
+        rminrsep = lps[key]['delrsepout'][idx]
+
+        # Put into one array so we can sort them all by rminrsep, low -> high.
+        probe_data = np.array((rminrsep, te, ne, jsat))
+        probe_data = probe_data[:, np.argsort(probe_data[0])]
+
+        # Divide the data up into the number of 'bins', then take the filter of each bin.
+        bin_size = len(probe_data[0]) / bins
+        #print("Bin size = {:.2f} --> Using integer = {}".format(bin_size, int(bin_size)))
+        bin_size = int(bin_size)
+
+        for bin in range(0, bins):
+            tmp_rminrsep = probe_data[0][bin_size*bin:bin_size*(bin+1)]
+            tmp_te       = probe_data[1][bin_size*bin:bin_size*(bin+1)]
+            tmp_ne       = probe_data[2][bin_size*bin:bin_size*(bin+1)]
+            tmp_jsat     = probe_data[3][bin_size*bin:bin_size*(bin+1)]
+
+            # Apply the preferred filter.
+            if filter == 'median':
+                filter = np.median
+
+            # Filter and add to the output arrays to be plotted.
+            rminrsep_filt = np.append(rminrsep_filt, filter(tmp_rminrsep))
+            te_filt       = np.append(te_filt,       filter(tmp_te))
+            ne_filt       = np.append(ne_filt,       filter(tmp_ne))
+            jsat_filt     = np.append(jsat_filt,     filter(tmp_jsat))
+
+            # Assign probe names so we can identify these data points later.
+            pnames_filt   = np.append(pnames_filt, key)
+
+
+    # Enumerate the pnames so they can be used for color selection.
+    pnames_enum = np.array(list(enumerate(np.unique(pnames_filt))))
+
+    # General plotting commands. These are the "Tableau 20" colors as RGB.
+    tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+                 (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
+                 (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+                 (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+                 (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+
+    # A nice looking font.
+    plt.rcParams['font.family'] = 'serif'
+
+    # Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
+    for i in range(len(tableau20)):
+        r, g, b = tableau20[i]
+        tableau20[i] = (r / 255., g / 255., b / 255.)
+
+    # Create figure.
+    fig = plt.figure(figsize=(15,7))
+
+    # Function for plotting.
+    def plot_ax(fig, x, y, ylabel, ax_num, high_y, legend=False):
+        ax = fig.add_subplot(ax_num)
+
+        # For each data point assign correct color.
+        for i in range(0, len(x)):
+            for pnames_pair in pnames_enum:
+                if pnames_pair[1] == pnames_filt[i]:
+                    color = int(pnames_pair[0])
+                    label = pnames_pair[1]
+
+            ax.plot(x[i], y[i], '^', ms=10, color=tableau20[color], label=label.title())
+            ax.set_xlabel('R-Rsep (m)', fontsize=18)
+            ax.set_ylabel(ylabel, fontsize=18)
+            ax.axvline(0.0, linestyle='--', color='k')
+            ax.set_xlim([-0.05, 0.1])
+            ax.set_ylim([0, high_y])
+
+            # Process to remove duplicate legend entries.
+            if legend:
+                handles, labels = plt.gca().get_legend_handles_labels()
+                newLabels, newHandles = [], []
+                for handle, label in zip(handles, labels):
+                  if label not in newLabels:
+                    newLabels.append(label)
+                    newHandles.append(handle)
+                ax.legend(newHandles, newLabels, framealpha=0.5)
+
+    plot_ax(fig, rminrsep_filt, te_filt, 'Te (eV)', 131, 50, legend=True)
+    plot_ax(fig, rminrsep_filt, ne_filt, 'ne (cm-3)', 132, 10e13)
+    plot_ax(fig, rminrsep_filt, jsat_filt, 'jsat (A/cm2)', 133, 100)
+
+    fig.tight_layout()
+    fig.show()

@@ -24,7 +24,7 @@ class ThomsonClass:
       ts.load_ts()
       ts.map_to_efit(np.linspace(2500, 5000, 10))
       ts.avg_omp  # Dictionary of average omp values.
-      
+
     """
 
     def __init__(self, shot, system):
@@ -182,7 +182,7 @@ class ThomsonClass:
             self.dens_df = self.dens_df_poly
 
 
-    def load_gfile_mds(self, shot, time, tree="EFIT01", exact=False,
+    def load_gfile_mds(self, shot, time, tree="EFIT04", exact=False,
                        connection=None, tunnel=True, verbal=True):
         """
         This is scavenged from the load_gfile_d3d script on the EFIT repository,
@@ -226,7 +226,7 @@ class ThomsonClass:
             else:
                 if verbal:
                     print('Warning: ' + tree + ' does not exactly contain time' \
-                          '%.2f' %time + ' the closest time is ' + str(time0))
+                          ' %.2f' %time + ' the closest time is ' + str(time0))
                     print('Fetching time slice ' + str(time0))
                 time = time0
 
@@ -418,7 +418,7 @@ class ThomsonClass:
                 f_Romp = Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
                 f_Rs = interp1d(Zes_outboard, Res_outboard, assume_sorted=False)
 
-                # The process is get the (R, Z) of each chord...
+                # The process is to get the (R, Z) of each chord...
                 chord_rs = self.ts_dict['r']['Y']
                 chord_zs = self.ts_dict['z']['Y']
 
@@ -453,6 +453,7 @@ class ThomsonClass:
                 print(exc_type, fname, exc_tb.tb_lineno)
 
             count += 1
+
         # End "for time in times" loop.
 
         # Create average Te and ne values mapped to the OMP.
@@ -461,6 +462,9 @@ class ThomsonClass:
             avg_omps = np.array([])
             avg_tes  = np.array([])
             avg_nes  = np.array([])
+            avg_omps_err = np.array([])
+            avg_tes_err  = np.array([])
+            avg_nes_err  = np.array([])
             for chord in range(0, len(self.temp_df_omp.index)):
                 tmp_omps = np.array([])
                 tmp_tes  = np.array([])
@@ -480,11 +484,17 @@ class ThomsonClass:
                 avg_omps = np.append(avg_omps, tmp_omps.mean())
                 avg_tes  = np.append(avg_tes,  tmp_tes.mean())
                 avg_nes  = np.append(avg_nes,  tmp_nes.mean())
+                avg_omps_err = np.append(avg_omps_err, tmp_omps.std())
+                avg_tes_err  = np.append(avg_tes_err, tmp_tes.std())
+                avg_nes_err  = np.append(avg_nes_err, tmp_nes.std())
 
             # Store in dictionary in class.
-            self.avg_omp['RminRsep_omp'] = avg_omps
-            self.avg_omp['Te_omp'] = avg_tes
-            self.avg_omp['ne_omp'] = avg_nes
+            self.avg_omp['RminRsep_omp']     = avg_omps
+            self.avg_omp['Te_omp']           = avg_tes
+            self.avg_omp['ne_omp']           = avg_nes
+            self.avg_omp['RminRsep_omp_err'] = avg_omps_err
+            self.avg_omp['Te_omp_err']       = avg_tes_err
+            self.avg_omp['ne_omp_err']       = avg_nes_err
 
         except Exception as e:
             print("Error in calculating the average OMP values: \n  " + str(e))

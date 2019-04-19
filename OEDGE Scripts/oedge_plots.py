@@ -350,7 +350,7 @@ class OedgePlots:
             ptip_tmp = ptip[show_cp.index(2)]
             lower_xy = (1.485 - cp_width/2.0, ptip_tmp)
             width    = cp_width
-            height   = ptip_tmp - 1.18
+            height   = ptip_tmp - 1.172
             rect = mpl.patches.Rectangle(lower_xy, width=width, height=-height,
                                          facecolor=facecolor, edgecolor=edgecolor)
             ax.add_patch(rect)

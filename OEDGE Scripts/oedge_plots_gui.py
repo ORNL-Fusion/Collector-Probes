@@ -4,7 +4,7 @@ import oedge_plots as oedge
 
 
 plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
-             'Flow Velocity', 'Impurity Density', 'Impurity Flow Velocity',
+             'Flow Velocity', 'Flow Velocity (with T13)', 'Impurity Density',
              'Impurity Ionization', 'ne', 'ne - Divertor', 'Te', 'Te - Divertor']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 
@@ -25,6 +25,7 @@ class Window(tk.Frame):
         self.cp_cb_mid_var = tk.IntVar()
         self.cp_cb_top_var = tk.IntVar()
         self.cp_cb_dim_var = tk.IntVar()
+        self.mr_cb_var     = tk.IntVar()
         self.create_widgets()
 
 
@@ -310,7 +311,7 @@ class Window(tk.Frame):
                          'normtype'  :'symlog',
                          'scaling'   :scaling}
 
-        elif self.current_option.get() == 'Impurity Flow Velocity':
+        elif self.current_option.get() == 'Flow Velocity (with T13)':
             plot_args = {'dataname'  :'KVHSimp',
                          'cbar_label':'Impurity Flow Velocity (m/s)',
                          'normtype'  :'symlog'}
@@ -318,12 +319,12 @@ class Window(tk.Frame):
         elif self.current_option.get() == 'E Radial':
             plot_args = {'dataname'  :'E_RAD',
                          'cbar_label':'E Radial (V/m)',
-                         'normtype'  :'symlin'}
+                         'normtype'  :'symlog'}
 
         elif self.current_option.get() == 'E Poloidal':
             plot_args = {'dataname'  :'E_POL',
                          'cbar_label':'E Poloidal (V/m)',
-                         'normtype'  :'symlin'}
+                         'normtype'  :'symlog'}
 
         elif self.current_option.get() == 'Impurity Density':
 

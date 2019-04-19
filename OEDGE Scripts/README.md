@@ -1,6 +1,6 @@
 # OEDGE GUI
 
-This is a GUI written by Shawn Zamperini the plot the results from a DIVIMP run. To run the GUI, simply run oedge_plots_gui from the command line:
+This is a GUI written by Shawn Zamperini to plot the results from a DIVIMP run. To run the GUI, simply run oedge_plots_gui from the command line:
 
 ```
 python3 oedge_plots_gui.py

@@ -9,6 +9,8 @@ rad_cutoff     = 0.05
 sep_vel_plot   = False
 sep_force_plot = False
 mult_runs      = False
+log_center     = True
+fit_exp        = True
 
 
 # Supply the word 'test' to just run test file.
@@ -34,10 +36,10 @@ else:
 grid = Readout(netcdf_file=netcdf_path, dat_file=dat_path, lim_file=lim_path)
 grid.print_readout()
 
-try:
-    grid.centerline(0, mult_runs)
-except:
-    print("Error: Centerline plot.")
+#try:
+grid.centerline(0, mult_runs, log=log_center, fit_exp=fit_exp)
+#except:
+#    print("Error: Centerline plot.")
 
 #try:
 #    grid.avg_imp_vely(1)

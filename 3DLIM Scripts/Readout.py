@@ -6,6 +6,7 @@ import matplotlib         as mpl
 from matplotlib       import colors
 from collections      import OrderedDict
 from tkinter          import filedialog, Tk
+from scipy.optimize   import curve_fit
 import netCDF4
 
 
@@ -122,7 +123,7 @@ class Readout:
             self.master_fig.subplots_adjust(top=0.60)
             self.master_fig.suptitle(output['Title'], fontsize=26)
 
-        def centerline(self, plot_num, mult_runs=False):
+        def centerline(self, plot_num, mult_runs=False, log=False, fit_exp=False):
             """
             Plot the ITF and OTF deposition along the centerlines.
 
@@ -161,11 +162,40 @@ class Readout:
 
             # Plotting commands.
             ax = self.master_fig.axes[plot_num]
-            ax.plot(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
-            ax.plot(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
+            if log:
+                ax.semilogy(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
+                ax.semilogy(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
+            else:
+                ax.plot(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
+                ax.plot(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
             ax.legend(fontsize=fontsize)
             ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
             ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
+            ax.set_xlim([0, 10])
+            ax.set_ylim([0,None])
+
+            # Option to perform an exponential fit to the data.
+            if fit_exp:
+                def exp_fit(x, a, b):
+                    return a * np.exp(-b * x)
+
+                popt_itf, pcov_itf = curve_fit(exp_fit, itf_x, itf_y, maxfev=5000)
+                popt_otf, pcov_otf = curve_fit(exp_fit, otf_x, otf_y, maxfev=5000)
+
+                fitx = np.linspace(0, 0.1, 100)
+                fity_itf = exp_fit(fitx, *popt_itf)
+                fity_otf = exp_fit(fitx, *popt_otf)
+
+                if log:
+                    ax.semilogy(fitx*100, fity_itf, '--', ms=ms, color=tableau20[6])
+                    ax.semilogy(fitx*100, fity_otf, '--', ms=ms, color=tableau20[8])
+                else:
+                    ax.plot(fitx*100, fity_itf, '--', ms=ms, color=tableau20[6])
+                    ax.plot(fitx*100, fity_otf, '--', ms=ms, color=tableau20[8])
+
+                print("Lambdas")
+                print("  ITF = {:.2f}".format(1/popt_itf[1]*100))
+                print("  OTF = {:.2f}".format(1/popt_otf[1]*100))
 
             #print("Max ITF/OTF: {:.2f}".format(itf_y.max()/otf_y.max()))
             print("Total ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
@@ -725,6 +755,9 @@ class Readout:
                             print('Choose file #{:} (press cancel to continue)'.format(file_count+1))
                             root = Tk(); root.withdraw()
                             netcdf_path = filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
+                            if netcdf_path == '':
+                                # Force an error to exit, otherwise there's a seg fault (this is a lazy fix).
+                                fail
                             add_netcdf  = netCDF4.Dataset(netcdf_path)
                             add_dep     = np.array(add_netcdf.variables['NERODS3'][0] * -1)
                             dep_arr     = dep_arr + add_dep

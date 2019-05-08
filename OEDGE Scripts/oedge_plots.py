@@ -10,10 +10,23 @@ import matplotlib        as mpl
 import matplotlib.pyplot as plt
 import pandas            as pd
 from collections         import OrderedDict
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 # A nice looking font.
 plt.rcParams['font.family'] = 'serif'
+
+# These are the "Tableau 20" colors as RGB.
+tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+             (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
+             (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+             (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+             (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+
+# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
+for i in range(len(tableau20)):
+    r, g, b = tableau20[i]
+    tableau20[i] = (r / 255., g / 255., b / 255.)
 
 # Create class object to hold in netcdf data as well as plotting routines. Use
 # Ordered Dict prototype so we can index the class object with the data name.
@@ -50,6 +63,7 @@ class OedgePlots:
         self.absfac = self.nc['ABSFAC'][:]
         self.kss    = self.nc['KSS'][:]
         self.kfizs  = self.nc['KFIZS'][:]
+        self.ksmaxs = self.nc['KSMAXS'][:]
 
         # Create a mesh of of the corners of the each cell/polygon in the grid.
         #mesh  = np.array([])
@@ -98,7 +112,7 @@ class OedgePlots:
         with open(dat_path) as f:
             self.dat_file = f.read()
 
-    def read_data_2d(self, dataname, charge=None, scaling=1.0):
+    def read_data_2d(self, dataname, charge=None, scaling=1.0, fix_fill=False):
         """
         Reads in 2D data into a 1D array, in a form that is then passed easily
         to PolyCollection for plotting.
@@ -106,10 +120,17 @@ class OedgePlots:
         dataname : The 2D data as named in the netCDF file.
         charge   : The charge state to be plotted, if applicable.
         scaling  : Scaling factor to apply to the data, if applicable.
+        fix_fill :
         """
 
-        # Get the 2D data from the netCDF file.
-        raw_data = self.nc[dataname][:]
+        # Get the 2D data from the netCDF file. Some special options included.
+        # Normalized s coordinate of each cell.
+        if dataname == 'Snorm':
+            raw_data = self.nc['KSB'][:] / self.ksmaxs[:, None]
+            raw_data = np.abs(raw_data + raw_data / 1.0 - 1.0)
+        else:
+            raw_data = self.nc[dataname][:]
+
         data = np.zeros(self.num_cells)
 
         # 'all' just sums up all charge states. So here instead of loop for speed.
@@ -130,13 +151,20 @@ class OedgePlots:
 
                     count = count + 1
 
+        # This will fix an issue where the netCDF will fill in values (that are
+        # maybe outside the normal grid?) with 9.99E36. Swap these out with zeros
+        # if desired.
+        if fix_fill:
+            fill_val = data.max()
+            data[np.where(data == fill_val)] = None
+
         return data
 
-    def read_data_2d_kvhsimp(self):
+    def read_data_2d_kvhs_t13(self):
         """
-        Special function for plotting the flow velocity of the impurities. This
+        Special function for plotting the flow velocity. This
         is because some DIVIMP options (T13, T31, T37?, T38?...) add
-        additional flow values onto the impurities not reflected in KVHS. These
+        additional flow values not reflected in KVHS. These
         additional values are in the .dat file, and thus it is required to run
         this function.
         """
@@ -213,7 +241,8 @@ class OedgePlots:
                              ylim = [-1.5, 1.5], plot_sep=True, levels=None,
                              cbar_label=None, fontsize=16, lut=21,
                              smooth_cmap=False, vmin=None, vmax=None,
-                             show_cp=None, ptip=None, show_mr=False):
+                             show_cp=None, ptip=None, show_mr=False,
+                             fix_fill=False):
 
         """
         Create a standalone figure using the PolyCollection object of matplotlib.
@@ -242,6 +271,7 @@ class OedgePlots:
                        of the probe. Can pass as list where each entry corresponds
                        to the one in show_cp.
         show_mr:     Option to show the metal rings or not from MRC-I.
+        fix_fill:
         """
 
         # Make sure show_cp and ptip is in list form if not.
@@ -251,12 +281,21 @@ class OedgePlots:
         if type(ptip) is not list:
             ptip = [ptip]
 
-        # Read in the data into a form for PolyCollection.
+        # Read in the data into a form for PolyCollection. Account for special
+        # options.
+        # Flow velocity with additional velocity specified by T13.
         if dataname == 'KVHSimp':
-            data = self.read_data_2d_kvhsimp()
-        else:
-            data = self.read_data_2d(dataname, charge, scaling)
+            data = self.read_data_2d_kvhs_t13()
 
+        # Everything else in the netCDF file.
+        else:
+            data = self.read_data_2d(dataname, charge, scaling, fix_fill)
+
+        # Remove any cells that have nan values.
+        not_nan_idx = np.where(~np.isnan(data))[0]
+        #not_nan_idx = np.where(~np.isnan(data))
+        mesh = np.array(self.mesh)[not_nan_idx, :, :]
+        data = data[not_nan_idx]
 
         # Create a good sized figure with correct proportions.
         fig = plt.figure(figsize=(7, 9))
@@ -288,19 +327,20 @@ class OedgePlots:
         elif normtype == 'symlog':
             data[data == 0.0] = 1e-3
             if vmin == None:
-                vmin = -np.abs(data).max()
+                vmin = -np.abs(data[~np.isnan(data)]).max()
             if vmax == None:
                 vmax = -vmin
             norm = mpl.colors.SymLogNorm(linthresh=0.01 * vmax, vmin=vmin, vmax=vmax)
             cmap = 'coolwarm'
 
-        # Create the PolyCollection object. Choose whether to discretize the
-        # colormap or not first.
+        # Choose whether to discretize the colormap or not first.
         if smooth_cmap:
             scalar_map = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
         else:
             scalar_map = mpl.cm.ScalarMappable(norm=norm, cmap=mpl.cm.get_cmap(cmap, lut=lut))
-        coll = mpl.collections.PolyCollection(self.mesh, array=data,
+
+        # Create PolyCollection object.
+        coll = mpl.collections.PolyCollection(mesh, array=data,
                                               cmap=scalar_map.cmap,
                                               norm=scalar_map.norm,
                                               edgecolors='none')
@@ -489,3 +529,270 @@ class OedgePlots:
                 writer = csv.writer(f, delimiter='\t')
                 f.write(xaxis+'\tITF\tOTF\n')
                 writer.writerows(zip(x, y_itf, y_otf))
+
+    def create_ts(self, shots, times, ref_time, write_to_file=True, filename=None,
+                  load_all_ts=False):
+        """
+        Function to create a Thomson scattering file in the correct format for
+        comparing to OEDGE results.
+
+        shots:
+        times:
+        ref_time:
+        write_to_file:
+        filename:
+        """
+
+        # Import here instead of top just in case someone is using the GUI and
+        # was simply supplied a file. Would mean they don't need atlas access.
+        from ThomsonClass import ThomsonClass
+
+        # Okay if one shot is entered, just make it a list so it still runs okay.
+        if type(shots) == np.ndarray:
+            shots = list(shots)
+        elif type(shots) != list:
+            shots = [shots]
+
+
+
+        # Total DataFrame to be returned in Excel file.
+        self.s_df_all = pd.DataFrame()
+
+        # Go through one shot at time, loading the TS and mapping to S.
+        for shot in shots:
+
+            # Load in TS data, then map it to a reference EFIT time (i.e. the time
+            # that the OEDGE grid used).
+            self.ts_div = ThomsonClass(shot, 'divertor')
+            self.ts_div.load_ts(verbal=False)
+            self.ts_core = ThomsonClass(shot, 'core')
+            self.ts_core.load_ts(verbal=False)
+
+            # If load_al_ts is True, use ALL the times TS data is available for. This
+            # could take a REALLY long time though, so give a warning.
+            if load_all_ts:
+                print('Warning: Loading all TS times. This could take a long time...')
+
+                # Load in all the times.
+                div_times = self.ts_div.ts_dict['temp']['X']
+                core_times = self.ts_core.ts_dict['temp']['X']
+
+                # Restrict to the time range input.
+                div_idx  = np.where(np.logical_and(div_times>times.min(), div_times<times.max()))
+                core_idx = np.where(np.logical_and(core_times>times.min(), core_times<times.max()))
+                div_times  = div_times[div_idx]
+                core_times = core_times[core_idx]
+
+                # Choose the closest ref_time if it's not in the actual TS list
+                # (which is almost certainly the case).
+                ref_idx_core  = np.argmin(np.abs(core_times - ref_time))
+                ref_time_core = core_times[ref_idx_core]
+                ref_idx_div   = np.argmin(np.abs(div_times - ref_time))
+                ref_time_div  = div_times[ref_idx_div]
+
+                # Load the times. This is where we will spend some time loading.
+                self.ts_div.map_to_efit(times=div_times, ref_time=ref_time_div)
+                self.ts_core.map_to_efit(times=core_times, ref_time=ref_time_core)
+
+            else:
+                self.ts_div.map_to_efit(times=times, ref_time=ref_time)
+                self.ts_core.map_to_efit(times=times, ref_time=ref_time)
+
+            # Initialize DataFrame to hold the S values for this shot. Filling in the index
+            # ahead of time isn't needed, but it is much faster than adding on one
+            # row at time.
+            num_rows = len(times) * (len(self.ts_div.ref_df.index) + len(self.ts_core.ref_df.index))
+            self.s_df = pd.DataFrame(columns=('S (m)', 'Te (eV)', 'ne (m-3)', 'Ring', 'System', 'Shot'),
+                                     index=np.arange(0, num_rows))
+            idx = 0
+
+            # For each location at each time...
+            for time in times:
+                for ts_sys in [self.ts_div, self.ts_core]:
+                    loc_num = 0
+                    for loc in ts_sys.ref_df[str(time)]:
+
+                        # .. find the distance between each TS location (already mapped)
+                        # to a common reference EFIT) and each cell in the DIVIMP grid.
+                        dist = np.sqrt((loc[0] - self.rs)**2 + (loc[1] - self.zs)**2)
+                        closest_cell = np.where(dist == dist.min())
+
+                        # Grab that cell's s coordinate. Pack it up into our DataFrame.
+                        s  = self.kss[closest_cell][0]
+                        te = ts_sys.ref_df['Te at ' + str(time)].iloc[loc_num]
+                        ne = ts_sys.ref_df['Ne at ' + str(time)].iloc[loc_num]
+                        ring = closest_cell[0][0] + 1
+                        self.s_df.iloc[idx] = np.array([s, te, ne, ring, ts_sys.system, shot])
+                        idx     += 1
+                        loc_num += 1
+
+            # Add this to the overall DataFrame which gets the contribution from each shot.
+            self.s_df_all = self.s_df_all.append(self.s_df, ignore_index=True)
+
+        # Make sure the data types of each column are correct.
+        self.s_df_all['S (m)']    = self.s_df_all['S (m)'].astype(np.float)
+        self.s_df_all['Te (eV)']  = self.s_df_all['Te (eV)'].astype(np.float)
+        self.s_df_all['ne (m-3)'] = self.s_df_all['ne (m-3)'].astype(np.float)
+        self.s_df_all['Ring']     = self.s_df_all['Ring'].astype(np.int)
+        self.s_df_all['System']   = self.s_df_all['System'].astype(np.str)
+        self.s_df_all['Shot']     = self.s_df_all['Shot'].astype(np.int)
+
+        # Save to an Excel file.
+        if write_to_file:
+            if filename == None:
+                filename = 'ts_mapped_to_s_' + str(shot) + '.xlsx'
+            self.s_df_all.to_excel(filename)
+
+
+    def compare_ts(self, ts_filename, rings, show_legend='all', nrows=3, ncols=2, bin_width=0.5):
+        """
+        Function to create plots to compare the OEDGE results to Thomson scattering.
+        """
+
+        # Warning that pops up but is unecessary.
+        plt.rcParams.update({'figure.max_open_warning': 0})
+
+        # Load in the DataFrame from Excel file. Could maybe save time by seeing
+        # if user already has it loaded in from create_ts above, but meh.
+        self.s_df_all = pd.read_excel(ts_filename)
+        df = self.s_df_all
+
+        # Variables to keep track of which Axes we are on.
+        ngraphs = nrows * ncols
+        graph_count = 0
+
+        # Create pdf filename. Open up file to save Figures to.
+        pdf_filename = ts_filename.split('.xlsx')[0] + '.pdf'
+        with PdfPages(pdf_filename) as pdf:
+
+            # One loop for Te, one loop for ne.
+            for oedge_data in ['Te', 'ne']:
+                graph_count = 0
+
+                # Go through one ring at a time.
+                for ring in rings:
+
+                    # Index only the rows of the DataFrame with that ring.
+                    ring_df = df[df['Ring'] == ring]
+
+                    # Use modulo to determine if this ring starts a new fig/pdf page.
+                    if graph_count % ngraphs == 0:
+                        fig, axs = plt.subplots(nrows, ncols, sharex=False, figsize=(10,8))
+                        axs = axs.flatten()
+
+                    # Find what color this shot is from the above shots_enum. Elaborate...
+                    color = 6
+                    shots = df['Shot'].unique()
+                    for shot in shots:
+
+                        # Get only the portion matching this shot.
+                        smaller_ring_df = ring_df[ring_df['Shot'] == shot]
+
+                        # Choose correct data for Y axis.
+                        if oedge_data == 'Te':
+                            y = smaller_ring_df['Te (eV)']
+                        if oedge_data == 'ne':
+                            y = smaller_ring_df['ne (m-3)']
+
+                        # Plot it with a specific color. 2 because those colors are better.
+                        # zorder is needed because of a matplotlib bug where the
+                        # errorbars render under these data points, which we don't
+                        # want.
+                        ls = axs[graph_count].plot(smaller_ring_df['S (m)'], y, '.',
+                                                   color=tableau20[color], label=shot,
+                                                   alpha=0.5, zorder=-32)
+                        color += 2
+
+                        # Prevent going past the size of tableau20 array.
+                        if color > 23:
+                            color -= 24
+
+                    # Now plot the average value + std. dev. of the TS measurements
+                    # with requested binning performed.
+                    if oedge_data == 'Te':
+                        y = ring_df['Te (eV)']
+                    if oedge_data == 'ne':
+                        y = ring_df['ne (m-3)']
+
+                    # Bin the s values, get the mean and std of the corresponding y values.
+                    if len(ring_df.index) == 0:
+                        continue
+                    s = ring_df['S (m)']
+                    #print('Ring: ' + str(ring))
+                    #print('smin: ' + str(s.min()))
+                    #print('smax: ' + str(s.max()))
+
+                    # If there is essentially just one bin.
+                    if np.abs(s.min() - s.max()) < bin_width:
+                        bin_means   = y.mean()
+                        bin_stds    = y.std()
+                        bin_centers = s.mean()
+
+                    # Else do the binning procedure.
+                    else:
+                        bins = np.arange(s.min(), s.max()+bin_width, bin_width)
+                        digi = np.digitize(s, bins)
+                        bin_means = [y[digi == i].mean() for i in range(1, len(bins))]
+                        bin_stds = [y[digi == i].std() for i in range(1, len(bins))]
+                        bin_centers = bins[:-1] + bin_width / 2.0
+
+                    line1 = axs[graph_count].errorbar(bin_centers, bin_means,
+                                                      yerr=bin_stds, fmt='k.',
+                                                      capthick=1.5, capsize=3)
+
+                    # Find the rings from the OEDGE simulation now. Ring-1 for indexing.
+                    oedge_s  = self.nc['KSS'][:][ring-1].data
+
+                    # Te plots.
+                    if oedge_data == 'Te':
+                        #axs[graph_count].plot(ring_df['S (m)'], ring_df['Te (eV)'], '.')
+                        oedge_dat = self.nc['KTEBS'][:][ring-1].data
+                        axs[graph_count].set_ylabel('Te (eV)')
+
+                    # ne plots.
+                    if oedge_data == 'ne':
+                        #axs[graph_count].plot(ring_df['S (m)'], ring_df['ne (m-3)'], '.')
+                        oedge_dat = self.nc['KNBS'][:][ring-1].data
+                        axs[graph_count].set_ylabel('ne (m-3)')
+
+                    # Drop some extra zeros that sneak in.
+                    keep_idx = np.where(oedge_s != 0.0)[0]
+                    oedge_s  = oedge_s[keep_idx]
+                    oedge_dat = oedge_dat[keep_idx]
+
+                    # Restrict to the outer half since that's where TS data is.
+                    half_idx = np.where(oedge_s > oedge_s.max()/2.0)[0][0]
+                    oedge_s  = oedge_s[half_idx:]
+                    oedge_dat = oedge_dat[half_idx:]
+
+                    # Add OEDGE data to plot. Note comma after 'line2', because plot
+                    # returns two items, but errorbar doesn't.
+                    line2, = axs[graph_count].plot(oedge_s, oedge_dat, 'k-')
+
+                    # Extra plot commands.
+                    axs[graph_count].text(0.715, 0.8, 'Ring ' + str(ring),
+                                          transform=axs[graph_count].transAxes)
+                    axs[graph_count].set_xlabel('S (m)')
+                    if show_legend == 'all':
+                        axs[graph_count].legend(loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.2), fancybox=True, shadow=True)
+                    if show_legend == 'short':
+                        axs[graph_count].legend((line1, line2), ('Thomson', 'OEDGE'),
+                                                loc='upper center', ncol=3,
+                                                bbox_to_anchor=(0.5, 1.1),
+                                                fancybox=True, shadow=True)
+
+                    # Reset graph_count once it's time for a new page.
+                    if graph_count == ngraphs-1:
+                        graph_count = 0
+                        fig.tight_layout()
+                        #fig.legend(ls, shots)
+                        pdf.savefig(fig, papertype='letter')
+                        plt.close()
+                    else:
+                        graph_count += 1
+
+                # Save the last of figures remaining.
+                if graph_count != 0:
+                    fig.tight_layout()
+                    pdf.savefig(fig, papertype='letter')
+                    plt.close()

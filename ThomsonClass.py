@@ -38,7 +38,7 @@ class ThomsonClass:
                + "  Shot:   " + str(self.shot) + "\n" \
                + "  System: " + str(self.system)
 
-    def load_ts(self, times=None, tunnel=True):
+    def load_ts(self, verbal=True, times=None, tunnel=True):
         """
         Function to get all the data from the Thomson Scattering "BLESSED" tree
         on atlas. The data most people probably care about is the temperature (eV)
@@ -53,7 +53,7 @@ class ThomsonClass:
                     ssh -Y -p 2039 -L 8000:atlas.gat.com:8000 username@cybele.gat.com
 
                   should work in a separate terminal. Set to False if on DIII-D network.
-        times: Provide times that a polynomila fit will be applied to, and then
+        times: Provide times that a polynomial fit will be applied to, and then
                averaged over. This is my attempt at smoothing the TS data when
                it's noisy (maybe to help with ELMs).
         """
@@ -94,6 +94,9 @@ class ThomsonClass:
                  "PHI", "PLDATA", "PLERROR", "PLPEDESTAL", "PLPEDVAR", "R",
                  "REDCHISQ", "SUPOPT", "TEMP", "TEMP_E", "THETA", "TIME", "Z"]
 
+        if not verbal:
+            print("Loading Thomson data...")
+
         # Get the data for each node, and put it in a dictionary of X and Y values.
         # For 1D data, like "Z", the X will be the channel number, and the Y will
         # be the Z coordinate.
@@ -101,7 +104,8 @@ class ThomsonClass:
             try:
                 # Make the path to the node.
                 path = base + "." + node
-                print("Getting data from node: " + path)
+                if verbal:
+                    print("Getting data from node: " + path)
 
                 # Get the data(Y) and dimension data(X) from the node.
                 data = conn.get(path).data()
@@ -117,22 +121,26 @@ class ThomsonClass:
                 if node in ["TEMP", "DENSITY"]:
                     for subnode in ["PHI", "PSI01", "PSI02", "R", "RHO01", "RHO02", "Z"]:
                         path = base + "." + node + "." + subnode
-                        print("Getting data from node: " + path)
+                        if verbal:
+                            print("Getting data from node: " + path)
                         try:
                             data = conn.get(path).data()
                             data_dim = conn.get("dim_of(" + path + ")").data()
                             data_dict = {"Time":data_dim, subnode.lower():data}
                             self.ts_dict[node.lower() + "." + subnode.lower()] = data_dict
                         except (mds.MdsIpException, mds.TreeNODATA):
-                            print("  Node has no data.")
+                            if verbal:
+                                print("  Node has no data.")
 
             # This error is returned if the node is empty. Catch it.
             except (mds.MdsIpException, mds.TreeNODATA):
-                print("  Node has no data.")
+                if verbal:
+                    print("  Node has no data.")
 
             # For compatablity with some of the older shots.
             except mds.TreeNNF:
-                print("  Node not found.")
+                if verbal:
+                    print("  Node not found.")
 
         # Pull these into DataFrames, a logical and easy way to represent the
         # data. Initially the rows are each a TS chord, and the columns are at
@@ -294,12 +302,15 @@ class ThomsonClass:
 
         return g
 
-    def map_to_efit(self, times=None, ref_time=None, average_ts=5, debug=False):
+    def map_to_efit(self, times=None, ref_time=None, average_ts=5, debug=False,
+                    tree='EFIT04', choose_interp_region=False, trunc_div=False):
         """
         This function uses the gfiles of each time in times to find the location
         of each TS chord relative to the X-point in polar coordinates, (d, theta).
         By doing this for a swept strike point and mapping each (d, theta) back
         to a reference frame, 2D profiles of Te and ne can be obtained.
+
+        Note: Currently only written for LSN. Needs to be updated for USN.
 
         times:      A list of times to average over and map to. Can be a single float
                       or list. The gfile for each time will be loaded.
@@ -337,9 +348,12 @@ class ThomsonClass:
         ref_idx = np.where(times == ref_time)[0][0]
         times = np.append(ref_time, np.append(times[:ref_idx], times[ref_idx+1:]))
         ref_flag = True
+
+        # Defaults for fitting the LCFS interpolation functions.
+        start = 13; end = 71
         for time in times:
             print('\nLoading gfile (' + str(count) + '/' + str(len(times)) + ')...')
-            gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True)
+            gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True, tree=tree)
 
             # Store for plotting function.
             if ref_flag:
@@ -404,11 +418,31 @@ class ThomsonClass:
             Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
             Z_axis = gfile['ZmAxis']
             R_axis = gfile['RmAxis']
-            Rs_trunc = Rs > R_axis
+            if trunc_div:
+                Rs_trunc = Rs > self.ts_dict['r']['Y'][0] * 0.95
+            else:
+                Rs_trunc = Rs > R_axis
 
             # Only want the outboard half since thats where we're mapping R-Rsep OMP to.
-            Zes_outboard = np.copy(gfile['lcfs'][:, 1][13:-17])
-            Res_outboard = np.copy(gfile['lcfs'][:, 0][13:-17])
+            if choose_interp_region:
+                lcfs_rs = gfile['lcfs'][:, 0]
+                lcfs_zs = gfile['lcfs'][:, 1]
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+                ax.plot(lcfs_rs, lcfs_zs, 'k.')
+                for i in range(0, len(lcfs_rs)):
+                    ax.annotate(i, (lcfs_rs[i], lcfs_zs[i]))
+                ax.plot(rs, zs, 'r.')
+                start = int(input('Enter start index for interpolation region: '))
+                end   = int(input('Enter end index for interpolation region: '))
+                choose_interp_region = False
+
+            Zes_outboard = np.copy(gfile['lcfs'][:, 1][start:end])
+            Res_outboard = np.copy(gfile['lcfs'][:, 0][start:end])
+
+            #else:
+            #    Zes_outboard = np.copy(gfile['lcfs'][:, 1][13:-17])
+            #    Res_outboard = np.copy(gfile['lcfs'][:, 0][13:-17])
 
             try:
                 # Interpolation functions of psin(R, Z) and R(psin, Z). Rs_trunc

@@ -5,6 +5,8 @@ __init__\.py
 
 *.xlsx
 
+*.pdf
+
 *.csv
 
 *.xlsx#

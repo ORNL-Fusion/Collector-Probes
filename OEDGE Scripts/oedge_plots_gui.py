@@ -6,7 +6,7 @@ import numpy as np
 
 plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
              'Flow Velocity', 'Flow Velocity (with T13)', 'Impurity Density',
-             'Impurity Ionization', 'ne', 'ne - Divertor', 'S Coordinate', 'Te',
+             'Impurity Ionization', 'ne', 'ne - Divertor', 'Rings', 'S Coordinate', 'Te',
              'Te - Divertor']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 
@@ -121,8 +121,8 @@ class Window(tk.Frame):
         tk.Label(self.master, text=' ').grid(row=row, column=0, padx=padx, pady=pady)
         row += 1
 
-        # Entry for Thomson file.
-        tk.Label(self.master, text='Thomson File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
+        # Entry for Thomson input file.
+        tk.Label(self.master, text='Thomson\n Input File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
         self.ts_entry = tk.Entry(self.master)
         self.ts_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE', rowspan=2)
 
@@ -136,6 +136,18 @@ class Window(tk.Frame):
         self.ts_button = tk.Button(self.master, text='Create...')
         self.ts_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.ts_button['command'] = self.create_ts
+        row += 1
+
+        # Entry for Thomson file.
+        tk.Label(self.master, text='Thomson\n Output File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
+        self.ts_out_entry = tk.Entry(self.master)
+        self.ts_out_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE', rowspan=2)
+
+        # Add button to make PDF of Thomson comparisons.
+        self.compare_button = tk.Button(self.master, text='Plot')
+        self.compare_button.grid(row=row, column=2, padx=padx, pady=pady*4, sticky='WE')
+        self.compare_button['command'] = self.compare_ts_command
+        row += 1
 
         # Add a quit button.
         self.quit_button = tk.Button(self.master, text='Quit')
@@ -152,7 +164,7 @@ class Window(tk.Frame):
         self.netcdf_entry.delete(0, tk.END)
         self.netcdf_entry.insert(0, netcdf_path)
         self.op = oedge.OedgePlots(self.netcdf_entry.get())
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(netcdf_path))
+        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(netcdf_path.split('/')[-1]))
 
         # Try and grab the collector_probe file while we're at it since it's probably
         # the same name. Dat file too.
@@ -161,7 +173,7 @@ class Window(tk.Frame):
             f = open(cp_path, 'r')
             self.cp_entry.delete(0, tk.END)
             self.cp_entry.insert(0, cp_path)
-            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(cp_path))
+            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(cp_path.split('/')[-1]))
             self.cp_path = cp_path
         except:
             pass
@@ -171,20 +183,14 @@ class Window(tk.Frame):
             self.dat_entry.delete(0, tk.END)
             self.dat_entry.insert(0, dat_path)
             self.op.add_dat_file(dat_path)
-            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(dat_path))
+            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(dat_path.split('/')[-1]))
             self.dat_path = dat_path
         except:
             pass
-        ts_path = netcdf_path.split('.nc')[0] + '.ts'
-        try:
-            f = open(ts_path, 'r')
-            self.ts_entry.delete(0, tk.END)
-            self.ts_entry.insert(0, ts_path)
-            #self.op.add_ts_file(ts_path)
-            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(ts_path))
-            self.ts_path = ts_path
-        except:
-            pass
+
+        # Add a generic name for the Thomson output file.
+        ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'
+        self.ts_out_entry.insert(0, ts_out)
 
     def quit_command(self):
         """
@@ -262,7 +268,7 @@ class Window(tk.Frame):
         self.dat_entry.delete(0, tk.END)
         self.dat_entry.insert(0, self.dat_path)
         self.op.add_dat_file(self.dat_path)
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.dat_path))
+        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.dat_path.split('/')[-1]))
 
     def browse_cp(self):
         """
@@ -274,7 +280,7 @@ class Window(tk.Frame):
         self.cp_entry.delete(0, tk.END)
         self.cp_entry.insert(0, self.cp_path)
         #self.op = oedge.OedgePlots(self.netcdf_entry.get())
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.cp_path))
+        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.cp_path.split('/')[-1]))
 
     def browse_ts(self):
         """
@@ -286,7 +292,7 @@ class Window(tk.Frame):
         self.ts_entry.delete(0, tk.END)
         self.ts_entry.insert(0, self.ts_path)
         #self.op = oedge.OedgePlots(self.netcdf_entry.get())
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.ts_path))
+        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.ts_path.split('/')[-1]))
 
     def create_ts(self):
 
@@ -297,26 +303,26 @@ class Window(tk.Frame):
         # Create Entry for shots to get TS data for.
         tk.Label(self.create_window, text='Shots (separated by commas):').grid(row=0, column=0, sticky='E', padx=padx, pady=pady)
         self.shot_entry = tk.Entry(self.create_window)
-        self.shot_entry.grid(row=0, column=1, padx=padx, pady=pady, sticky='WE')
+        self.shot_entry.grid(row=0, column=1, padx=padx, pady=pady, sticky='WE', columnspan=3)
 
         # Entry for times.
         tk.Label(self.create_window, text='Times (start, stop, step):').grid(row=1, column=0, sticky='E', padx=padx, pady=pady)
-        self.time_start = tk.Entry(self.create_window)
-        self.time_start.grid(row=1, column=1, padx=padx, pady=pady, sticky='WE')
-        self.time_end = tk.Entry(self.create_window)
-        self.time_end.grid(row=1, column=2, padx=padx, pady=pady, sticky='WE')
-        self.time_step = tk.Entry(self.create_window)
-        self.time_step.grid(row=1, column=3, padx=padx, pady=pady, sticky='WE')
+        self.time_start = tk.Entry(self.create_window, width=10)
+        self.time_start.grid(row=1, column=1, padx=padx, pady=pady, sticky='W')
+        self.time_end = tk.Entry(self.create_window, width=10)
+        self.time_end.grid(row=1, column=2, padx=padx, pady=pady, sticky='W')
+        self.time_step = tk.Entry(self.create_window, width=10)
+        self.time_step.grid(row=1, column=3, padx=padx, pady=pady, sticky='W')
 
         # Entry for reference time to map all the TS measurements to.
         tk.Label(self.create_window, text='Reference time:').grid(row=2, column=0, sticky='E', padx=padx, pady=pady)
         self.time_ref = tk.Entry(self.create_window)
-        self.time_ref.grid(row=2, column=1, padx=padx, pady=pady, sticky='WE')
+        self.time_ref.grid(row=2, column=1, padx=padx, pady=pady, sticky='WE', columnspan=2)
 
         # Entry for reference time to map all the TS measurements to.
         tk.Label(self.create_window, text='Filename:').grid(row=3, column=0, sticky='E', padx=padx, pady=pady)
         self.ts_filename = tk.Entry(self.create_window)
-        self.ts_filename.grid(row=3, column=1, padx=padx, pady=pady, sticky='WE')
+        self.ts_filename.grid(row=3, column=1, padx=padx, pady=pady, sticky='WE', columnspan=2)
 
         # Fill in some default values.
         self.shot_entry.insert(0, '167192, 167193, 167194, 167195')
@@ -331,7 +337,13 @@ class Window(tk.Frame):
         self.ts_create_button.grid(row=4, column=1, padx=padx, pady=pady, sticky='WE')
         self.ts_create_button['command'] = self.create_ts_command
 
+        # Note that you can use zero for step to get all TS times.
+        tk.Label(self.create_window, text='Note: Use 0 in step to load all available times between start and stop.').grid(row=5, column=0, columnspan=4, padx=padx, pady=pady, sticky='W')
+
     def create_ts_command(self):
+
+        # Printout to message box.
+        self.message_box.insert(tk.END, 'Creating Thomson scattering data file... ')
 
         # Convert the shots input to a list.
         shots = self.shot_entry.get()
@@ -345,11 +357,25 @@ class Window(tk.Frame):
             times=np.arange(float(self.time_start.get()), float(self.time_end.get()), float(self.time_step.get()))
 
 
-        self.op.create_ts(shots=shots,
-                          times=times,
-                          ref_time=float(self.time_ref.get()),
-                          filename=self.ts_filename.get(),
-                          load_all_ts=load_all_ts)
+        fname = self.op.create_ts(shots=shots,
+                                  times=times,
+                                  ref_time=float(self.time_ref.get()),
+                                  filename=self.ts_filename.get(),
+                                  load_all_ts=load_all_ts)
+
+        self.ts_entry.insert(0, fname)
+        self.message_box.insert(tk.END, 'Done.\n')
+
+    def compare_ts_command(self):
+        """
+        Generate the pdf of Thomson comparisons.
+        """
+
+        self.message_box.insert(tk.END, 'Generating PDF...')
+        ts_filename = self.ts_entry.get()
+        rings = np.append(np.arange(19, 49), np.arange(178, 190))
+        self.op.compare_ts(ts_filename, rings, show_legend='short', output_file=self.ts_out_entry.get())
+        self.message_box.insert(tk.END, ' Done.\n')
 
     def plot_command_cp(self):
         """
@@ -469,6 +495,10 @@ class Window(tk.Frame):
                          'lut'       :10,
                          'cmap'      :'nipy_spectral'}
 
+        elif self.current_option.get() == 'Rings':
+            plot_args = {'dataname'  :'Ring',
+                         'cbar_label':'Ring'}
+
         else:
             self.message_box.insert(tk.END, 'Plot option not found.')
 
@@ -508,11 +538,15 @@ class Window(tk.Frame):
         if self.mr_cb_var.get() == 1:
             plot_args['show_mr'] = True
 
-        # Option to supply a vmin or vmax.
-        if self.vmin_entry.get() != 'auto':
-            plot_args['vmin'] = float(self.vmin_entry.get())
-        if self.vmax_entry.get() != 'auto':
-            plot_args['vmax'] = float(self.vmax_entry.get())
+        # Option to supply a vmin or vmax. Put in a try since this may not even
+        # be defined yet if the extra plot option window isn't open.
+        try:
+            if self.vmin_entry.get() != 'auto':
+                plot_args['vmin'] = float(self.vmin_entry.get())
+            if self.vmax_entry.get() != 'auto':
+                plot_args['vmax'] = float(self.vmax_entry.get())
+        except:
+            pass
 
         message = "Plotting " + self.current_option.get() + ".\n"
         self.message_box.insert(tk.END, message)

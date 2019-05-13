@@ -60,10 +60,15 @@ class OedgePlots:
         self.zvesm  = self.nc['ZVESM'][:]
         self.irsep  = self.nc['IRSEP'][:]
         self.qtim   = self.nc['QTIM'][:]
-        self.absfac = self.nc['ABSFAC'][:]
         self.kss    = self.nc['KSS'][:]
         self.kfizs  = self.nc['KFIZS'][:]
         self.ksmaxs = self.nc['KSMAXS'][:]
+        self.irsep  = self.nc['IRSEP'][:]
+        self.irwall = self.nc['IRWALL'][:]
+        try:
+            self.absfac = self.nc['ABSFAC'][:]
+        except:
+            print("Warning: Can't load all variables from NetCDF file (okay if DIVIMP was not run).")
 
         # Create a mesh of of the corners of the each cell/polygon in the grid.
         #mesh  = np.array([])
@@ -119,7 +124,8 @@ class OedgePlots:
 
         dataname : The 2D data as named in the netCDF file.
         charge   : The charge state to be plotted, if applicable.
-        scaling  : Scaling factor to apply to the data, if applicable.
+        scaling  : Scaling factor to apply to the data, if applicable. Secret
+                     option is 'Ring' to just return the ring number at each cell.
         fix_fill :
         """
 
@@ -142,12 +148,17 @@ class OedgePlots:
             for ik in range(self.nks[ir]):
                 if self.area[ir, ik] != 0.0:
 
-                    # If charge is specifed, this will be the first dimension,
-                    # and will need to charge + 1 to match index.
-                    if charge in [None, 'all']:
-                        data[count] = raw_data[ir][ik] * scaling
+                    # Just make the data the ring number.
+                    if scaling == 'Ring':
+                        data[count] = ir
                     else:
-                        data[count] = raw_data[charge + 1][ir][ik] * scaling
+
+                        # If charge is specifed, this will be the first dimension,
+                        # and will need to charge + 1 to match index.
+                        if charge in [None, 'all']:
+                            data[count] = raw_data[ir][ik] * scaling
+                        else:
+                            data[count] = raw_data[charge + 1][ir][ik] * scaling
 
                     count = count + 1
 
@@ -271,7 +282,9 @@ class OedgePlots:
                        of the probe. Can pass as list where each entry corresponds
                        to the one in show_cp.
         show_mr:     Option to show the metal rings or not from MRC-I.
-        fix_fill:
+        fix_fill:    The defaults for some masked_arrays is to fill in blank
+                       values with 1e36. I think zero is more appropriate for
+                       plotting correctly.
         """
 
         # Make sure show_cp and ptip is in list form if not.
@@ -286,6 +299,10 @@ class OedgePlots:
         # Flow velocity with additional velocity specified by T13.
         if dataname == 'KVHSimp':
             data = self.read_data_2d_kvhs_t13()
+
+        # Special option to plot the ring numbers.
+        elif dataname == 'Ring':
+            data = self.read_data_2d('KTEBS', scaling='Ring')
 
         # Everything else in the netCDF file.
         else:
@@ -530,17 +547,23 @@ class OedgePlots:
                 f.write(xaxis+'\tITF\tOTF\n')
                 writer.writerows(zip(x, y_itf, y_otf))
 
-    def create_ts(self, shots, times, ref_time, write_to_file=True, filename=None,
-                  load_all_ts=False):
+    def create_ts(self, shots, times, ref_time, filename=None, load_all_ts=False):
         """
         Function to create a Thomson scattering file in the correct format for
-        comparing to OEDGE results.
+        comparing to OEDGE results. Outputs an Excel file with the data in a
+        form that makes importing it back into a DataFrame easy.
 
-        shots:
-        times:
-        ref_time:
-        write_to_file:
-        filename:
+        shots:         Shots to load TS data for to compare OEDGE against.
+        times:         Times of which to load a gfile for. If load_all_ts is set
+                         to True, the min and max of these times will be used
+                         and will grab all available TS times between from EFIT04.
+        ref_time:      Time frame to map all the TS measurements back to.
+        write_to_file: Should normally be True.
+        filename:      Excel output file with the TS data mapped to S.
+        load_all_ts:   Choose whether or not to load ALL the times the TS laser
+                         had fired for from EFIT04. This takes a long time to
+                         load, but should only need to be used once per
+                         output file.
         """
 
         # Import here instead of top just in case someone is using the GUI and
@@ -553,7 +576,9 @@ class OedgePlots:
         elif type(shots) != list:
             shots = [shots]
 
-
+        # Want the times as floats to be consistent. Two decimal places.
+        times = np.array(times, dtype=np.float).round(2)
+        ref_time = np.round(np.float(ref_time), 2)
 
         # Total DataFrame to be returned in Excel file.
         self.s_df_all = pd.DataFrame()
@@ -574,8 +599,8 @@ class OedgePlots:
                 print('Warning: Loading all TS times. This could take a long time...')
 
                 # Load in all the times.
-                div_times = self.ts_div.ts_dict['temp']['X']
-                core_times = self.ts_core.ts_dict['temp']['X']
+                div_times = self.ts_div.ts_dict['temp']['X'].round(2)
+                core_times = self.ts_core.ts_dict['temp']['X'].round(2)
 
                 # Restrict to the time range input.
                 div_idx  = np.where(np.logical_and(div_times>times.min(), div_times<times.max()))
@@ -593,22 +618,35 @@ class OedgePlots:
                 # Load the times. This is where we will spend some time loading.
                 self.ts_div.map_to_efit(times=div_times, ref_time=ref_time_div)
                 self.ts_core.map_to_efit(times=core_times, ref_time=ref_time_core)
+                num_rows = (len(div_times) * len(self.ts_div.ref_df.index)) + (len(core_times) * len(self.ts_core.ref_df.index))
 
             else:
+
+                # Just load TS data with the given times.
                 self.ts_div.map_to_efit(times=times, ref_time=ref_time)
                 self.ts_core.map_to_efit(times=times, ref_time=ref_time)
+                num_rows = len(times) * (len(self.ts_div.ref_df.index) + len(self.ts_core.ref_df.index))
 
             # Initialize DataFrame to hold the S values for this shot. Filling in the index
             # ahead of time isn't needed, but it is much faster than adding on one
             # row at time.
-            num_rows = len(times) * (len(self.ts_div.ref_df.index) + len(self.ts_core.ref_df.index))
-            self.s_df = pd.DataFrame(columns=('S (m)', 'Te (eV)', 'ne (m-3)', 'Ring', 'System', 'Shot'),
+            self.s_df = pd.DataFrame(columns=('S (m)', 'Te (eV)', 'ne (m-3)', 'Ring', 'Cell', 'System', 'Shot', 'R (m)', 'Z (m)', 'Time'),
                                      index=np.arange(0, num_rows))
             idx = 0
 
             # For each location at each time...
-            for time in times:
-                for ts_sys in [self.ts_div, self.ts_core]:
+            for ts_sys in [self.ts_div, self.ts_core]:
+
+                # Choose correct time array if using the actual TS times.
+                if load_all_ts:
+                    if ts_sys is self.ts_div:
+                        times = div_times
+                    elif ts_sys is self.ts_core:
+                        times = core_times
+                    else:
+                        print("How did you even get to this error?")
+
+                for time in times:
                     loc_num = 0
                     for loc in ts_sys.ref_df[str(time)]:
 
@@ -621,8 +659,11 @@ class OedgePlots:
                         s  = self.kss[closest_cell][0]
                         te = ts_sys.ref_df['Te at ' + str(time)].iloc[loc_num]
                         ne = ts_sys.ref_df['Ne at ' + str(time)].iloc[loc_num]
+                        r  = ts_sys.ref_df[str(time)].iloc[loc_num][0]
+                        z  = ts_sys.ref_df[str(time)].iloc[loc_num][1]
                         ring = closest_cell[0][0] + 1
-                        self.s_df.iloc[idx] = np.array([s, te, ne, ring, ts_sys.system, shot])
+                        cell = closest_cell[1][0] + 1
+                        self.s_df.iloc[idx] = np.array([s, te, ne, ring, cell, ts_sys.system, shot, r, z, time])
                         idx     += 1
                         loc_num += 1
 
@@ -634,19 +675,47 @@ class OedgePlots:
         self.s_df_all['Te (eV)']  = self.s_df_all['Te (eV)'].astype(np.float)
         self.s_df_all['ne (m-3)'] = self.s_df_all['ne (m-3)'].astype(np.float)
         self.s_df_all['Ring']     = self.s_df_all['Ring'].astype(np.int)
+        self.s_df_all['Cell']     = self.s_df_all['Cell'].astype(np.int)
         self.s_df_all['System']   = self.s_df_all['System'].astype(np.str)
         self.s_df_all['Shot']     = self.s_df_all['Shot'].astype(np.int)
+        self.s_df_all['R (m)']    = self.s_df_all['R (m)'].astype(np.float)
+        self.s_df_all['Z (m)']    = self.s_df_all['Z (m)'].astype(np.float)
+        self.s_df_all['Time']    = self.s_df_all['Time'].astype(np.float)
 
-        # Save to an Excel file.
-        if write_to_file:
-            if filename == None:
-                filename = 'ts_mapped_to_s_' + str(shot) + '.xlsx'
-            self.s_df_all.to_excel(filename)
+        print("Reminder: The 'R OMP' value in the Excel file is calculated " +
+                 "off the assumption that the shot was stationary during " +
+                 "this time frame. These values are only useful for the core " +
+                 "Thomson, since finding them for the divertor is difficult.")
 
 
-    def compare_ts(self, ts_filename, rings, show_legend='all', nrows=3, ncols=2, bin_width=0.5):
+        if filename == None:
+            filename = 'ts_mapped_to_s_' + str(shot) + '.xlsx'
+        self.s_df_all.to_excel(filename)
+
+        return filename
+
+    def compare_ts(self, ts_filename, rings, show_legend='all', nrows=3,
+                   ncols=2, bin_width=0.5, output_file='my_ts_comparison.pdf',
+                   rad_bin_width=0.0025, core_sweep_bug_time=None, filter_zeros=True):
         """
-        Function to create plots to compare the OEDGE results to Thomson scattering.
+        Function to create plots to compare the OEDGE results to Thomson
+        scattering. A PDF file is output with all the graphs for each ring.
+
+        ts_filename: The Excel file created from "create_ts" above. Has all the
+                     TS data mapped to S.
+        rings:       OEDGE rings to compare the TS against.
+        show_legend: One of 'all' or 'short'. 'all' will show which shot is
+                     which color, and 'short' will only show OEDGE and the
+                     average TS values, binned accordinagly with std. dev.
+        nrows:       Number of rows of plots for the PDF file.
+        ncols:       Number of columns of plots for the PDF file.
+        bin_width:   Width of each bin, in meters, to bin the TS data along S
+                     into. This makes getting averages and a standard deviation
+                     possible, making comparing TS to OEDGE much more meaningful.
+        output_file: What the save the PDF as.
+        rad_bin_width: Bin width for the R-Rsep OMP plots to bin the TS data into.
+        core_sweep_bug_time: Handles a bug in the ThomsonClass script. See
+                     explanation in the comment about 15 lines down from here.
         """
 
         # Warning that pops up but is unecessary.
@@ -657,15 +726,150 @@ class OedgePlots:
         self.s_df_all = pd.read_excel(ts_filename)
         df = self.s_df_all
 
+        # There is a slight bug in the ThomsonClass script that is fortunately
+        # easy to work around (love u pandas). To map to a common reference time,
+        # it maps each location to the X-point. This allows 2D graphs with the
+        # divertor system, but can make it seem like the core is sweeping a
+        # range, when it really isn't. Use this variable to indicate the start
+        # of the strike point sweep so we can exclude that core data.
+        if core_sweep_bug_time is not None:
+            drop_idx = np.logical_and(df['System'] == 'core', df['Time'] > core_sweep_bug_time).values
+            df = df.iloc[~drop_idx]
+
+        # Get rid of some random zeros that muck things up.
+        if filter_zeros:
+            df = df[df['Te (eV)']  > 0.0]
+            df = df[df['ne (m-3)'] > 0.0]
+
         # Variables to keep track of which Axes we are on.
         ngraphs = nrows * ncols
         graph_count = 0
 
         # Create pdf filename. Open up file to save Figures to.
-        pdf_filename = ts_filename.split('.xlsx')[0] + '.pdf'
+        pdf_filename = output_file
         with PdfPages(pdf_filename) as pdf:
 
-            # One loop for Te, one loop for ne.
+            # Get the Z of the OMP.
+            z0 = self.nc['Z0'][:].data
+            r0 = self.nc['R0'][:].data
+
+            # Get Rsep at the OMP.
+            sep_ring     = self.nc['IRSEP'][:] - 1  # Subtract 1 for indexing means.
+            dist         = np.abs(self.zs[sep_ring] - z0)
+            rsepomp_cell = np.where(dist == dist.min())[0]
+            rsepomp      = self.rs[sep_ring, rsepomp_cell]
+
+            # Get the Thomson R's and Z's. Only upstream and rings outside IRSEP.
+            # Downstream comparisons will have to be with Langmuir probes and
+            # the parallel to s graphs that utilize the divertor TS.
+            tmp_df  = df[np.logical_and(df['Ring'] >= self.irsep, df['Ring'] < 100)] # Just to stop far rings from goofing up the plot.
+            ts_r    = tmp_df[tmp_df['System'] == 'core']['R (m)'].values
+            ts_z    = tmp_df[tmp_df['System'] == 'core']['Z (m)'].values
+            ts_ring = tmp_df[tmp_df['System'] == 'core']['Ring'].values - 1 # Subtract 1 for indexing means.
+            ts_te   = tmp_df[tmp_df['System'] == 'core']['Te (eV)'].values
+            ts_ne   = tmp_df[tmp_df['System'] == 'core']['ne (m-3)'].values
+            ts_cell = tmp_df[tmp_df['System'] == 'core']['Cell'].values
+            ts_romp = np.zeros(len(ts_r))
+
+            # First time will be the ref_time since that's HOW I MADE IT WORK DAMMIT.
+            ref_time = tmp_df[tmp_df['System'] == 'core']['Time'].values[0]
+            self.tmp_df = tmp_df
+
+            # Find which knot corresponds to the OMP.
+            for i in range(0, len(ts_r)):
+
+                # Only want the OMP side, so take cells on the right half of OMP.
+                omp_side = self.rs[ts_ring[i]] > r0
+
+                dist = np.abs(self.zs[ts_ring[i]][omp_side] - z0)
+                omp_cell = np.where(dist == dist.min())[0]
+                romp = self.rs[ts_ring[i]][omp_side][omp_cell]
+
+                # Find R-Rsep OMP.
+                ts_romp[i] = romp - rsepomp
+
+            # Now need to get the OEDGE values at the OMP.
+            more_rings = np.arange(sep_ring, self.irwall)
+            oedge_romps = np.array([])
+            oedge_teomp = np.array([])
+            oedge_neomp = np.array([])
+
+            # Get the R location where core Thomson is taken.
+            tmp_df2 = tmp_df[tmp_df['System'] == 'core']
+            ts_r_ref = tmp_df2[tmp_df2['Time'] == ref_time]['R (m)'].values[0]
+
+            for i in range(0, len(more_rings)):
+
+                # Get the ring we are interested in.
+                ring = more_rings[i]
+                #print(ring)
+
+                try:
+                    # Get the RminRsep OMP values for these values mapped to the OMP.
+                    omp_side = self.rs[ring] > r0
+                    dist = np.abs(self.zs[ring][omp_side] - z0)
+                    omp_cell = np.where(dist == dist.min())[0]
+                    romp = self.rs[ring][omp_side][omp_cell]
+                    oedge_romps = np.append(oedge_romps, romp - rsepomp)
+
+                    # Get the Te, ne values along the R value where TS is taken. Need
+                    # to find which cell on this ring this is at. Just to be safe only
+                    # grab the portion above the OMP.
+                    above_omp = self.zs[ring] > z0
+                    dist = np.abs(self.rs[ring][above_omp] - ts_r_ref)
+                    close_cell = np.where(dist == dist.min())[0]
+                    oedge_teomp = np.append(oedge_teomp, self.nc['KTEBS'][:][ring][above_omp][close_cell])
+                    oedge_neomp = np.append(oedge_neomp, self.nc['KNBS'][:][ring][above_omp][close_cell])
+
+                except ValueError:
+                    #print("Maybe ring {} isn't to the right of the OMP.".format(ring))
+                    pass
+
+            # Sort the OEDGE data for plotting.
+            idx = np.argsort(oedge_romps)
+            oedge_romps = oedge_romps[idx]
+            oedge_teomp = oedge_teomp[idx]
+            oedge_neomp = oedge_neomp[idx]
+
+            # Make figures, put them into the PDF.
+            fig, axs = plt.subplots(2, 1, sharex=True)
+            axs = axs.flatten()
+
+            for data in ['Te', 'ne']:
+                if data == 'Te':
+                    y = ts_te
+                    oedge_y = oedge_teomp
+                    graph_num = 0
+                else:
+                    y = ts_ne
+                    oedge_y = oedge_neomp
+                    graph_num = 1
+
+                # Bin the Thomson data some to get averages and error bars.
+                bins = np.arange(ts_romp.min(), ts_romp.max()+rad_bin_width, rad_bin_width)
+                digi = np.digitize(ts_romp, bins)
+                bin_means = [y[digi == i].mean() for i in range(1, len(bins))]
+                bin_stds = [y[digi == i].std() for i in range(1, len(bins))]
+                bin_centers = bins[:-1] + rad_bin_width / 2.0
+
+                line1, = axs[graph_num].plot(ts_romp, y, '.', color='lightgrey', alpha=0.35, zorder=-32)
+                line2  = axs[graph_num].errorbar(bin_centers, bin_means, fmt='k.',
+                                                 yerr=bin_stds,
+                                                 capthick=1.5, capsize=3)
+                line3, = axs[graph_num].plot(oedge_romps, oedge_y, 'k')
+                axs[graph_num].legend((line2, line3), ('Thomson', 'OEDGE'),
+                                        loc='upper center', ncol=3,
+                                        bbox_to_anchor=(0.5, 1.1),
+                                        fancybox=True, shadow=True)
+
+            axs[0].set_xlim([0, ts_romp.max() * 1.1])
+            axs[1].set_xlabel('R-Rsep OMP (m)')
+            axs[0].set_ylabel('Te (eV)')
+            axs[1].set_ylabel('ne (m-3)')
+            fig.tight_layout()
+            pdf.savefig(fig, papertype='letter')
+
+            # Make parallel to s graphs. One loop for Te, one loop for ne.
             for oedge_data in ['Te', 'ne']:
                 graph_count = 0
 
@@ -700,7 +904,7 @@ class OedgePlots:
                         # want.
                         ls = axs[graph_count].plot(smaller_ring_df['S (m)'], y, '.',
                                                    color=tableau20[color], label=shot,
-                                                   alpha=0.5, zorder=-32)
+                                                   alpha=1.0, zorder=-32)
                         color += 2
 
                         # Prevent going past the size of tableau20 array.
@@ -796,3 +1000,30 @@ class OedgePlots:
                     fig.tight_layout()
                     pdf.savefig(fig, papertype='letter')
                     plt.close()
+
+    def check_ts(self, ts_filename, time_cutoff=None):
+        """
+        This helper function just plots the locations of the Thomson scattering
+        points after they have been mapped to a common flux surface. Just to
+        make sure everything looks alright.
+        """
+
+        # Load up a plot. Just do Te, it doesn't really matter what data.
+        fig = self.plot_contour_polygon('KTEBS', normtype='log')
+
+        # Get our TS file that has the (R, Z) locations to plot over this fig.
+        df = pd.read_excel(ts_filename)
+
+        # Potentially a big problem, but unsure yet. Sweeping allows filling out
+        # a 2D divertor space, but the mapping process used in these Thomson
+        # files may goof up core measurements during a sweep. This allows
+        # excluding core data after a certain time.
+        if time_cutoff is not None:
+            drop_idx = np.logical_and(df['System'] == 'core', df['Time'] > time_cutoff).values
+            df = df.iloc[~drop_idx]
+
+        rs = df['R (m)'].values
+        zs = df['Z (m)'].values
+
+        fig.axes[0].plot(rs, zs, 'k.', ms=1)
+        fig.show()

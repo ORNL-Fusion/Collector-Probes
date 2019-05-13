@@ -233,9 +233,8 @@ class ThomsonClass:
                                    %time + '  ->  Abort')
             else:
                 if verbal:
-                    print('Warning: ' + tree + ' does not exactly contain time' \
-                          ' %.2f' %time + ' the closest time is ' + str(time0))
-                    print('Fetching time slice ' + str(time0))
+                    print('Warning: Closest time is ' + str(time0) +'.')
+                    #print('Fetching time slice ' + str(time0))
                 time = time0
 
         # store data in dictionary
@@ -310,6 +309,12 @@ class ThomsonClass:
         By doing this for a swept strike point and mapping each (d, theta) back
         to a reference frame, 2D profiles of Te and ne can be obtained.
 
+        BUG: Mapping the core to the X-point during a sweep doesn't work. The
+          X-point can move while the core plasma doesn't, thus a moving X-point
+          could make it seem like the core sweeps a range too when it doesn't.
+          A fix here could be mapping the core to the plasma center, while the
+          divertor TS stays with the X-point.
+
         Note: Currently only written for LSN. Needs to be updated for USN.
 
         times:      A list of times to average over and map to. Can be a single float
@@ -353,135 +358,142 @@ class ThomsonClass:
         start = 13; end = 71
         for time in times:
             print('\nLoading gfile (' + str(count) + '/' + str(len(times)) + ')...')
-            gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True, tree=tree)
-
-            # Store for plotting function.
-            if ref_flag:
-                self.ref_gfile = gfile
-
-            # Z's and R's of the separatrix, in m.
-            Zes = np.copy(gfile['lcfs'][:, 1])
-            Res = np.copy(gfile['lcfs'][:, 0])
-
-            # The location of the X-point is here where the lowest Z is (LSN).
-            xpoint_idx = np.where(Zes == Zes.min())[0][0]
-            Rx = Res[xpoint_idx]
-            Zx = Zes[xpoint_idx]
-            if debug:
-                print('X-point (R, Z): ({:.2f}, {:.2f})'.format(Rx, Zx))
-
-            # Use polar coordinates with the X-point as the origin.
-            # The distance from the X-point is just the distance formula.
-            rs = self.ts_dict['r']['Y']; zs = self.ts_dict['z']['Y']
-
-            # If this is the first time(the reference frame), save these values.
-            # These ref rs, zs are already (R, Z) in the reference frame (obviously),
-            # so we don't need to convert to polar and then back to (R, Z) in the
-            # reference frame.
-            if ref_flag:
-                Rx_ref = Rx; Zx_ref = Zx
-                rs_ref = rs; zs_ref = zs
-                self.ref_df[str(time)] = list(zip(rs_ref, zs_ref))
-                ref_flag = False
-            else:
-                # The angle is computed using arctan2 to get the correct quadrant (radians).
-                theta = np.arctan2(zs - Zx, rs - Rx)
-                #print("Theta: ", end=''); print(*theta, sep=', ')
-                d = np.sqrt((rs - Rx)**2 + (zs - Zx)**2)
-                #print("Distance from X-point: ", end=''); print(*d, sep=', ')
-
-                # Now convert back to (R, Z), but in the reference frame.
-                rs_into_ref = d * np.cos(theta) + Rx_ref
-                zs_into_ref = d * np.sin(theta) + Zx_ref
-                self.ref_df[str(time)] = list(zip(rs_into_ref, zs_into_ref))
-
-            # Find the Te and ne data to put in for these times as well. Average
-            # the neighboring +/-"average_ts" points. Ex. If average_ts = 5, and
-            # the time is 2000, it will take the last 5 and next 5 TS points and
-            # average the resulting 11 profiles together into one for 2000 ms.
-
-            # First find closest time in the index.
-            idx = np.abs(self.temp_df.index.values - time).argmin()
-
-            # Average the desired range of values.
-            #self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
-            #self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
-            self.avg_temp_df = self.temp_df.iloc[idx]
-            self.avg_dens_df = self.dens_df.iloc[idx]
-
-            # Append this to our ref_df.
-            self.ref_df['Te at ' + str(time)] = self.avg_temp_df
-            self.ref_df['Ne at ' + str(time)] = self.avg_dens_df
-
-            # Let's also map each chord to R-Rsep omp and store in a DataFrame.
-            # Get the additional information needed for this.
-            Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
-            Z_axis = gfile['ZmAxis']
-            R_axis = gfile['RmAxis']
-            if trunc_div:
-                Rs_trunc = Rs > self.ts_dict['r']['Y'][0] * 0.95
-            else:
-                Rs_trunc = Rs > R_axis
-
-            # Only want the outboard half since thats where we're mapping R-Rsep OMP to.
-            if choose_interp_region:
-                lcfs_rs = gfile['lcfs'][:, 0]
-                lcfs_zs = gfile['lcfs'][:, 1]
-                fig = plt.figure()
-                ax = fig.add_subplot(111)
-                ax.plot(lcfs_rs, lcfs_zs, 'k.')
-                for i in range(0, len(lcfs_rs)):
-                    ax.annotate(i, (lcfs_rs[i], lcfs_zs[i]))
-                ax.plot(rs, zs, 'r.')
-                start = int(input('Enter start index for interpolation region: '))
-                end   = int(input('Enter end index for interpolation region: '))
-                choose_interp_region = False
-
-            Zes_outboard = np.copy(gfile['lcfs'][:, 1][start:end])
-            Res_outboard = np.copy(gfile['lcfs'][:, 0][start:end])
-
-            #else:
-            #    Zes_outboard = np.copy(gfile['lcfs'][:, 1][13:-17])
-            #    Res_outboard = np.copy(gfile['lcfs'][:, 0][13:-17])
-
             try:
-                # Interpolation functions of psin(R, Z) and R(psin, Z). Rs_trunc
-                # helps with not interpolating the entire plasma, and just that
-                # to the right of the magnetic axis, which is normally good enough.
-                f_psiN = Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
-                f_Romp = Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
-                f_Rs = interp1d(Zes_outboard, Res_outboard, assume_sorted=False)
+                gfile = self.load_gfile_mds(shot=self.shot, time=time, connection=self.conn, verbal=True, tree=tree)
 
-                # The process is to get the (R, Z) of each chord...
-                chord_rs = self.ts_dict['r']['Y']
-                chord_zs = self.ts_dict['z']['Y']
+                # Store for plotting function.
+                if ref_flag:
+                    self.ref_gfile = gfile
 
-                # ...then find the corresponding psin of each...
-                chord_psins = f_psiN(chord_rs, chord_zs)
+                # Z's and R's of the separatrix, in m.
+                Zes = np.copy(gfile['lcfs'][:, 1])
+                Res = np.copy(gfile['lcfs'][:, 0])
 
-                # ...then use this psin to find the value at the omp (Z_axis)...
-                chord_omps = f_Romp(chord_psins, np.full(len(chord_psins), Z_axis))
-
-                # ... get the value of the separatrix at the omp the calculate
-                # R-Rsep omp...
-                rsep_omp = f_Rs(Z_axis)
-                chord_rminrsep_omps = chord_omps - rsep_omp
-
+                # The location of the X-point is here where the lowest Z is (LSN).
+                xpoint_idx = np.where(Zes == Zes.min())[0][0]
+                Rx = Res[xpoint_idx]
+                Zx = Zes[xpoint_idx]
                 if debug:
-                    print("Rsep OMP: {:.3f}".format(rsep_omp))
-                    print("Chord OMPs: ", end=""); print(chord_omps)
+                    print('X-point (R, Z): ({:.2f}, {:.2f})'.format(Rx, Zx))
 
-                # ...and then wrap each omp value with the corresponding temperature,
-                # and put each point into a dataframe.
-                te_idx = np.where(np.abs(self.temp_df.index.values-time) ==
-                                  np.abs(self.temp_df.index.values-time).min())[0][0]
-                chord_tes = self.temp_df.iloc[te_idx]
-                chord_nes = self.dens_df.iloc[te_idx]
-                self.temp_df_omp[time] = list(zip(chord_rminrsep_omps, chord_tes))
-                self.dens_df_omp[time] = list(zip(chord_rminrsep_omps, chord_nes))
+                # Use polar coordinates with the X-point as the origin.
+                # The distance from the X-point is just the distance formula.
+                rs = self.ts_dict['r']['Y']; zs = self.ts_dict['z']['Y']
+
+                # If this is the first time(the reference frame), save these values.
+                # These ref rs, zs are already (R, Z) in the reference frame (obviously),
+                # so we don't need to convert to polar and then back to (R, Z) in the
+                # reference frame.
+                if ref_flag:
+                    Rx_ref = Rx; Zx_ref = Zx
+                    rs_ref = rs; zs_ref = zs
+                    self.ref_df[str(time)] = list(zip(rs_ref, zs_ref))
+                    ref_flag = False
+                else:
+                    # The angle is computed using arctan2 to get the correct quadrant (radians).
+                    theta = np.arctan2(zs - Zx, rs - Rx)
+                    #print("Theta: ", end=''); print(*theta, sep=', ')
+                    d = np.sqrt((rs - Rx)**2 + (zs - Zx)**2)
+                    #print("Distance from X-point: ", end=''); print(*d, sep=', ')
+
+                    # Now convert back to (R, Z), but in the reference frame.
+                    rs_into_ref = d * np.cos(theta) + Rx_ref
+                    zs_into_ref = d * np.sin(theta) + Zx_ref
+                    self.ref_df[str(time)] = list(zip(rs_into_ref, zs_into_ref))
+
+                # Find the Te and ne data to put in for these times as well. Average
+                # the neighboring +/-"average_ts" points. Ex. If average_ts = 5, and
+                # the time is 2000, it will take the last 5 and next 5 TS points and
+                # average the resulting 11 profiles together into one for 2000 ms.
+
+                # First find closest time in the index.
+                idx = np.abs(self.temp_df.index.values - time).argmin()
+
+                # Average the desired range of values.
+                #self.avg_temp_df = self.temp_df.iloc[idx - average_ts : idx + average_ts].mean()
+                #self.avg_dens_df = self.dens_df.iloc[idx - average_ts : idx + average_ts].mean()
+                self.avg_temp_df = self.temp_df.iloc[idx]
+                self.avg_dens_df = self.dens_df.iloc[idx]
+
+                # Append this to our ref_df.
+                self.ref_df['Te at ' + str(time)] = self.avg_temp_df
+                self.ref_df['Ne at ' + str(time)] = self.avg_dens_df
+
+                # Let's also map each chord to R-Rsep omp and store in a DataFrame.
+                # Get the additional information needed for this.
+                Rs, Zs = np.meshgrid(gfile['R'], gfile['Z'])
+                Z_axis = gfile['ZmAxis']
+                R_axis = gfile['RmAxis']
+                if trunc_div:
+                    Rs_trunc = Rs > self.ts_dict['r']['Y'][0] * 0.95
+                else:
+                    Rs_trunc = Rs > R_axis
+
+                # Only want the outboard half since thats where we're mapping R-Rsep OMP to.
+                if choose_interp_region:
+                    lcfs_rs = gfile['lcfs'][:, 0]
+                    lcfs_zs = gfile['lcfs'][:, 1]
+                    fig = plt.figure()
+                    ax = fig.add_subplot(111)
+                    ax.plot(lcfs_rs, lcfs_zs, 'k.')
+                    for i in range(0, len(lcfs_rs)):
+                        ax.annotate(i, (lcfs_rs[i], lcfs_zs[i]))
+                    ax.plot(rs, zs, 'r.')
+                    start = int(input('Enter start index for interpolation region: '))
+                    end   = int(input('Enter end index for interpolation region: '))
+                    choose_interp_region = False
+
+                Zes_outboard = np.copy(gfile['lcfs'][:, 1][start:end])
+                Res_outboard = np.copy(gfile['lcfs'][:, 0][start:end])
+
+                #else:
+                #    Zes_outboard = np.copy(gfile['lcfs'][:, 1][13:-17])
+                #    Res_outboard = np.copy(gfile['lcfs'][:, 0][13:-17])
+
+                try:
+                    # Interpolation functions of psin(R, Z) and R(psin, Z). Rs_trunc
+                    # helps with not interpolating the entire plasma, and just that
+                    # to the right of the magnetic axis, which is normally good enough.
+                    f_psiN = Rbf(Rs[Rs_trunc], Zs[Rs_trunc], gfile['psiRZn'][Rs_trunc])
+                    f_Romp = Rbf(gfile['psiRZn'][Rs_trunc], Zs[Rs_trunc], Rs[Rs_trunc], epsilon=0.00001)
+                    f_Rs = interp1d(Zes_outboard, Res_outboard, assume_sorted=False)
+
+                    # The process is to get the (R, Z) of each chord...
+                    chord_rs = self.ts_dict['r']['Y']
+                    chord_zs = self.ts_dict['z']['Y']
+
+                    # ...then find the corresponding psin of each...
+                    chord_psins = f_psiN(chord_rs, chord_zs)
+
+                    # ...then use this psin to find the value at the omp (Z_axis)...
+                    chord_omps = f_Romp(chord_psins, np.full(len(chord_psins), Z_axis))
+
+                    # ... get the value of the separatrix at the omp the calculate
+                    # R-Rsep omp...
+                    rsep_omp = f_Rs(Z_axis)
+                    chord_rminrsep_omps = chord_omps - rsep_omp
+
+                    if debug:
+                        print("Rsep OMP: {:.3f}".format(rsep_omp))
+                        print("Chord OMPs: ", end=""); print(chord_omps)
+
+                    # ...and then wrap each omp value with the corresponding temperature,
+                    # and put each point into a dataframe.
+                    te_idx = np.where(np.abs(self.temp_df.index.values-time) ==
+                                      np.abs(self.temp_df.index.values-time).min())[0][0]
+                    chord_tes = self.temp_df.iloc[te_idx]
+                    chord_nes = self.dens_df.iloc[te_idx]
+                    self.temp_df_omp[time] = list(zip(chord_rminrsep_omps, chord_tes))
+                    self.dens_df_omp[time] = list(zip(chord_rminrsep_omps, chord_nes))
+
+                except Exception as e:
+                    print("Error in the OMP steps: \n  " + str(e))
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    print(exc_type, fname, exc_tb.tb_lineno)
 
             except Exception as e:
-                print("Error in the OMP steps: \n  " + str(e))
+                print("Error loading gfile: \n " + str(e))
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
                 print(exc_type, fname, exc_tb.tb_lineno)

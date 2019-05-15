@@ -190,6 +190,7 @@ class Window(tk.Frame):
 
         # Add a generic name for the Thomson output file.
         ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'
+        self.ts_out_entry.delete(0, tk.END)
         self.ts_out_entry.insert(0, ts_out)
 
     def quit_command(self):

@@ -695,7 +695,7 @@ class OedgePlots:
         return filename
 
     def compare_ts(self, ts_filename, rings, show_legend='all', nrows=3,
-                   ncols=2, bin_width=0.5, output_file='my_ts_comparison.pdf',
+                   ncols=2, bin_width=1.0, output_file='my_ts_comparison.pdf',
                    rad_bin_width=0.0025, core_sweep_bug_time=None, filter_zeros=True):
         """
         Function to create plots to compare the OEDGE results to Thomson
@@ -905,7 +905,7 @@ class OedgePlots:
                         ls = axs[graph_count].plot(smaller_ring_df['S (m)'], y, '.',
                                                    color=tableau20[color], label=shot,
                                                    alpha=1.0, zorder=-32)
-                        color += 2
+                        color += 1
 
                         # Prevent going past the size of tableau20 array.
                         if color > 23:

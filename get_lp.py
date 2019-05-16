@@ -144,7 +144,7 @@ def get_dict_of_lps(shot, tunnel=True):
 
     return lps
 
-def plot_lps(shot, tmin, tmax, filter='median', bins=5):
+def plot_lps(shot, tmin, tmax, xtype='rminrsep', filter='median', bins=5):
 
     # Load lp data.
     lps = get_dict_of_lps(shot)
@@ -153,11 +153,11 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
     all_te       = np.array([])
     all_ne       = np.array([])
     all_jsat     = np.array([])
-    all_rminrsep = np.array([])
+    all_x        = np.array([])
 
     # Output arrays.
     pnames_filt   = np.array([])
-    rminrsep_filt = np.array([])
+    x_filt        = np.array([])
     te_filt       = np.array([])
     ne_filt       = np.array([])
     jsat_filt     = np.array([])
@@ -174,10 +174,16 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
         te       = lps[key]['temp'][idx]
         ne       = lps[key]['dens'][idx]
         jsat     = lps[key]['jsat'][idx]
-        rminrsep = lps[key]['delrsepout'][idx]
+
+        if xtype == 'rminrsep':
+            x = lps[key]['delrsepout'][idx]
+        elif xtype == 'psin':
+            x = lps[key]['psin'][idx]
+        else:
+            print("Error in xtype entry. Must be either rminrsep or psin.")
 
         # Put into one array so we can sort them all by rminrsep, low -> high.
-        probe_data = np.array((rminrsep, te, ne, jsat))
+        probe_data = np.array((x, te, ne, jsat))
         probe_data = probe_data[:, np.argsort(probe_data[0])]
 
         # Divide the data up into the number of 'bins', then take the filter of each bin.
@@ -186,7 +192,7 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
         bin_size = int(bin_size)
 
         for bin in range(0, bins):
-            tmp_rminrsep = probe_data[0][bin_size*bin:bin_size*(bin+1)]
+            tmp_x        = probe_data[0][bin_size*bin:bin_size*(bin+1)]
             tmp_te       = probe_data[1][bin_size*bin:bin_size*(bin+1)]
             tmp_ne       = probe_data[2][bin_size*bin:bin_size*(bin+1)]
             tmp_jsat     = probe_data[3][bin_size*bin:bin_size*(bin+1)]
@@ -196,7 +202,7 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
                 filter = np.median
 
             # Filter and add to the output arrays to be plotted.
-            rminrsep_filt = np.append(rminrsep_filt, filter(tmp_rminrsep))
+            x_filt        = np.append(x_filt,        filter(tmp_x))
             te_filt       = np.append(te_filt,       filter(tmp_te))
             ne_filt       = np.append(ne_filt,       filter(tmp_ne))
             jsat_filt     = np.append(jsat_filt,     filter(tmp_jsat))
@@ -227,7 +233,7 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
     fig = plt.figure(figsize=(15,7))
 
     # Function for plotting.
-    def plot_ax(fig, x, y, ylabel, ax_num, high_y, legend=False):
+    def plot_ax(fig, x, y, ylabel, ax_num, high_y, xlabel, xlim, legend=False):
         ax = fig.add_subplot(ax_num)
 
         # For each data point assign correct color.
@@ -238,10 +244,10 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
                     label = pnames_pair[1]
 
             ax.plot(x[i], y[i], '^', ms=10, color=tableau20[color], label=label.title())
-            ax.set_xlabel('R-Rsep (m)', fontsize=18)
+            ax.set_xlabel(xlabel, fontsize=18)
             ax.set_ylabel(ylabel, fontsize=18)
             ax.axvline(0.0, linestyle='--', color='k')
-            ax.set_xlim([-0.05, 0.1])
+            ax.set_xlim(xlim)
             ax.set_ylim([0, high_y])
 
             # Process to remove duplicate legend entries.
@@ -254,9 +260,18 @@ def plot_lps(shot, tmin, tmax, filter='median', bins=5):
                     newHandles.append(handle)
                 ax.legend(newHandles, newLabels, framealpha=0.5)
 
-    plot_ax(fig, rminrsep_filt, te_filt, 'Te (eV)', 131, 50, legend=True)
-    plot_ax(fig, rminrsep_filt, ne_filt, 'ne (cm-3)', 132, 10e13)
-    plot_ax(fig, rminrsep_filt, jsat_filt, 'jsat (A/cm2)', 133, 100)
+    if xtype == 'rminrsep':
+        xlabel = 'R-Rsep (m)'
+        xlim = [-0.05, 0.1]
+    elif xtype == 'psin':
+        xlabel = 'Psin'
+        xlim = [0.98, 1.1]
+
+    plot_ax(fig, x_filt, te_filt, 'Te (eV)', 131, 50, xlabel, xlim, legend=True)
+    plot_ax(fig, x_filt, ne_filt, 'ne (cm-3)', 132, 10e13, xlabel, xlim)
+    plot_ax(fig, x_filt, jsat_filt, 'jsat (A/cm2)', 133, 100, xlabel, xlim)
 
     fig.tight_layout()
     fig.show()
+
+    return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt, 'jsat (A/cm2)':jsat_filt}

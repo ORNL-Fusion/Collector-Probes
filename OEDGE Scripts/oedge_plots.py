@@ -1,8 +1,13 @@
 # Author: Shawn Zamperini
+# Email:  zamp@utk.edu
+# Date:   5/16/19
 #
-# This script was more or less copied from the oedge_omfit script by J. Nichols.
-# It's been rewritten because it's a good exercise and has been tweaked to
-# better fit in future plans for a GUI interface.
+# This script started with some code written by Jake Nichols, but has moved on
+# to be it's own standalone script. It provides a framework to plot OEDGE output
+# data, mostly found in the netCDF file. There is also the capability to plot
+# data from the collector_probe file as well. The script oedge_plots_gui acts
+# as an interface to this class full of functions, though there is nothing
+# stopping someone from using this script on it's own.
 
 import netCDF4
 import numpy             as np
@@ -716,6 +721,7 @@ class OedgePlots:
         rad_bin_width: Bin width for the R-Rsep OMP plots to bin the TS data into.
         core_sweep_bug_time: Handles a bug in the ThomsonClass script. See
                      explanation in the comment about 15 lines down from here.
+        filter_zeros:
         """
 
         # Warning that pops up but is unecessary.
@@ -863,6 +869,8 @@ class OedgePlots:
                                         fancybox=True, shadow=True)
 
             axs[0].set_xlim([0, ts_romp.max() * 1.1])
+            axs[0].set_ylim([0, ts_te.max() * 1.1])
+            axs[1].set_ylim([0, ts_ne.max() * 1.1])
             axs[1].set_xlabel('R-Rsep OMP (m)')
             axs[0].set_ylabel('Te (eV)')
             axs[1].set_ylabel('ne (m-3)')

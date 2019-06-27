@@ -137,7 +137,7 @@ def get_dict_of_lps(shot, tunnel=True):
     # Get a dictionary of each probe data, then store it all in one big dictionary.
     lps = {}
     for mds_index in active["mds_index"]:
-        lp_data = get_mds_lp_data(shot, mds_index)
+        lp_data = get_mds_lp_data(shot, mds_index, tunnel=tunnel)
         probe_name = "probe " + str(lp_data["pnum"])
         lps[probe_name] = lp_data
         print("Data stored for " + str(probe_name) + " (MDS index " + str(mds_index) + ").")

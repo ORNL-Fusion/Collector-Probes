@@ -439,6 +439,7 @@ class ThomsonClass:
                     for i in range(0, len(lcfs_rs)):
                         ax.annotate(i, (lcfs_rs[i], lcfs_zs[i]))
                     ax.plot(rs, zs, 'r.')
+                    fig.show()
                     start = int(input('Enter start index for interpolation region: '))
                     end   = int(input('Enter end index for interpolation region: '))
                     choose_interp_region = False
@@ -485,6 +486,10 @@ class ThomsonClass:
                     chord_nes = self.dens_df.iloc[te_idx]
                     self.temp_df_omp[time] = list(zip(chord_rminrsep_omps, chord_tes))
                     self.dens_df_omp[time] = list(zip(chord_rminrsep_omps, chord_nes))
+
+                    # Put the psin that the chord is on too.
+                    self.temp_df_omp[str(time) + ' psin'] = list(zip(chord_psins, chord_tes))
+                    self.dens_df_omp[str(time) + ' psin'] = list(zip(chord_psins, chord_nes))
 
                 except Exception as e:
                     print("Error in the OMP steps: \n  " + str(e))

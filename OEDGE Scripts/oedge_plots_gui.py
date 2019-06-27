@@ -5,9 +5,10 @@ import numpy as np
 
 
 plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
-             'Flow Velocity', 'Flow Velocity (with T13)', 'Impurity Density',
-             'Impurity Ionization', 'ne', 'ne - Divertor', 'Rings', 'S Coordinate', 'Te',
-             'Te - Divertor']
+             'Flow Velocity', 'Flow Velocity - Mach', 'Flow Velocity (with T13)',
+             'Flow Velocity (with T13) - Mach', 'Force - FF', 'Force - FiG', 'Impurity Density',
+             'Impurity Density - Charge', 'Impurity Ionization', 'Density', 'Density - Divertor', 'Rings', 'S Coordinate',
+             'Temperature', 'Temperature - Divertor']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 
 # Spacing constants for padding.
@@ -400,19 +401,19 @@ class Window(tk.Frame):
         function.
         """
 
-        if self.current_option.get() == 'Te':
+        if self.current_option.get() == 'Temperature':
             plot_args = {'dataname'  :'KTEBS',
                          'cmap'      :'inferno',
                          'cbar_label':'Te (eV)',
                          'normtype'  :'log'}
 
-        elif self.current_option.get() == 'ne':
+        elif self.current_option.get() == 'Density':
             plot_args = {'dataname'  :'KNBS',
                          'cmap'      :'viridis',
                          'cbar_label':'ne (m-3)',
                          'normtype'  :'log'}
 
-        if self.current_option.get() == 'Te - Divertor':
+        if self.current_option.get() == 'Temperature - Divertor':
             plot_args = {'dataname'  :'KTEBS',
                          'cmap'      :'inferno',
                          'cbar_label':'Te (eV)',
@@ -420,7 +421,7 @@ class Window(tk.Frame):
                          'xlim'      :[1.3, 1.75],
                          'ylim'      :[-1.4, -0.9]}
 
-        elif self.current_option.get() == 'ne - Divertor':
+        elif self.current_option.get() == 'Density - Divertor':
             plot_args = {'dataname'  :'KNBS',
                          'cmap'      :'viridis',
                          'cbar_label':'ne (m-3)',
@@ -453,10 +454,28 @@ class Window(tk.Frame):
                          'normtype'  :'symlog',
                          'scaling'   :scaling}
 
+        elif self.current_option.get() == 'Flow Velocity - Mach':
+
+            # Flow velocity should be scaled by 1/QTIM.
+            scaling = 1.0 / self.op.qtim
+            plot_args = {'dataname'  :'KVHS - Mach',
+                         'cbar_label':'Mach Number',
+                         'normtype'  :'symlin',
+                         'scaling'   :scaling,
+                         'vmin'      :-1,
+                         'vmax'      :1}
+
         elif self.current_option.get() == 'Flow Velocity (with T13)':
             plot_args = {'dataname'  :'KVHSimp',
                          'cbar_label':'Flow Velocity (m/s)',
                          'normtype'  :'symlog'}
+
+        elif self.current_option.get() == 'Flow Velocity (with T13) - Mach':
+            plot_args = {'dataname'  :'KVHSimp - Mach',
+                         'cbar_label':'Flow Velocity (m/s)',
+                         'normtype'  :'symlin',
+                         'vmin'      :-1,
+                         'vmax'      :1}
 
         elif self.current_option.get() == 'E Radial':
             plot_args = {'dataname'  :'E_RAD',
@@ -464,6 +483,8 @@ class Window(tk.Frame):
                          'normtype'  :'symlog'}
 
         elif self.current_option.get() == 'E Poloidal':
+
+            # MIGHT NEED TO BE SCALED BY e/fact.
             plot_args = {'dataname'  :'E_POL',
                          'cbar_label':'E Poloidal (V/m)',
                          'normtype'  :'symlog'}
@@ -476,6 +497,20 @@ class Window(tk.Frame):
                          'cbar_label':'Tungsten Density (m-3)',
                          'normtype'  :'log',
                          'charge'    :'all',
+                         'vmin'      :1e13,
+                         'vmax'      :1e17,
+                         'scaling'   :scaling,
+                         'cmap'      :'nipy_spectral'}
+
+        elif self.current_option.get() == 'Impurity Density - Charge':
+
+            # Impurity density is scaled by ABSFAC.
+            scaling = self.op.absfac
+            charge = int(self.charge_entry.get())
+            plot_args = {'dataname'  :'DDLIMS',
+                         'cbar_label':'Tungsten Density {}+ (m-3)'.format(charge),
+                         'normtype'  :'log',
+                         'charge'    :charge,
                          'vmin'      :1e13,
                          'vmax'      :1e17,
                          'scaling'   :scaling,
@@ -499,6 +534,28 @@ class Window(tk.Frame):
         elif self.current_option.get() == 'Rings':
             plot_args = {'dataname'  :'Ring',
                          'cbar_label':'Ring'}
+
+        elif self.current_option.get() == 'Force - FF':
+
+            # FF does depend on charge state, so you need to pass it in here.
+            charge = int(self.charge_entry.get())
+            plot_args = {'dataname'  :'FFI',
+                         'cbar_label':'Friction Force W{}+ (???)'.format(charge),
+                         'charge'    :charge,
+                         'normtype'  :'log'}
+
+        elif self.current_option.get() == 'Force - FiG':
+
+            # FiG does not depend on charge state, so not used here. There are
+            # uncertainties here as to what exactly is included in KFIGS and
+            # what isn't.
+            mu = self.op.crmi / (self.op.crmi + self.op.crmb)
+            beta_i = 3 * (mu + 5 * np.sqrt(2) * self.op.cion**2 * (1.1 * mu**(5/2) - 0.35 * mu**(3/2)) - 1) / (2.6 - 2 * mu + 5.4 * mu**2)
+            scaling = beta_i * self.op.qtim * self.op.qtim * self.op.emi / self.op.crmi
+            plot_args = {'dataname'  :'KFIGS',
+                         'cbar_label':'Ion Temp. Gradient Force (???)',
+                         'normtype'  :'symlog',
+                         'scaling'   :scaling}
 
         else:
             self.message_box.insert(tk.END, 'Plot option not found.')

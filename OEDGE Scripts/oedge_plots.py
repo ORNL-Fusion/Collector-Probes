@@ -70,6 +70,11 @@ class OedgePlots:
         self.ksmaxs = self.nc['KSMAXS'][:]
         self.irsep  = self.nc['IRSEP'][:]
         self.irwall = self.nc['IRWALL'][:]
+        self.crmb   = self.nc['CRMB'][:]
+        self.crmi   = self.nc['CRMI'][:]
+        self.emi    = 1.602E-19
+        self.cion   = self.nc['CION'][:]
+
         try:
             self.absfac = self.nc['ABSFAC'][:]
         except:
@@ -110,6 +115,9 @@ class OedgePlots:
         self.num_cells = num_cells
         self.mesh = mesh
 
+    def __repr__(self):
+        return "I am an OedgePlots object!"
+
     def add_dat_file(self, dat_path):
         """
         Quick function to read in the dat_file into the class. The file is not
@@ -131,7 +139,8 @@ class OedgePlots:
         charge   : The charge state to be plotted, if applicable.
         scaling  : Scaling factor to apply to the data, if applicable. Secret
                      option is 'Ring' to just return the ring number at each cell.
-        fix_fill :
+        fix_fill : Swap out the default huge number that it seems is put in when
+                     there is no data with just a zero. Better for plotting.
         """
 
         # Get the 2D data from the netCDF file. Some special options included.
@@ -252,16 +261,136 @@ class OedgePlots:
 
         return lines
 
+    def calculate_forces(self, force, vz_mult = 0.0, charge=None, t13=False):
+        """
+        Return 2D representations of the parallel forces (FF, FiG, FeG, FPG, FE)
+        in the same format as read_data_2d for easy plotting. This data is not
+        returned in the NetCDF file, so we calculate it here. Ideally we would
+        use exactly what DIVIMP calculates, but that doesn't seem to be here yet.
+
+        force : One of 'FF', 'FiG', 'FeG', 'FPG', 'FE' or 'fnet' (to sum them all).
+        vz_mult : Fraction of the background velocity used for vz (needed only in FF).
+        t13 : Flag to make sure we add on the additional background flow velocity if it was used in this run.
+        """
+
+        # Temperature and density values for calculations.
+        te = self.read_data_2d('KTEBS')
+        ti = self.read_data_2d('KTIBS')
+        ne = self.read_data_2d('KNBS')
+        col_log = 15
+        qe      = 1.602E-19
+        amu_kg  = 1.66E-27
+        fact = np.power(self.qtim, 2) * qe / amu_kg
+
+        # Friction force calculations.
+        if force in ['FF', 'ff', 'fnet', 'Fnet', 'FNET']:
+
+            # Slowing down time.
+            try:
+                tau_s = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
+                        ((1 + self.crmb / self.crmi) * ne * np.power(charge, 2) * col_log)
+
+                #print("FF:  {:.2f} s".format(tau_s))
+            except TypeError:
+                print("Error: Charge of ion needed for FF calculation.")
+                return None
+
+            # TODO: Currently will assume impurity velocity is some fraction of the
+            # background velocity (default zero), though this is obviously not true
+            # and a better implementation would use the real values wherever they are.
+            if t13:
+                vi = self.read_data_2d_kvhs_t13()
+            else:
+
+                # Don't forget KVHS is scaled by 1/QTIM to get m/s.
+                scaling = 1.0 / self.qtim
+                vi = self.read_data_2d('KVHS', scaling=scaling)
+
+            vz = vz_mult * vi
+
+            # Calculate the force.
+            ff = self.crmi * amu_kg * (vi - vz) / tau_s
+
+            # If not 'fnet', then go ahead and return.
+            if force in ['FF', 'ff']:
+                return ff
+
+        # TODO: Pressure gradient force calculations.
+        if force in ['FPG', 'fpg', 'fnet', 'Fnet', 'FNET']:
+
+            # Parallel collisional diffusion time.
+            tau_par = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
+                      (ne * np.power(charge, 2) * col_log)
+
+            fpg = 0
+
+            # If not 'fnet', then go ahead and return.
+            if force in ['FPG', 'fpg']:
+                return fpg
+
+        # Electron temperature gradient force calculations.
+        if force in ['FeG', 'FEG', 'feg', 'fnet', 'Fnet', 'FNET']:
+            alpha = 0.71 * np.power(charge, 2)
+
+            # The electron temperature gradient from the code. I don't understand
+            # this scaling factor, but Jake uses it to get into presumably eV/m.
+            kfegs = self.read_data_2d('KFEGS', scaling = qe / fact)
+
+            # Calculate the force.
+            feg = alpha * kfegs
+
+            # If not 'fnet', then go ahead and return.
+            if force in ['FeG', 'FEG', 'feg']:
+                return feg
+
+        # Ion temperature gradient force calculations.
+        if force in ['FiG', 'FIG', 'fig', 'fnet', 'Fnet', 'FNET']:
+            mu = self.crmi / (self.crmi + self.crmb)
+            beta = 3 * (mu + 5 * np.sqrt(2) * np.power(charge, 2) * \
+                   (1.1 * np.power(mu, 5/2)- 0.35 * np.power(mu, 3/2)) - 1) / \
+                   (2.6 - 2 * mu + 5.4 * np.power(mu, 2))
+            print("FiG: Beta = {:.2f}".format(beta))
+
+            # Again, must scale the gradient with this scaling factor.
+            kfigs = self.read_data_2d('KFIGS', scaling = qe / fact)
+
+            # Calculate the force.
+            fig = beta * kfigs
+
+            # If not 'fnet', then go ahead and return.
+            if force in ['FiG', 'FIG', 'fig']:
+                return fig
+
+        # Electric field force calculations.
+        if force in ['FE', 'fe', 'fnet', 'Fnet', 'FNET']:
+
+            # This also gets scaled by a factor as well in Jake's code.
+            e_pol = self.read_data_2d('E_POL', scaling = qe / fact)
+            fe = charge * qe * e_pol
+
+            # If not 'fnet', then go ahead and return.
+            if force in ['FE', 'fe']:
+                return fe
+
+        # Net force calculation.
+        if force in ['fnet', 'Fnet', 'FNET']:
+            return ff + fpg + feg + fig + fe
+
+
+
     def plot_contour_polygon(self, dataname, charge=None, scaling=1.0,
                              normtype='linear', cmap='plasma', xlim=[0.9, 2.5],
                              ylim = [-1.5, 1.5], plot_sep=True, levels=None,
                              cbar_label=None, fontsize=16, lut=21,
                              smooth_cmap=False, vmin=None, vmax=None,
                              show_cp=None, ptip=None, show_mr=False,
-                             fix_fill=False):
+                             fix_fill=False, own_data=None):
 
         """
         Create a standalone figure using the PolyCollection object of matplotlib.
+        This is the main function here for plotting 2D data, and you should be
+        able to control most whatever you want through the options since this
+        was made to be a versatile function.
 
         dataname:    The netCDF variable name to plot. Some special datanames
                        will perform extra data handling: KVHSimp, ...
@@ -290,6 +419,10 @@ class OedgePlots:
         fix_fill:    The defaults for some masked_arrays is to fill in blank
                        values with 1e36. I think zero is more appropriate for
                        plotting correctly.
+        own_data:    Bring your own data to work day. This could be used if you
+                     want to plot the ratio of two data point or something. So if
+                     you wanted to ratio of two datasets returned by read_data_2d,
+                     then you could say own_data = data1 / data2.
         """
 
         # Make sure show_cp and ptip is in list form if not.
@@ -299,19 +432,52 @@ class OedgePlots:
         if type(ptip) is not list:
             ptip = [ptip]
 
-        # Read in the data into a form for PolyCollection. Account for special
-        # options.
-        # Flow velocity with additional velocity specified by T13.
-        if dataname == 'KVHSimp':
-            data = self.read_data_2d_kvhs_t13()
+        # Option to provide own dataset from read_data_2d, say like a ratio
+        # between two of them or something that you calculated ahead of itme.
+        if own_data is not None:
+            data = own_data
 
-        # Special option to plot the ring numbers.
-        elif dataname == 'Ring':
-            data = self.read_data_2d('KTEBS', scaling='Ring')
-
-        # Everything else in the netCDF file.
+        # Get the data through normal means.
         else:
-            data = self.read_data_2d(dataname, charge, scaling, fix_fill)
+
+            # Read in the data into a form for PolyCollection. Account for special
+            # options.
+            # Flow velocity with additional velocity specified by T13.
+            if dataname == 'KVHSimp':
+                data = self.read_data_2d_kvhs_t13()
+
+            # Special option to plot the ring numbers.
+            elif dataname == 'Ring':
+                data = self.read_data_2d('KTEBS', scaling='Ring')
+
+            # Divide the background velocity by the sounds speed to get the Mach number.
+            elif dataname == 'KVHSimp - Mach':
+                te   = self.read_data_2d('KTEBS')
+                ti   = self.read_data_2d('KTIBS')
+                kvhs = self.read_data_2d_kvhs_t13()
+                mi   = self.crmb * 931.494*10**6 / (3e8)**2  # amu --> eV s2 / m2
+                cs   = np.sqrt((te + ti) / mi)
+                data = kvhs / cs  # i.e. the Mach number.
+
+            elif dataname == 'KVHS - Mach':
+                te   = self.read_data_2d('KTEBS')
+                ti   = self.read_data_2d('KTIBS')
+                kvhs = self.read_data_2d('KVHS', charge, scaling, fix_fill)
+                mi   = self.crmb * 931.494*10**6 / (3e8)**2  # amu --> eV s2 / m2
+                cs   = np.sqrt((te + ti) / mi)
+                print("CRMB = {} amu".format(self.crmb))
+                data = kvhs / cs  # i.e. the Mach number.
+
+            # Special function for plotting the forces on impuirties.
+            elif dataname in ['FF', 'FIG', 'FEG', 'FPG', 'FE', 'ff', 'fig', 'feg', \
+                            'fpg', 'fe', 'FiG', 'FeG', 'FNET', 'Fnet', 'fnet']:
+
+                # Need to reorganize so we can do the t13 flag and vz_mult.
+                data = self.calculate_forces(dataname, charge=charge)
+
+            # Everything else in the netCDF file.
+            else:
+                data = self.read_data_2d(dataname, charge, scaling, fix_fill)
 
         # Remove any cells that have nan values.
         not_nan_idx = np.where(~np.isnan(data))[0]
@@ -552,6 +718,12 @@ class OedgePlots:
                 f.write(xaxis+'\tITF\tOTF\n')
                 writer.writerows(zip(x, y_itf, y_otf))
 
+    def plot_lp_input(self):
+        """
+        May need to find the data in the .lim or .dat file.
+        """
+        pass
+
     def create_ts(self, shots, times, ref_time, filename=None, load_all_ts=False):
         """
         Function to create a Thomson scattering file in the correct format for
@@ -701,7 +873,8 @@ class OedgePlots:
 
     def compare_ts(self, ts_filename, rings, show_legend='all', nrows=3,
                    ncols=2, bin_width=1.0, output_file='my_ts_comparison.pdf',
-                   rad_bin_width=0.0025, core_sweep_bug_time=None, filter_zeros=True):
+                   rad_bin_width=0.0025, core_sweep_bug_time=None, filter_zeros=True,
+                   dashed_rings=True):
         """
         Function to create plots to compare the OEDGE results to Thomson
         scattering. A PDF file is output with all the graphs for each ring.
@@ -804,6 +977,11 @@ class OedgePlots:
             tmp_df2 = tmp_df[tmp_df['System'] == 'core']
             ts_r_ref = tmp_df2[tmp_df2['Time'] == ref_time]['R (m)'].values[0]
 
+            # Array to hold Romp values for plotting dashed lines for every
+            # 10th ring (i.e. 20, 30, 40, ...).
+            oedge_ring_dashed = np.array([])
+            oedge_ring_romps  = np.array([])
+
             for i in range(0, len(more_rings)):
 
                 # Get the ring we are interested in.
@@ -817,6 +995,10 @@ class OedgePlots:
                     omp_cell = np.where(dist == dist.min())[0]
                     romp = self.rs[ring][omp_side][omp_cell]
                     oedge_romps = np.append(oedge_romps, romp - rsepomp)
+
+                    if ring % 10 == 0:
+                        oedge_ring_dashed = np.append(oedge_ring_dashed, int(ring))
+                        oedge_ring_romps  = np.append(oedge_ring_romps, romp - rsepomp)
 
                     # Get the Te, ne values along the R value where TS is taken. Need
                     # to find which cell on this ring this is at. Just to be safe only
@@ -868,9 +1050,22 @@ class OedgePlots:
                                         bbox_to_anchor=(0.5, 1.1),
                                         fancybox=True, shadow=True)
 
+                # Vertical dashed lines for every 10th ring.
+                if dashed_rings:
+                    axs[graph_num].vlines(oedge_ring_romps, 0, 1e30, colors='k', linestyles='dashed')
+
+                    # Annotate with the rings number of this line.
+                    ann_locs_te = list(zip(oedge_ring_romps-0.001, np.full(len(oedge_ring_romps), 150*0.77)))
+                    ann_locs_ne = list(zip(oedge_ring_romps-0.001, np.full(len(oedge_ring_romps), 3e19*0.77)))
+                    for i in range(0, len(oedge_ring_dashed)):
+                        if graph_num == 0:
+                            axs[graph_num].annotate(str(int(oedge_ring_dashed[i])), ann_locs_te[i], bbox=dict(facecolor='white', edgecolor='black'))
+                        else:
+                            axs[graph_num].annotate(str(int(oedge_ring_dashed[i])), ann_locs_ne[i], bbox=dict(facecolor='white', edgecolor='black'))
+
             axs[0].set_xlim([0, ts_romp.max() * 1.1])
-            axs[0].set_ylim([0, ts_te.max() * 1.1])
-            axs[1].set_ylim([0, ts_ne.max() * 1.1])
+            axs[0].set_ylim([0, 150])
+            axs[1].set_ylim([0, 3e19])
             axs[1].set_xlabel('R-Rsep OMP (m)')
             axs[0].set_ylabel('Te (eV)')
             axs[1].set_ylabel('ne (m-3)')

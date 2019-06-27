@@ -144,10 +144,10 @@ def get_dict_of_lps(shot, tunnel=True):
 
     return lps
 
-def plot_lps(shot, tmin, tmax, xtype='rminrsep', filter='median', bins=5):
+def plot_lps(shot, tmin, tmax, xtype='rminrsep', filter='median', bins=5, tunnel=True):
 
     # Load lp data.
-    lps = get_dict_of_lps(shot)
+    lps = get_dict_of_lps(shot, tunnel)
 
     # Arrays to hold final values for plotting.
     all_te       = np.array([])

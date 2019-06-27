@@ -144,7 +144,7 @@ def get_dict_of_lps(shot, tunnel=True):
 
     return lps
 
-def plot_lps(shot, tmin, tmax, xtype='rminrsep', filter='median', bins=5, tunnel=True):
+def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bins=5, tunnel=True):
 
     # Load lp data.
     lps = get_dict_of_lps(shot, tunnel)
@@ -262,10 +262,12 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', filter='median', bins=5, tunnel
 
     if xtype == 'rminrsep':
         xlabel = 'R-Rsep (m)'
-        xlim = [-0.05, 0.1]
+        if xlim is None:
+            xlim = [-0.05, 0.1]
     elif xtype == 'psin':
         xlabel = 'Psin'
-        xlim = [0.98, 1.1]
+        if xlim is None:
+            xlim = [0.98, 1.1]
 
     plot_ax(fig, x_filt, te_filt, 'Te (eV)', 131, 50, xlabel, xlim, legend=True)
     plot_ax(fig, x_filt, ne_filt, 'ne (cm-3)', 132, 10e13, xlabel, xlim)

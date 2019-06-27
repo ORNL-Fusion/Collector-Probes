@@ -131,7 +131,7 @@ def get_dict_of_lps(shot, tunnel=True):
     """
 
     # Get a dictionary with the probe active during this shot.
-    active = get_mds_active_probes(shot)
+    active = get_mds_active_probes(shot, tunnel=tunnel)
     print("")
 
     # Get a dictionary of each probe data, then store it all in one big dictionary.

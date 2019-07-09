@@ -14,6 +14,8 @@ Required packages: tkinter, netCDF4, pandas, numpy, matplotlib.
 
 An example file just to get up and running is included in this directory, Z0-167196-002.nc (and the .dat and .collectorprobe files as well). Start up the gui, and click the Browse... button next to the NetCDF File entry. This will load in the other files as well. Some plots, like density or temperature, are straightforward; just click the Plot dropdown and see. But others, like the impurity ionization rate, may require a specific charge state. These additional options are found under Plot Options. You can also tweak the colorbar scales as well, or show some specifics to the collector probes (which was the original motivation of this GUI). 
 
+![gui_example](https://imgur.com/QBIG6aI)
+
 Comparing the plasma density and temperature to Thomson scattering requires a Thomson Input File (a .xlsx file). This file can be created with the Create... prompt, but an example file is included in the repository as well (ts_mapped_167192_167195.xlsx). Open this file to see what's contained in it if you are curious. Load in the file through the Browse... dialog. The output will be generated in a PDF specified in the Thomson Output File entry after clicking Plot (this process may take a minute). Current GUI implementation just chooses a set of rings to plot (20-48, 180-189).
 
 ## Creating a Thomson file for Comparison (DIII-D only)

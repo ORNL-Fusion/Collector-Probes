@@ -16,7 +16,7 @@ An example file just to get up and running is included in this directory, Z0-167
 
 ![gui_example](ex_gui.png)
 
-Comparing the plasma density and temperature to Thomson scattering requires a Thomson Input File (a .xlsx file). This file can be created with the Create... prompt, but an example file is included in the repository as well (ts_mapped_167192_167195.xlsx). Open this file to see what's contained in it if you are curious. Load in the file through the Browse... dialog. The output will be generated in a PDF specified in the Thomson Output File entry after clicking Plot (this process may take a minute). Current GUI implementation just chooses a set of rings to plot (20-48, 180-189).
+Comparing the plasma density and temperature to Thomson scattering requires a Thomson Input File (a .xlsx file). This file can be created with the Create... prompt, but an example file is included in the repository as well (ts_mapped_167192_167195.xlsx). Open this file to see what's contained in it if you are curious. Load in the file through the Browse... dialog. The output will be generated in a PDF specified in the Thomson Output File entry after clicking Plot (this process may take a minute). Current GUI implementation just chooses a set of rings to plot (20-48, 180-189). Note: These Thomson files are generated for a specific grid/equilibrium! They will not work for a run that was created on a different grid form the one that created the Thomson file!
 
 ## Creating a Thomson file for Comparison (DIII-D only)
 

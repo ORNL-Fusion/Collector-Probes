@@ -161,6 +161,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     te_filt       = np.array([])
     ne_filt       = np.array([])
     jsat_filt     = np.array([])
+    heatflux_filt = np.array([])
 
     # Go through one probe at a time to get data for plotting.
     for key in lps.keys():
@@ -174,16 +175,19 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
         te       = lps[key]['temp'][idx]
         ne       = lps[key]['dens'][idx]
         jsat     = lps[key]['jsat'][idx]
+        heatflux = lps[key]['heatflux'][idx]
 
         if xtype == 'rminrsep':
             x = lps[key]['delrsepout'][idx]
         elif xtype == 'psin':
             x = lps[key]['psin'][idx]
+        elif xtype == 'time':
+            x = lps[key]['time'][idx]
         else:
             print("Error in xtype entry. Must be either rminrsep or psin.")
 
         # Put into one array so we can sort them all by rminrsep, low -> high.
-        probe_data = np.array((x, te, ne, jsat))
+        probe_data = np.array((x, te, ne, jsat, heatflux))
         probe_data = probe_data[:, np.argsort(probe_data[0])]
 
         # Divide the data up into the number of 'bins', then take the filter of each bin.
@@ -196,16 +200,20 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
             tmp_te       = probe_data[1][bin_size*bin:bin_size*(bin+1)]
             tmp_ne       = probe_data[2][bin_size*bin:bin_size*(bin+1)]
             tmp_jsat     = probe_data[3][bin_size*bin:bin_size*(bin+1)]
+            tmp_heatflux = probe_data[4][bin_size*bin:bin_size*(bin+1)]
 
             # Apply the preferred filter.
             if filter == 'median':
                 filter = np.median
+            elif filter == 'average':
+                filter = np.mean
 
             # Filter and add to the output arrays to be plotted.
             x_filt        = np.append(x_filt,        filter(tmp_x))
             te_filt       = np.append(te_filt,       filter(tmp_te))
             ne_filt       = np.append(ne_filt,       filter(tmp_ne))
             jsat_filt     = np.append(jsat_filt,     filter(tmp_jsat))
+            heatflux_filt = np.append(heatflux_filt, filter(tmp_heatflux))
 
             # Assign probe names so we can identify these data points later.
             pnames_filt   = np.append(pnames_filt, key)
@@ -268,6 +276,9 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
         xlabel = 'Psin'
         if xlim is None:
             xlim = [0.98, 1.1]
+    elif xtype == 'time':
+        xlabel = 'Time (ms)'
+
 
     plot_ax(fig, x_filt, te_filt, 'Te (eV)', 131, 50, xlabel, xlim, legend=True)
     plot_ax(fig, x_filt, ne_filt, 'ne (cm-3)', 132, 10e13, xlabel, xlim)
@@ -276,4 +287,4 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     fig.tight_layout()
     fig.show()
 
-    return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt, 'jsat (A/cm2)':jsat_filt}
+    return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt, 'jsat (A/cm2)':jsat_filt, 'heatflux (W/cm2)':heatflux_filt}

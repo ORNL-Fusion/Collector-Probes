@@ -48,6 +48,7 @@ class OedgePlots:
 
         # Load in the netCDF file.
         self.nc = netCDF4.Dataset(netcdf_path)
+        self.ncpath = netcdf_path
 
         # Initialize variable to hold dat file.
         self.dat_file = None
@@ -116,7 +117,14 @@ class OedgePlots:
         self.mesh = mesh
 
     def __repr__(self):
-        return "I am an OedgePlots object!"
+        message = 'OedgePlots Object\n' + \
+                  '  Title:       ' + self.nc['TITLE'][:].data.tostring().decode('utf-8') + '\n' + \
+                  '  Date Run:    ' + self.nc['JOB'][:].data.tostring().strip()[:8].decode('utf-8') + '\n' + \
+                  '  Grid:        ' + self.nc['EQUIL'][:].data.tostring().decode('utf-8') + '\n' + \
+                  '  A Cool Dude: You\n' + \
+                  '  Description: ' + self.nc['DESC'][:].data.tostring().decode('utf-8') + '\n'
+
+        return message
 
     def add_dat_file(self, dat_path):
         """
@@ -126,7 +134,7 @@ class OedgePlots:
 
         dat_path: Path location of .dat file.
         """
-
+        self.datpath = dat_path
         with open(dat_path) as f:
             self.dat_file = f.read()
 
@@ -198,49 +206,55 @@ class OedgePlots:
         if self.dat_file == None:
             print("Error: .dat file not loaded in. Run 'add_dat_file' first.")
 
-        pol_opt = float(self.dat_file.split('POL DRIFT OPT')[1].split(':')[0])
-        if pol_opt == 0.0:
-            print("Error: Poloidal drift option T13 was not on for this run.")
+        try:
+            pol_opt = float(self.dat_file.split('POL DRIFT OPT')[1].split(':')[0])
+            if pol_opt == 0.0:
+                print("Error: Poloidal drift option T13 was not on for this run.")
+                return None
 
-        # Get the relevant table for the extra drifts out of the .dat file.
-        add_data = self.dat_file.split('TABLE OF DRIFT REGION BY RING - RINGS ' + \
-                                        'WITHOUT FLOW ARE NOT LISTED\n')[1]. \
-                                        split('DRIFT')[0].split('\n')
+            # Get the relevant table for the extra drifts out of the .dat file.
+            add_data = self.dat_file.split('TABLE OF DRIFT REGION BY RING - RINGS ' + \
+                                            'WITHOUT FLOW ARE NOT LISTED\n')[1]. \
+                                            split('DRIFT')[0].split('\n')
 
-        # Split the data between the spaces, put into DataFrame.
-        add_data = [line.split() for line in add_data]
-        add_df = pd.DataFrame(add_data[1:-1], columns=['IR', 'Vdrift (m/s)',
-                              'S_START (m)', 'S_END (m)'], dtype=np.float64). \
-                              set_index('IR')
+            # Split the data between the spaces, put into DataFrame.
+            add_data = [line.split() for line in add_data]
+            add_df = pd.DataFrame(add_data[1:-1], columns=['IR', 'Vdrift (m/s)',
+                                  'S_START (m)', 'S_END (m)'], dtype=np.float64). \
+                                  set_index('IR')
 
-        # Get the 2D data from the netCDF file.
-        dataname = 'KVHS'
-        scaling = 1.0 / self.qtim
-        raw_data = self.nc[dataname][:]
-        data = np.zeros(self.num_cells)
+            # Get the 2D data from the netCDF file.
+            dataname = 'KVHS'
+            scaling = 1.0 / self.qtim
+            raw_data = self.nc[dataname][:]
+            data = np.zeros(self.num_cells)
 
-        # Convert the 2D data (ir, ik) into 1D for plotting in the PolyCollection
-        # matplotlib function.
-        count = 0
-        for ir in range(self.nrs):
-            for ik in range(self.nks[ir]):
-                if self.area[ir, ik] != 0.0:
+            # Convert the 2D data (ir, ik) into 1D for plotting in the PolyCollection
+            # matplotlib function.
+            count = 0
+            for ir in range(self.nrs):
+                for ik in range(self.nks[ir]):
+                    if self.area[ir, ik] != 0.0:
 
-                    # Put the data from this [ring, knot] into a 1D array.
-                    data[count] = raw_data[ir][ik] * scaling
+                        # Put the data from this [ring, knot] into a 1D array.
+                        data[count] = raw_data[ir][ik] * scaling
 
-                    # If this ring has additional drifts to be added.
-                    if ir in add_df.index:
+                        # If this ring has additional drifts to be added.
+                        if ir in add_df.index:
 
-                        # Then add the drift along the appropriate s (or knot) range.
-                        if self.kss[ir][ik] > add_df['S_START (m)'].loc[ir] and \
-                           self.kss[ir][ik] < add_df['S_END (m)'].loc[ir]:
+                            # Then add the drift along the appropriate s (or knot) range.
+                            if self.kss[ir][ik] > add_df['S_START (m)'].loc[ir] and \
+                               self.kss[ir][ik] < add_df['S_END (m)'].loc[ir]:
 
-                           data[count] = data[count] + add_df['Vdrift (m/s)'].loc[ir]
+                               data[count] = data[count] + add_df['Vdrift (m/s)'].loc[ir]
 
-                    count = count + 1
+                        count = count + 1
 
-        return data
+            return data
+
+        except IndexError:
+            print('Error: Was T13 on for this run?')
+            return None
 
     def get_sep(self):
         """
@@ -376,8 +390,6 @@ class OedgePlots:
         if force in ['fnet', 'Fnet', 'FNET']:
             return ff + fpg + feg + fig + fe
 
-
-
     def plot_contour_polygon(self, dataname, charge=None, scaling=1.0,
                              normtype='linear', cmap='plasma', xlim=[0.9, 2.5],
                              ylim = [-1.5, 1.5], plot_sep=True, levels=None,
@@ -445,6 +457,8 @@ class OedgePlots:
             # Flow velocity with additional velocity specified by T13.
             if dataname == 'KVHSimp':
                 data = self.read_data_2d_kvhs_t13()
+                if data == None:
+                    return None
 
             # Special option to plot the ring numbers.
             elif dataname == 'Ring':
@@ -728,7 +742,9 @@ class OedgePlots:
         """
         Function to create a Thomson scattering file in the correct format for
         comparing to OEDGE results. Outputs an Excel file with the data in a
-        form that makes importing it back into a DataFrame easy.
+        form that makes importing it back into a DataFrame easy. Important to
+        remember that this TS file only applies to the grid is was generated on!
+        Using this Excel file with a different grid will not work!
 
         shots:         Shots to load TS data for to compare OEDGE against.
         times:         Times of which to load a gfile for. If load_all_ts is set
@@ -827,7 +843,7 @@ class OedgePlots:
                     loc_num = 0
                     for loc in ts_sys.ref_df[str(time)]:
 
-                        # .. find the distance between each TS location (already mapped)
+                        # .. find the distance between each TS location (already mapped
                         # to a common reference EFIT) and each cell in the DIVIMP grid.
                         dist = np.sqrt((loc[0] - self.rs)**2 + (loc[1] - self.zs)**2)
                         closest_cell = np.where(dist == dist.min())
@@ -894,7 +910,8 @@ class OedgePlots:
         rad_bin_width: Bin width for the R-Rsep OMP plots to bin the TS data into.
         core_sweep_bug_time: Handles a bug in the ThomsonClass script. See
                      explanation in the comment about 15 lines down from here.
-        filter_zeros:
+        filter_zeros: Get rid of some zeros that aren't real data.
+        dashed_rings: Put dashed lines on the plots for every tenth ring.
         """
 
         # Warning that pops up but is unecessary.
@@ -957,7 +974,7 @@ class OedgePlots:
             # Find which knot corresponds to the OMP.
             for i in range(0, len(ts_r)):
 
-                # Only want the OMP side, so take cells on the right half of OMP.
+                # Only want the OMP side, so take cells on the right half of R0.
                 omp_side = self.rs[ts_ring[i]] > r0
 
                 dist = np.abs(self.zs[ts_ring[i]][omp_side] - z0)
@@ -1208,7 +1225,9 @@ class OedgePlots:
         """
         This helper function just plots the locations of the Thomson scattering
         points after they have been mapped to a common flux surface. Just to
-        make sure everything looks alright.
+        make sure everything looks alright. Note if there is a strike point
+        sweep it will make it look like the core is sweeping a range as well
+        when it really isn't. Chose time_cutoff to indicate start of sweep.
         """
 
         # Load up a plot. Just do Te, it doesn't really matter what data.
@@ -1230,3 +1249,244 @@ class OedgePlots:
 
         fig.axes[0].plot(rs, zs, 'k.', ms=1)
         fig.show()
+
+    def find_ring_knot(self, r, z):
+        """
+        This function will return the ring and the knot on that ring of the cell
+        closest to the input (r, z). Outputs as (ring, knot) in a tuple.
+        """
+
+        dist = np.sqrt((r - self.rs)**2 + (z - self.zs)**2)
+        closest_cell = np.where(dist == dist.min())
+
+        return (closest_cell[0][0], closest_cell[1][0])
+
+    def fake_probe(self, r_start, r_end, z_start, z_end, data='Te', num_locs=100, plot=None):
+        """
+        Return data, and plot, of a mock probe. Plot is useful if the probe has
+        a constant R or Z value, just choose the correct option for it.
+
+        data: One of 'Te', 'ne', 'Mach' or 'Velocity'.
+        plot: Either None, 'R' or 'Z' (or 'r' or 'z'). If the probe is at a
+              constant R, then use 'R', likewise for 'Z'.
+        """
+
+        # Create rs and zs to get measurements at.
+        rs = np.linspace(r_start, r_end, num_locs)
+        zs = np.linspace(z_start, z_end, num_locs)
+
+        # DataFrame for all the output.
+        output_df = pd.DataFrame(columns=['(R, Z)', 'Psin', data], index=np.arange(0, num_locs))
+
+        # If we want the Mach number (or speed), we need to do a little data
+        # preprocessing first to see if the additional T13 drift option was on.
+        if data in ['Mach', 'Velocity']:
+
+            # Get the 2D data from the netCDF file.
+            scaling  = 1.0 / self.qtim
+            kvhs     = self.nc['KVHS'][:] * scaling
+
+            # Array to hold data with T13 data added on (will be same as
+            # kvhs if T13 was off).
+            kvhs_adj = kvhs
+
+            # See if T13 was on and additional values need to be added.
+            try:
+                pol_opt = float(self.dat_file.split('POL DRIFT OPT')[1].split(':')[0])
+                if pol_opt == 0.0:
+                    print('Poloidal drift option T13 was OFF.')
+
+                elif pol_opt == 1.0:
+                    print('Poloidal drift option T13 was ON.')
+
+                    # Get the relevant table for the extra drifts out of the .dat file.
+                    add_data = self.dat_file.split('TABLE OF DRIFT REGION BY RING - RINGS ' + \
+                                                    'WITHOUT FLOW ARE NOT LISTED\n')[1]. \
+                                                    split('DRIFT')[0].split('\n')
+
+                    # Split the data between the spaces, put into DataFrame.
+                    add_data = [line.split() for line in add_data]
+                    add_df = pd.DataFrame(add_data[1:-1], columns=['IR', 'Vdrift (m/s)',
+                                          'S_START (m)', 'S_END (m)'], dtype=np.float64). \
+                                          set_index('IR')
+
+                    # Loop through the KVHS data one cell at a time, and if
+                    # the cell nas extra Mach flow, add it.
+                    for ir in range(self.nrs):
+                        for ik in range(self.nks[ir]):
+                            if self.area[ir, ik] != 0.0:
+
+                                # If this ring has additional drifts to be added.
+                                if ir in add_df.index:
+
+                                    # Then add the drift along the appropriate s (or knot) range.
+                                    if self.kss[ir][ik] > add_df['S_START (m)'].loc[ir] and \
+                                       self.kss[ir][ik] < add_df['S_END (m)'].loc[ir]:
+
+                                       kvhs_adj[ir][ik] = kvhs[ir][ik] + add_df['Vdrift (m/s)'].loc[ir]
+
+            except AttributeError:
+                print("Error: .dat file has not been loaded.")
+
+            # Fill in the psin values for the dataframe.
+            for i in range(0, len(rs)):
+                ring, knot = self.find_ring_knot(rs[i], zs[i])
+                psin = self.nc['PSIFL'][:][ring][knot]
+                output_df.iloc[i]['Psin'] = psin
+
+        for i in range(0, num_locs):
+
+            # Get the cell that has the data at this R, Z.
+            ring, knot = self.find_ring_knot(rs[i], zs[i])
+
+            if data == 'Te':
+                probe = self.nc['KTEBS'][:][ring][knot]
+                ylabel = 'Te (eV)'
+
+            elif data == 'ne':
+                probe = self.nc['KNBS'][:][ring][knot]
+                ylabel = 'ne (m-3)'
+
+            elif data == 'Mach':
+                # Need to calculate the sound speed to back out the Mach number.
+                te = self.nc['KTEBS'][:][ring][knot]
+                ti = self.nc['KTIBS'][:][ring][knot]
+                mb = self.crmb * 931.49 * 10**6 / ((3*10**8)**2)
+                cs = np.sqrt((te + ti) / mb)
+                probe = kvhs_adj[ring][knot] / cs
+                ylabel = 'Mach'
+
+            elif data == 'Velocity':
+                probe = kvhs_adj[ring][knot]
+                ylabel = 'Velocity (m/s)'
+
+            output_df['(R, Z)'][i] = (rs[i], zs[i])
+            output_df[data][i]   = probe
+
+        # Make a plot of the data.
+        if plot is not None:
+
+            # Get corrext X and Y arrays for plotting.
+            if plot in ['R', 'r']:
+                x = [output_df['(R, Z)'][i][0] for i in range(0, len(output_df.index))]
+                xlabel = 'R (m)'
+            elif plot in ['Z', 'z']:
+                x = [output_df['(R, Z)'][i][1] for i in range(0, len(output_df.index))]
+                xlabel = 'Z (m)'
+            elif plot in ['psin', 'Psin']:
+                x = output_df['Psin'].values
+                xlabel = 'Psin'
+            y = output_df[data].values
+
+            fig = plt.figure()
+            ax  = fig.add_subplot(111)
+            ax.plot(x, y, lw=5, color='k')
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+            fig.show()
+
+        return output_df
+
+    def along_ring(self, ring, dataname, ylabel=None, charge=None):
+        """
+        Plot data along a specified ring. Will return the x, y data just in case
+        you want it.
+
+        ring:     The ring number to plot data for.
+        dataname: The NetCDF variable you want the dat along the ring for. Special
+                  options include 'Mach' or 'Velocity' that can add on the additional
+                  drift option T13 if it was on.
+        """
+
+        # Get the parallel to B coordinate. Not sure why this "1" is needed, but
+        # these is a like extra point in this KSB data to be ignored for the test
+        # cases I work with.
+        x = self.nc['KSB'][:][ring][1:].data
+
+        # If we want the Mach number (or speed), we need to do a little data
+        # preprocessing first to see if the additional T13 drift option was on.
+        if dataname in ['Mach', 'Velocity']:
+
+            # Get the 2D data from the netCDF file.
+            scaling  = 1.0 / self.qtim
+            kvhs     = self.nc['KVHS'][:] * scaling
+
+            # Array to hold data with T13 data added on (will be same as
+            # kvhs if T13 was off).
+            kvhs_adj = kvhs
+
+            try:
+                pol_opt = float(self.dat_file.split('POL DRIFT OPT')[1].split(':')[0])
+                if pol_opt == 0.0:
+                    print('Poloidal drift option T13 was OFF.')
+
+                elif pol_opt == 1.0:
+                    print('Poloidal drift option T13 was ON.')
+
+                    # Get the relevant table for the extra drifts out of the .dat file.
+                    add_data = self.dat_file.split('TABLE OF DRIFT REGION BY RING - RINGS ' + \
+                                                    'WITHOUT FLOW ARE NOT LISTED\n')[1]. \
+                                                    split('DRIFT')[0].split('\n')
+
+                    # Split the data between the spaces, put into DataFrame.
+                    add_data = [line.split() for line in add_data]
+                    add_df = pd.DataFrame(add_data[1:-1], columns=['IR', 'Vdrift (m/s)',
+                                          'S_START (m)', 'S_END (m)'], dtype=np.float64). \
+                                          set_index('IR')
+
+                    # Loop through the KVHS data one cell at a time, and if
+                    # the cell nas extra Mach flow, add it.
+                    for ir in range(self.nrs):
+                        for ik in range(self.nks[ir]):
+                            if self.area[ir, ik] != 0.0:
+
+                                # If this ring has additional drifts to be added.
+                                if ir in add_df.index:
+
+                                    # Then add the drift along the appropriate s (or knot) range.
+                                    if self.kss[ir][ik] > add_df['S_START (m)'].loc[ir] and \
+                                       self.kss[ir][ik] < add_df['S_END (m)'].loc[ir]:
+
+                                       kvhs_adj[ir][ik] = kvhs[ir][ik] + add_df['Vdrift (m/s)'].loc[ir]
+
+            except AttributeError:
+                print("Error: .dat file has not been loaded.")
+
+            # Finally put it into the y value of the ring we want.
+            if dataname == 'Mach':
+
+                # Need to calculate the sound speed to back out the Mach number.
+                te = self.nc['KTEBS'][:][ring]
+                ti = self.nc['KTIBS'][:][ring]
+                mb = self.crmb * 931.49 * 10**6 / ((3*10**8)**2)
+                cs = np.sqrt((te + ti) / mb)
+                y  = kvhs_adj[ring] / cs
+                #ylabel = 'Mach'
+
+            elif dataname == 'Velocity':
+                y  = kvhs_adj[ring]
+                #ylabel = 'Velocity (m/s)'
+
+        # If you want the impurity density, make sure you can handle the sum
+        # across all the charge states or a specific charge state.
+        elif dataname =='DDLIMS':
+            scaling = self.absfac
+            if charge == 'all':
+                y = self.nc[dataname][:].sum(axis=0)[ring] * scaling
+            else:
+                y = self.nc[dataname][:][charge][ring] * scaling
+
+        else:
+            # Get the data for this ring.
+            y = self.nc[dataname][:][ring].data
+
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(x, y, 'k-')
+        ax.set_xlabel('S (m)', fontsize=18)
+        ax.set_ylabel(ylabel, fontsize=18)
+        fig.tight_layout()
+        fig.show()
+
+        return x, y

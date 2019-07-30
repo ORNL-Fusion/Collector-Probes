@@ -39,7 +39,7 @@ class Window(tk.Frame):
         row = 0
 
         # Add a message box to act as readout for errors or such.
-        self.message_box = tk.Text(self.master, height=25, width=55)
+        self.message_box = tk.Text(self.master, height=28, width=55)
         self.message_box.grid(row=0, column=3, rowspan=99, padx=padx, pady=pady)
         self.message_box.insert(tk.END, "Click 'Browse...' to load path to netCDF file.\n")
 
@@ -90,9 +90,18 @@ class Window(tk.Frame):
         self.extra_plot_button['command'] = self.extra_plot_opts
         row += 1
 
+        # Label for along ring plots.
+        tk.Label(self.master, text='Along Ring: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
+        self.along_ring_entry = tk.Entry(self.master)
+        self.along_ring_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE')
+        self.plot_along_button = tk.Button(self.master, text='Plot')
+        self.plot_along_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
+        self.plot_along_button['command'] = self.plot_along_command
+        row += 1
+
         # Some spacing between sections.
         tk.Label(self.master, text=' ').grid(row=row, column=0, padx=padx, pady=pady)
-        row +=1
+        row += 1
 
         # Entry for collectorprobe file.
         tk.Label(self.master, text='CP File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
@@ -375,7 +384,8 @@ class Window(tk.Frame):
 
         self.message_box.insert(tk.END, 'Generating PDF...')
         ts_filename = self.ts_entry.get()
-        rings = np.append(np.arange(19, 49), np.arange(178, 190))
+        #rings = np.append(np.arange(19, 49), np.arange(178, 190))
+        rings = np.arange(self.op.irsep, self.op.irsep + 30)  # Just do 30 rings out.
         self.op.compare_ts(ts_filename, rings, show_legend='short', output_file=self.ts_out_entry.get())
         self.message_box.insert(tk.END, ' Done.\n')
 
@@ -395,7 +405,27 @@ class Window(tk.Frame):
 
         self.op.cp_plots(**plot_args)
 
-    def plot_command(self):
+    def plot_along_command(self):
+        """
+        Function to plot data along a specified ring.
+        """
+
+        # Just need the ring to plot along.
+        ring = int(self.along_ring_entry.get())
+
+        message = "Plotting " + self.current_option.get() + " along ring " + str(ring) + ".\n"
+        self.message_box.insert(tk.END, message)
+
+        # Can grab the relevant plot arguments from the main plot command function.
+        plot_args = self.plot_command(plot_it=False)
+        if 'charge' in plot_args.keys():
+            charge = plot_args['charge']
+        else:
+            charge = None
+        x, y = self.op.along_ring(ring, dataname=plot_args['dataname'],
+                                  ylabel=plot_args['cbar_label'], charge=charge)
+
+    def plot_command(self, plot_it=True):
         """
         For the selected DIVIMP plot, pass the correct parameters to the plotting
         function.
@@ -558,7 +588,7 @@ class Window(tk.Frame):
                          'scaling'   :scaling}
 
         else:
-            self.message_box.insert(tk.END, 'Plot option not found.')
+            self.message_box.insert(tk.END, 'Plot option not found.\n')
 
         # Options for including collector probes or metal rings. Add into
         # dictionary if we want them.
@@ -606,11 +636,12 @@ class Window(tk.Frame):
         except:
             pass
 
-        message = "Plotting " + self.current_option.get() + ".\n"
-        self.message_box.insert(tk.END, message)
-        fig = self.op.plot_contour_polygon(**plot_args)
+        if plot_it:
+            message = "Plotting " + self.current_option.get() + ".\n"
+            self.message_box.insert(tk.END, message)
+            fig = self.op.plot_contour_polygon(**plot_args)
 
-
+        return plot_args
 
 def main():
 

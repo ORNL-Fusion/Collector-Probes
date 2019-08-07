@@ -1,3 +1,7 @@
+# Imports for python2 implementation.
+from __future__ import print_function, unicode_literals
+from __future__ import absolute_import, division
+
 import sys, os
 import numpy             as np
 import pandas            as pd

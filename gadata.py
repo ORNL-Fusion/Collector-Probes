@@ -25,7 +25,7 @@ class gadata:
 
         # Create the MDSplus connection (thin) if not passed in
         if self.connection is None:
-            self.connection = MDSplus.Connection('atlas.gat.com')
+            self.connection = MDSplus.Connection('localhost')
 
         # Retrieve data from MDSplus (thin)
         if nomds == False:

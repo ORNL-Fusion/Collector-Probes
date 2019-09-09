@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import font
 import oedge_plots as oedge
 import numpy as np
 
@@ -10,10 +11,11 @@ plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
              'Impurity Density - Charge', 'Impurity Ionization', 'Density', 'Density - Divertor', 'Rings', 'S Coordinate',
              'Temperature', 'Temperature - Divertor']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
+fake_opts = ['Mach', 'Te', 'ne', 'Velocity']
 
 # Spacing constants for padding.
 padx = 3
-pady = 3
+pady = 4
 
 class Window(tk.Frame):
 
@@ -33,135 +35,204 @@ class Window(tk.Frame):
         self.charge_entry.insert(0, 30)
         self.create_widgets()
 
-
     def create_widgets(self):
+        """
+        Create all the buttons, message box, etc. and lay them all out.
+        """
 
+        # Variable to keep track of row number so we don't have to!
         row = 0
 
+        # Color name to indicate background color of section.
+        cname = 'gray75'
+        cname2 = 'gray90'
+
+        # Width of the columns.
+        col1_width = 10
+        col2_width = 30
+        col3_width = 7
+
         # Add a message box to act as readout for errors or such.
-        self.message_box = tk.Text(self.master, height=28, width=55)
-        self.message_box.grid(row=0, column=3, rowspan=99, padx=padx, pady=pady)
+        #self.message_box = tk.Text(self.master, height=33, width=55)
+        self.message_box = tk.Text(self.master, height=7, width=65)
+        self.message_box.grid(row=0, column=3, rowspan=5, padx=padx, sticky='NS', )
         self.message_box.insert(tk.END, "Click 'Browse...' to load path to netCDF file.\n")
 
         # Add scrollbar to message box.
         self.scroll = tk.Scrollbar(self.master)
-        self.scroll.grid(row=0, column=4, rowspan=99, pady=pady, sticky='NS')
+        self.scroll.grid(row=0, column=4, rowspan=5, pady=pady, sticky='NS')
         self.scroll.config(command=self.message_box.yview)
         self.message_box.config(yscrollcommand=self.scroll.set)
 
-        # Create an Entry box for location of netCDF file.
-        tk.Label(self.master, text='NetCDF File: ').grid(row=row, column=0, sticky='WE', padx=padx, pady=pady)
-        self.netcdf_entry = tk.Entry(self.master)
+        # Create an Entry box for location of NetCDF file. Place this, and the associated
+        # rows, into a frame that way we can distinguish sections by the color of the
+        # frames they're put into.
+        self.netcdf_frame = tk.Frame(self.master, bg=cname)
+        self.netcdf_frame.grid(row=row, column=0, columnspan=3, sticky='WE')
+        tk.Label(self.netcdf_frame, text='NetCDF File:', bg=cname, width=col1_width).grid(row=row, column=0, sticky='E')
+        self.netcdf_entry = tk.Entry(self.netcdf_frame, width=col2_width)
         self.netcdf_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE')
 
         # Add a Browse button next to it.
-        self.netcdf_button = tk.Button(self.master, text='Browse...')
+        self.netcdf_button = tk.Button(self.netcdf_frame, text='Browse...', width=col3_width)
         self.netcdf_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.netcdf_button['command'] = self.browse_netcdf
+
         row += 1
 
-        # Entry for dat file.
-        tk.Label(self.master, text='Dat File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
-        self.dat_entry = tk.Entry(self.master)
+        # Place Entry for .dat file into the same frame since this is all a part
+        # of the 2D plotting.
+        self.netcdf_frame.grid(row=row, column=0, columnspan=3, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.netcdf_frame, text='Dat File:', bg=cname).grid(row=row, column=0, sticky='E')
+        self.dat_entry = tk.Entry(self.netcdf_frame)
         self.dat_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE')
 
         # Add a Browse button next to it as well.
-        self.dat_button = tk.Button(self.master, text='Browse...')
+        self.dat_button = tk.Button(self.netcdf_frame, text='Browse...')
         self.dat_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.dat_button['command'] = self.browse_dat
+
         row += 1
 
-        # Add a drop down of what kind of plot to plot.
-        tk.Label(self.master, text='Plot: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
-        self.current_option = tk.StringVar(self.master)
+        # The actual plot option. This is still in the same frame as the above NetCDF and
+        # .dat file selections.
+        self.netcdf_frame.grid(row=row, column=0, columnspan=3, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.netcdf_frame, text='Plot:', bg=cname).grid(row=row, column=0, sticky='E')
+        self.current_option = tk.StringVar(self.netcdf_frame)
         self.current_option.set(plot_opts[0])
-        self.plot_option = tk.OptionMenu(self.master, self.current_option, *plot_opts)
+        self.plot_option = tk.OptionMenu(self.netcdf_frame, self.current_option, *plot_opts)
         self.plot_option.grid(row=row, column=1, sticky='WE', padx=padx, pady=pady)
-
-        # Put button to the right to do the plot.
-        self.plot_button = tk.Button(self.master, text='Plot')
+        self.plot_button = tk.Button(self.netcdf_frame, text='Plot')
         self.plot_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.plot_button['command'] = self.plot_command
+
         row += 1
 
-        # Add button for plot options if the defaults aren't good enough.
-        self.extra_plot_button = tk.Button(self.master, text='Plot Options...')
+        # Add button for extra plot options, still in the same frame as the NetCDF, .dat
+        # and actual plot choices.
+        self.extra_plot_button = tk.Button(self.netcdf_frame, text='Plot Options...')
         self.extra_plot_button.grid(row=row, column=1, columnspan=2, padx=padx, pady=pady*4)
         self.extra_plot_button['command'] = self.extra_plot_opts
         row += 1
 
-        # Label for along ring plots.
-        tk.Label(self.master, text='Along Ring: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
-        self.along_ring_entry = tk.Entry(self.master)
+        # Label for along ring plots. It looks fine without putting everything in a frame
+        # since we alternate colors as we go down, so this section would just be the
+        # same as the master background. But for the sake of consistency, we put it
+        # in a frame anyways.
+        self.along_frame = tk.Frame(self.master, bg=cname2)
+        self.along_frame.grid(row=row, column=0, columnspan=3, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.along_frame, text='Along Ring: ', width=col1_width, bg=cname2).grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
+        self.along_ring_entry = tk.Entry(self.along_frame, width=col2_width)
         self.along_ring_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE')
-        self.plot_along_button = tk.Button(self.master, text='Plot')
+        self.plot_along_button = tk.Button(self.along_frame, text='Plot', width=col3_width)
         self.plot_along_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.plot_along_button['command'] = self.plot_along_command
-        row += 1
 
-        # Some spacing between sections.
-        tk.Label(self.master, text=' ').grid(row=row, column=0, padx=padx, pady=pady)
         row += 1
 
         # Entry for collectorprobe file.
-        tk.Label(self.master, text='CP File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
-        self.cp_entry = tk.Entry(self.master)
+        self.cp_frame = tk.Frame(self.master, bg=cname)
+        self.cp_frame.grid(row=row, column=0, columnspan=3, sticky='WE')
+        tk.Label(self.cp_frame, text='CP File: ', width=col1_width, bg=cname).grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
+        self.cp_entry = tk.Entry(self.cp_frame, width=col2_width)
         self.cp_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE')
-
-        # Add a Browse button next to it as well.
-        self.cp_button = tk.Button(self.master, text='Browse...')
+        self.cp_button = tk.Button(self.cp_frame, text='Browse...', width=col3_width)
         self.cp_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.cp_button['command'] = self.browse_cp
+
+        # To the right of the collector probe options, let's put the fake probe options.
+        self.fake_frame = tk.Frame(self.master, bg=cname2)
+        self.fake_frame.grid(row=row, column=3, sticky='WE', padx=padx, pady=pady)
+        self.current_fake = tk.StringVar(self.fake_frame)
+        self.current_fake.set(fake_opts[0])
+        self.fake_option = tk.OptionMenu(self.fake_frame, self.current_fake, *fake_opts)
+        self.fake_option.grid(column=0, row=0, sticky='EW', padx=padx, pady=pady)
+
+        # Plot type is either constant R or Z. No support for along the probe yet.
+        self.current_fake_type = tk.StringVar(self.fake_frame)
+        self.current_fake_type.set('Along R')
+        self.fake_type = tk.OptionMenu(self.fake_frame, self.current_fake_type, *['Along R', 'Along Z', 'Psin'])
+        self.fake_type.grid(column=0, row=1, sticky='EW', padx=padx, pady=pady)
+
+        # A row for R plot, and row for Z plot.
+        rz_entry_width = 7
+        tk.Label(self.fake_frame, text='  R Start =', bg=cname2).grid(row=0, column=1, sticky='WE')
+        self.rstart_entry = tk.Entry(self.fake_frame, width=rz_entry_width)
+        self.rstart_entry.grid(row=0, column=2, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.fake_frame, text='  R End =', bg=cname2).grid(row=0, column=3, sticky='WE')
+        self.rend_entry = tk.Entry(self.fake_frame, width=rz_entry_width)
+        self.rend_entry.grid(row=0, column=4, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.fake_frame, text='  Z Start =', bg=cname2).grid(row=1, column=1, sticky='WE')
+        self.zstart_entry = tk.Entry(self.fake_frame, width=rz_entry_width)
+        self.zstart_entry.grid(row=1, column=2, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.fake_frame, text='  Z End =', bg=cname2).grid(row=1, column=3, sticky='WE')
+        self.zend_entry = tk.Entry(self.fake_frame, width=rz_entry_width)
+        self.zend_entry.grid(row=1, column=4, sticky='WE', padx=padx, pady=pady)
+
+        # Fill in some default values for a midplane probe.
+        self.rstart_entry.insert(0, 2.22)
+        self.rend_entry.insert(0, 2.37)
+        self.zstart_entry.insert(0, -0.188)
+        self.zend_entry.insert(0, -0.188)
+
+        # Plot button at the end.
+        self.fake_button = tk.Button(self.fake_frame, text='Plot', width=col3_width)
+        self.fake_button.grid(row=0, column=5, rowspan=2, sticky='WE', padx=padx*2, pady=pady)
+        self.fake_button['command'] = self.fake_plot
+
         row += 1
 
         # Add a drop down of what kind of plot to plot.
-        tk.Label(self.master, text='Plot: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
-        self.current_option_cp = tk.StringVar(self.master)
+        tk.Label(self.cp_frame, text='Plot: ', bg=cname).grid(row=row, column=0, sticky='E', padx=padx, pady=pady)
+        self.current_option_cp = tk.StringVar(self.cp_frame)
         self.current_option_cp.set(plot_opts_cp[0])
-        self.plot_option_cp = tk.OptionMenu(self.master, self.current_option_cp, *plot_opts_cp)
+        self.plot_option_cp = tk.OptionMenu(self.cp_frame, self.current_option_cp, *plot_opts_cp)
         self.plot_option_cp.grid(row=row, column=1, sticky='WE', padx=padx, pady=pady)
-
-        # Put button to the right to do the plot.
-        self.plot_button_cp = tk.Button(self.master, text='Plot')
+        self.plot_button_cp = tk.Button(self.cp_frame, text='Plot')
         self.plot_button_cp.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.plot_button_cp['command'] = self.plot_command_cp
-        row += 1
 
-        # Some spacing between sections.
-        tk.Label(self.master, text=' ').grid(row=row, column=0, padx=padx, pady=pady)
         row += 1
 
         # Entry for Thomson input file.
-        tk.Label(self.master, text='Thomson\n Input File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
-        self.ts_entry = tk.Entry(self.master)
+        self.ts_frame = tk.Frame(self.master, bg=cname2)
+        self.ts_frame.grid(row=row, column=0, columnspan=3, sticky='WE', padx=padx, pady=pady)
+        tk.Label(self.ts_frame, text='Thomson\n Input File: ', width=col1_width, bg=cname2).grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
+        self.ts_entry = tk.Entry(self.ts_frame, width=col2_width)
         self.ts_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE', rowspan=2)
-
-        # Add a Browse button next to it as well.
-        self.ts_button = tk.Button(self.master, text='Browse...')
+        self.ts_button = tk.Button(self.ts_frame, text='Browse...', width=col3_width)
         self.ts_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.ts_button['command'] = self.browse_ts
         row += 1
-
-        # Add a Browse button next to it as well.
-        self.ts_button = tk.Button(self.master, text='Create...')
+        self.ts_button = tk.Button(self.ts_frame, text='Create...', width=col3_width)
         self.ts_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.ts_button['command'] = self.create_ts
+
+        # Undecided what will get here, but put a gray box as a filler.
+        self.empty_frame = tk.Frame(self.master, bg=cname)
+        self.empty_frame.grid(row=6, column=3, rowspan=3, sticky='NSWE', padx=padx, pady=pady)
+        tk.Label(self.empty_frame, text='\n\n\n              Expansion Slot', bg=cname).grid(row=0, column=0)
+
         row += 1
 
         # Entry for Thomson file.
-        tk.Label(self.master, text='Thomson\n Output File: ').grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
-        self.ts_out_entry = tk.Entry(self.master)
+        tk.Label(self.ts_frame, text='Thomson\n Output File: ', bg=cname2).grid(row=row, column=0, sticky='E', padx=padx, pady=pady, rowspan=2)
+        self.ts_out_entry = tk.Entry(self.ts_frame)
         self.ts_out_entry.grid(row=row, column=1, padx=padx, pady=pady, sticky='WE', rowspan=2)
-
-        # Add button to make PDF of Thomson comparisons.
-        self.compare_button = tk.Button(self.master, text='Plot')
+        self.compare_button = tk.Button(self.ts_frame, text='Plot')
         self.compare_button.grid(row=row, column=2, padx=padx, pady=pady*4, sticky='WE')
         self.compare_button['command'] = self.compare_ts_command
+
         row += 1
+
+        # Add a Help button.
+        self.help_button = tk.Button(self.master, text='Help')
+        self.help_button.grid(row=row, column=0, padx=padx, pady=pady*10, sticky='SE')
+        self.help_button['command'] = self.help_command
 
         # Add a quit button.
         self.quit_button = tk.Button(self.master, text='Quit')
-        self.quit_button.grid(row=98, column=0, padx=padx, pady=pady*10, columnspan=3, sticky='S')
+        self.quit_button.grid(row=row, column=1, padx=padx, pady=pady*10, columnspan=2, sticky='S')
         self.quit_button['command'] = self.quit_command
 
     def browse_netcdf(self):
@@ -202,6 +273,74 @@ class Window(tk.Frame):
         ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'
         self.ts_out_entry.delete(0, tk.END)
         self.ts_out_entry.insert(0, ts_out)
+
+    def help_command(self):
+        """
+        Show the help window.
+        """
+
+        self.help_window = tk.Toplevel(self.master)
+        self.help_window.title('Help')
+
+        tk.Label(self.help_window, text='OEDGE Plots GUI Help Window\n').grid(row=0, column=0, sticky='W', padx=padx, pady=pady)
+
+        label = tk.Label(self.help_window, text='How do I use the GUI?')
+        f = font.Font(label, label.cget('font'))
+        f.configure(underline=True)
+        label.configure(font=f)
+        label.grid(row=1, column=0, sticky='W', padx=padx, pady=pady)
+
+        tk.Label(self.help_window, text=
+                  'This GUI is a means of performing some common OEDGE tasks. The first step you must always \n' +
+                  'perform is supply the path to the NetCDF file that is output by an OEDGE run. The GUI will \n' +
+                  'automatically search in the same directory for a .dat and a .collectorprobe file, though \n' +
+                  'these are not required for most tasks. The top plot command (above Plot Options...) creates\n' +
+                  '2D plots, and is fairly self-explanatory. A few extra options are found in Plot Options...', justify=tk.LEFT).grid(row=2, column=0, sticky='W', padx=padx, pady=pady)
+
+        label = tk.Label(self.help_window, text='Along a single ring plots')
+        f = font.Font(label, label.cget('font'))
+        f.configure(underline=True)
+        label.configure(font=f)
+        label.grid(row=3, column=0, sticky='W', padx=padx, pady=pady)
+
+        tk.Label(self.help_window, text=
+                 'Type in the ring number to get a target-to-target plot of whatever is selected in the above \n' +
+                 'plot section. If you are not sure where a ring is, you can use the "Rings" plot option. Say you\n' +
+                 'want ring 22. In Plot Options..., set the min and max to 21 and 23, respectively, and then \n' +
+                 'click Plot in the 2D plot section.', justify=tk.LEFT).grid(row=4, column=0, sticky='W', padx=padx, pady=pady)
+
+        label = tk.Label(self.help_window, text='Collector probe plots')
+        f = font.Font(label, label.cget('font'))
+        f.configure(underline=True)
+        label.configure(font=f)
+        label.grid(row=5, column=0, sticky='W', padx=padx, pady=pady)
+
+        tk.Label(self.help_window, text=
+                 'You must supply the .collectorprobe file. Choose whether to plot a probe at the midplane or at \n' +
+                 'the crown (LSN). This area still needs some work though.', justify=tk.LEFT).grid(row=6, column=0, sticky='W', padx=padx, pady=pady)
+
+        label = tk.Label(self.help_window, text='Thomson comparison plots')
+        f = font.Font(label, label.cget('font'))
+        f.configure(underline=True)
+        label.configure(font=f)
+        label.grid(row=7, column=0, sticky='W', padx=padx, pady=pady)
+
+        tk.Label(self.help_window, text=
+                 'The Thomson Input File is a file with Thomson scattering (TS) data created via the Create... prompt.\n' +
+                 'The reference time in this prompt is a common flux surface the TS measurements are mapped back to. \n' +
+                 'This requires an ssh link to your localhost (see GitHub for info). Click Plot to save a number of \n' +
+                 'plots comparing the OEDGE background to the TS data into a PDF file.', justify=tk.LEFT).grid(row=8, column=0, sticky='W', padx=padx, pady=pady)
+
+        label = tk.Label(self.help_window, text='Simulate a Langmuir or Mach probe')
+        f = font.Font(label, label.cget('font'))
+        f.configure(underline=True)
+        label.configure(font=f)
+        label.grid(row=9, column=0, sticky='W', padx=padx, pady=pady)
+
+        tk.Label(self.help_window, text=
+                 'Under the message box are options to simulate a Mach probe. There are a couple other options as well. \n' +
+                 'You can plot against R, Z or Psin. Currently you can only plot along a constant R or Z. So if you choose\n' +
+                 'along R, make sure Z start = Z end, etc. ', justify=tk.LEFT).grid(row=10, column=0, sticky='W', padx=padx, pady=pady)
 
     def quit_command(self):
         """
@@ -417,13 +556,52 @@ class Window(tk.Frame):
         self.message_box.insert(tk.END, message)
 
         # Can grab the relevant plot arguments from the main plot command function.
-        plot_args = self.plot_command(plot_it=False)
+        try:
+            plot_args = self.plot_command(plot_it=False)
+        except AttributeError as e:
+            err_msg = "Error: {}. Was DIVIMP ran, and not only OSM?\n".format(e)
+            print(err_msg)
+            self.message_box.insert(tk.END, err_msg)
+            return None
+
         if 'charge' in plot_args.keys():
             charge = plot_args['charge']
         else:
             charge = None
+
         x, y = self.op.along_ring(ring, dataname=plot_args['dataname'],
                                   ylabel=plot_args['cbar_label'], charge=charge)
+
+    def fake_plot(self):
+
+        # Pick correct data to plot.
+        if self.current_fake.get() == 'Te':
+            plot_args = {'data':'Te'}
+        elif self.current_fake.get() == 'ne':
+            plot_args = {'data':'ne'}
+        elif self.current_fake.get() == 'Mach':
+            plot_args = {'data':'Mach'}
+        elif self.current_fake.get() == 'Velocity':
+            plot_args = {'data':'Velocity'}
+        else:
+            self.message_box.insert(tk.END, "Error: Invalid plot argument for fake probe.\n")
+
+        if self.current_fake_type.get() == 'Along R':
+            plot_args['plot'] = 'R'
+        elif self.current_fake_type.get() == 'Along Z':
+            plot_args['plot'] = 'Z'
+        elif self.current_fake_type.get() == 'Psin':
+            plot_args['plot'] = 'psin'
+
+        # Put in the coordinates for start and stop (R, Z).
+        plot_args['r_start'] = np.float(self.rstart_entry.get())
+        plot_args['r_end']   = np.float(self.rend_entry.get())
+        plot_args['z_start'] = np.float(self.zstart_entry.get())
+        plot_args['z_end']   = np.float(self.zend_entry.get())
+
+        message = 'Plotting {} at constant {}.'.format(plot_args['data'], plot_args['plot'])
+        self.message_box.insert(tk.END, 'Plotting ')
+        self.op.fake_probe(**plot_args)
 
     def plot_command(self, plot_it=True):
         """

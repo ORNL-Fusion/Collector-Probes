@@ -1,13 +1,78 @@
-# Author: Shawn Zamperini
-# Email:  zamp@utk.edu
-# Date:   5/16/19
-#
-# This script started with some code written by Jake Nichols, but has moved on
-# to be it's own standalone script. It provides a framework to plot OEDGE output
-# data, mostly found in the netCDF file. There is also the capability to plot
-# data from the collector_probe file as well. The script oedge_plots_gui acts
-# as an interface to this class full of functions, though there is nothing
-# stopping someone from using this script on it's own.
+"""
+Author: Shawn Zamperini
+Email:  zamp@utk.edu
+Date:   9/9/19
+
+This script started with some code written by Jake Nichols, but has moved on
+to be it's own standalone script. It provides a framework to plot OEDGE output
+data, mostly found in the netCDF file. There is also the capability to plot
+data from the collector_probe file as well. The script oedge_plots_gui acts
+as an interface to this class full of functions, though there is nothing
+stopping someone from using this script on it's own.
+
+List of functions:
+
+__init__
+  - Initiate an OedgePlots object by passing in the path to the NetCDF file.
+
+add_dat_file
+  - Pass in the path to the .dat file. The GUI should automatically find it if
+      it's in the same folder as the NetCDF file.
+
+read_data_2d
+  - Read data from the NetCDF file into a form easily manipulated for plotting
+      in plot_contour_polygon.
+
+read_data_2d_kvhs
+  - Same as above, but uses the .dat file to add on an additional, ad-hoc
+      flow velocity (option T13 and associated parameters).
+
+get_sep
+  - Creates lines for plotting the separatrix in plot_contour_polygon.
+
+calculate_forces
+  - DIVIMP does not seem to output the forces in a meaningful way yet, so instead
+      we just recalculate them here. Returns in a 2D form that can be used in
+      plot_contour_polygon.
+
+plot_contour_polygon
+  - The primary function in this script. This is the one that creates the 2D plots
+      of whatever you want from the NetCDF file, as well as the above mentioned
+      plots that require a bit more data. There are many input parameters to change,
+      so it's a very flexible function. Users of the GUI just get a plug-n-play
+      usage of it.
+
+cp_plots
+  - Plots the impurity fluence at the locations of the collector probes. Could use
+      some TLC in updating.
+
+plot_lp_input
+  - Not implemented yet.
+
+create_ts
+  - Loads Thomson scattering data from atlas and puts it in an Excel file format
+      that can be used later. This is used in comparing TS data to the OEDGE
+      background data, and can take a while to run sometimes.
+
+compare_ts
+  - This one uses data created from the above function and creates a PDF of
+      comparisons.
+
+check_ts
+  - Helper function to make sure the TS data after being mapped to a common
+      flux surface looks reasonable.
+
+find_ring_knot
+  - Helper function to find which ring, knot a given R, Z location is on.
+
+fake_probe
+  - See what a hypothetical probe (Langmuir, Mach) inserted into the plasma
+      would look like.
+
+along_ring
+  - Choose a ring number and plot some data along it from target to target.
+      Requires the variable name form the NetCDF file currently.
+"""
 
 import netCDF4
 import numpy             as np
@@ -1267,7 +1332,7 @@ class OedgePlots:
         a constant R or Z value, just choose the correct option for it.
 
         data: One of 'Te', 'ne', 'Mach' or 'Velocity'.
-        plot: Either None, 'R' or 'Z' (or 'r' or 'z'). If the probe is at a
+        plot: Either None, 'R' or 'Z' (or 'r' or 'z'), or 'psin'. If the probe is at a
               constant R, then use 'R', likewise for 'Z'.
         """
 
@@ -1366,7 +1431,7 @@ class OedgePlots:
         # Make a plot of the data.
         if plot is not None:
 
-            # Get corrext X and Y arrays for plotting.
+            # Get correct X and Y arrays for plotting.
             if plot in ['R', 'r']:
                 x = [output_df['(R, Z)'][i][0] for i in range(0, len(output_df.index))]
                 xlabel = 'R (m)'
@@ -1383,6 +1448,13 @@ class OedgePlots:
             ax.plot(x, y, lw=5, color='k')
             ax.set_xlabel(xlabel)
             ax.set_ylabel(ylabel)
+
+            # Set correct limit on X axis.
+            #if plot == 'Z':
+            #    ax.set_xlim([r_start, r_end])
+            #elif plot == 'R':
+            #    ax.set_xlim([z_start, z_end])
+
             fig.show()
 
         return output_df

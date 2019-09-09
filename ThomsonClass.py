@@ -514,6 +514,7 @@ class ThomsonClass:
         # Create average Te and ne values mapped to the OMP.
         self.avg_omp = {}
         try:
+            avg_psins = np.array([])
             avg_omps = np.array([])
             avg_tes  = np.array([])
             avg_nes  = np.array([])
@@ -521,29 +522,35 @@ class ThomsonClass:
             avg_tes_err  = np.array([])
             avg_nes_err  = np.array([])
             for chord in range(0, len(self.temp_df_omp.index)):
+                tmp_psins = np.array([])
                 tmp_omps = np.array([])
                 tmp_tes  = np.array([])
                 tmp_nes  = np.array([])
 
-                for time in range(0, len(times)):
-
+                #for time in range(0, len(times)):
+                for time in times:
+                    
                     # Get the tuple data point for this chord at this time (r-rsep_omp, Te).
-                    tmp_o = self.temp_df_omp.values[chord][time][0]
-                    tmp_t = self.temp_df_omp.values[chord][time][1]
-                    tmp_n = self.dens_df_omp.values[chord][time][1]
-                    tmp_omps = np.append(tmp_omps, tmp_o)
-                    tmp_tes  = np.append(tmp_tes,  tmp_t)
-                    tmp_nes  = np.append(tmp_nes,  tmp_n)
+                    tmp_p = self.temp_df_omp[str(time) + ' psin'].values[chord][0]
+                    tmp_o = self.temp_df_omp[time].values[chord][0]
+                    tmp_t = self.temp_df_omp[time].values[chord][1]
+                    tmp_n = self.dens_df_omp[time].values[chord][1]
+                    tmp_psins = np.append(tmp_psins, tmp_p)
+                    tmp_omps  = np.append(tmp_omps, tmp_o)
+                    tmp_tes   = np.append(tmp_tes,  tmp_t)
+                    tmp_nes   = np.append(tmp_nes,  tmp_n)
 
                 # Get the average for this chord. Append it to avg_omps/avg_tes.
-                avg_omps = np.append(avg_omps, tmp_omps.mean())
-                avg_tes  = np.append(avg_tes,  tmp_tes.mean())
-                avg_nes  = np.append(avg_nes,  tmp_nes.mean())
+                avg_psins = np.append(avg_psins, tmp_psins.mean())
+                avg_omps  = np.append(avg_omps,  tmp_omps.mean())
+                avg_tes   = np.append(avg_tes,   tmp_tes.mean())
+                avg_nes   = np.append(avg_nes,   tmp_nes.mean())
                 avg_omps_err = np.append(avg_omps_err, tmp_omps.std())
                 avg_tes_err  = np.append(avg_tes_err, tmp_tes.std())
                 avg_nes_err  = np.append(avg_nes_err, tmp_nes.std())
 
             # Store in dictionary in class.
+            self.avg_omp['Psin']             = avg_psins
             self.avg_omp['RminRsep_omp']     = avg_omps
             self.avg_omp['Te_omp']           = avg_tes
             self.avg_omp['ne_omp']           = avg_nes

@@ -7,9 +7,11 @@ import numpy as np
 
 plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
              'Flow Velocity', 'Flow Velocity - Mach', 'Flow Velocity (with T13)',
-             'Flow Velocity (with T13) - Mach', 'Force - FF', 'Force - FiG', 'Impurity Density',
-             'Impurity Density - Charge', 'Impurity Ionization', 'Density', 'Density - Divertor', 'Rings', 'S Coordinate',
-             'Temperature', 'Temperature - Divertor']
+             'Flow Velocity (with T13) - Mach', 'Force - Net', 'Force - FF', 'Force - FiG',
+             'Force - FE', 'Force - FeG', 'Impurity Density',
+             'Impurity Density - Charge', 'Impurity Ionization', 'Density',
+             'Density - Divertor', 'Rings', 'S Coordinate', 'Temperature',
+             'Temperature - Divertor']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 fake_opts = ['Mach', 'Te', 'ne', 'Velocity']
 
@@ -31,8 +33,11 @@ class Window(tk.Frame):
         self.cp_cb_top_var = tk.IntVar()
         self.cp_cb_dim_var = tk.IntVar()
         self.mr_cb_var     = tk.IntVar()
+        self.core_cb_var   = tk.IntVar()
         self.charge_entry  = tk.Entry(self.master)
         self.charge_entry.insert(0, 30)
+        self.vzmult_entry = tk.Entry(self.master)
+        self.vzmult_entry.insert(0, 0)
         self.create_widgets()
 
     def create_widgets(self):
@@ -364,49 +369,84 @@ class Window(tk.Frame):
         self.opt_window = tk.Toplevel(self.master)
         self.opt_window.title("Plot Options")
 
+        row = 0
+
         # Create check boxes to turn on and off options.
         # Show MiMES probe.
         self.cp_cb_mid = tk.Checkbutton(self.opt_window, text='Show Collector Probe (MiMES) - Tip at R =', variable=self.cp_cb_mid_var)
-        self.cp_cb_mid.grid(row=0, column=0, padx=padx, pady=pady, sticky='W')
+        self.cp_cb_mid.grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
         self.cp_mid_entry = tk.Entry(self.opt_window)
         self.cp_mid_entry.insert(0, rtip)
-        self.cp_mid_entry.grid(row=0, column=1, padx=padx, pady=pady)
+        self.cp_mid_entry.grid(row=row, column=1, padx=padx, pady=pady)
+
+        row = row + 1
 
         # Show DiMES probe.
         self.cp_cb_dim = tk.Checkbutton(self.opt_window, text='Show Collector Probe (DiMES) - Tip at Z =', variable=self.cp_cb_dim_var)
-        self.cp_cb_dim.grid(row=1, column=0, padx=padx, pady=pady, sticky='W')
+        self.cp_cb_dim.grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
         self.cp_dim_entry = tk.Entry(self.opt_window)
         self.cp_dim_entry.insert(0, ztip_dim)
-        self.cp_dim_entry.grid(row=1, column=1, padx=padx, pady=pady)
+        self.cp_dim_entry.grid(row=row, column=1, padx=padx, pady=pady)
+
+        row = row + 1
 
         # Show top probe.
         self.cp_cb_top = tk.Checkbutton(self.opt_window, text='Show Collector Probe (top)      - Tip at Z =', variable=self.cp_cb_top_var)
-        self.cp_cb_top.grid(row=2, column=0, padx=padx, pady=pady, sticky='W')
+        self.cp_cb_top.grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
         self.cp_top_entry = tk.Entry(self.opt_window)
         self.cp_top_entry.insert(0, ztip_top)
-        self.cp_top_entry.grid(row=2, column=1, padx=padx, pady=pady)
+        self.cp_top_entry.grid(row=row, column=1, padx=padx, pady=pady)
+
+        row = row + 1
 
         # Show the metal rings.
         self.mr_cb_var = tk.IntVar()
         self.mr_cb = tk.Checkbutton(self.opt_window, text='Show Metal Rings', variable=self.mr_cb_var)
-        self.mr_cb.grid(row=3, column=0, padx=padx, pady=pady, sticky='W')
+        self.mr_cb.grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
+
+        row = row + 1
+
+        # Plot the core data or not.
+        self.core_cb_var = tk.IntVar()
+        self.core_cb = tk.Checkbutton(self.opt_window, text='Exclude Core Data', variable=self.core_cb_var)
+        self.core_cb.grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
+
+        row = row + 1
+
+        # Blank space
+        tk.Label(self.opt_window, text=' ').grid(row=row, column=0)
+
+        row = row + 1
+
+        # Entry to choose what multiplier to use for FF calculation.
+        tk.Label(self.opt_window, text='vz Mult (for FF):').grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
+        self.vzmult_entry = tk.Entry(self.opt_window)
+        self.vzmult_entry.insert(0, 0)
+        self.vzmult_entry.grid(row=row, column=1, padx=padx, pady=pady)
+
+        row = row + 1
 
         # Option to choose which charge state to plot.
-        tk.Label(self.opt_window, text=' ').grid(row=4, column=0)
-        tk.Label(self.opt_window, text='Charge State to Plot:').grid(row=5, column=0, padx=padx, pady=pady, sticky='W')
+        tk.Label(self.opt_window, text='Charge State to Plot:').grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
         self.charge_entry = tk.Entry(self.opt_window)
-        self.charge_entry.insert(0, 30)
-        self.charge_entry.grid(row=5, column=1, padx=padx, pady=pady)
+        self.charge_entry.insert(0, 15)
+        self.charge_entry.grid(row=row, column=1, padx=padx, pady=pady)
 
-        # Option to change vmin/vmax for plot colorbars.
-        tk.Label(self.opt_window, text='Colorbar Scale Min:').grid(row=6, column=0, padx=padx, pady=pady, sticky='W')
-        tk.Label(self.opt_window, text='Colorbar Scale Max:').grid(row=7, column=0, padx=padx, pady=pady, sticky='W')
+        row = row + 1
+
+        # Option to change vmin for plot colorbars.
+        tk.Label(self.opt_window, text='Colorbar Scale Min:').grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
         self.vmin_entry = tk.Entry(self.opt_window)
-        self.vmax_entry = tk.Entry(self.opt_window)
         self.vmin_entry.insert(0, 'auto')
+        self.vmin_entry.grid(row=row, column=1, padx=padx, pady=pady)
+
+        row = row + 1
+
+        # Option to change vmax for plot colorbars.
+        tk.Label(self.opt_window, text='Colorbar Scale Max:').grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
+        self.vmax_entry = tk.Entry(self.opt_window)
         self.vmax_entry.insert(0, 'auto')
-        self.vmin_entry.grid(row=6, column=1, padx=padx, pady=pady)
-        self.vmax_entry.grid(row=7, column=1, padx=padx, pady=pady)
+        self.vmax_entry.grid(row=row, column=1, padx=padx, pady=pady)
 
     def browse_dat(self):
         """
@@ -573,6 +613,10 @@ class Window(tk.Frame):
                                   ylabel=plot_args['cbar_label'], charge=charge)
 
     def fake_plot(self):
+        """
+        Call the function that plots a hypothetical Mach/Langmuir probe (hence the
+        name fake).
+        """
 
         # Pick correct data to plot.
         if self.current_fake.get() == 'Te':
@@ -747,23 +791,59 @@ class Window(tk.Frame):
 
             # FF does depend on charge state, so you need to pass it in here.
             charge = int(self.charge_entry.get())
-            plot_args = {'dataname'  :'FFI',
-                         'cbar_label':'Friction Force W{}+ (???)'.format(charge),
-                         'charge'    :charge,
-                         'normtype'  :'log'}
+            vz_mult = float(self.vzmult_entry.get())
+            #plot_args = {'dataname'  :'FFI',
+            #             'cbar_label':'Friction Force W{}+ (???)'.format(charge),
+            #             'charge'    :charge,
+            #             'normtype'  :'log'}
+
+            plot_args = {'dataname'  : 'ff',
+                         'cbar_label': 'Friction Force W{}+ (N)'.format(charge),
+                         'charge'    : charge,
+                         'normtype'  : 'symlog',
+                         'vz_mult'   : vz_mult}
 
         elif self.current_option.get() == 'Force - FiG':
 
             # FiG does not depend on charge state, so not used here. There are
             # uncertainties here as to what exactly is included in KFIGS and
             # what isn't.
-            mu = self.op.crmi / (self.op.crmi + self.op.crmb)
-            beta_i = 3 * (mu + 5 * np.sqrt(2) * self.op.cion**2 * (1.1 * mu**(5/2) - 0.35 * mu**(3/2)) - 1) / (2.6 - 2 * mu + 5.4 * mu**2)
-            scaling = beta_i * self.op.qtim * self.op.qtim * self.op.emi / self.op.crmi
-            plot_args = {'dataname'  :'KFIGS',
-                         'cbar_label':'Ion Temp. Gradient Force (???)',
-                         'normtype'  :'symlog',
-                         'scaling'   :scaling}
+            #mu = self.op.crmi / (self.op.crmi + self.op.crmb)
+            #beta_i = 3 * (mu + 5 * np.sqrt(2) * self.op.cion**2 * (1.1 * mu**(5/2) - 0.35 * mu**(3/2)) - 1) / (2.6 - 2 * mu + 5.4 * mu**2)
+            #scaling = beta_i * self.op.qtim * self.op.qtim * self.op.emi / self.op.crmi
+            #plot_args = {'dataname'  :'KFIGS',
+            #             'cbar_label':'Ion Temp. Gradient Force (???)',
+            #             'normtype'  :'symlog',
+            #             'scaling'   :scaling}
+
+            charge = int(self.charge_entry.get())
+            plot_args = {'dataname'  : 'fig',
+                         'charge'    : charge,
+                         'cbar_label': 'Ion Temp. Gradient Force W{}+ (N)'.format(charge),
+                         'normtype'  :'symlog'}
+
+        elif self.current_option.get() == 'Force - FE':
+            charge = int(self.charge_entry.get())
+            plot_args = {'dataname'  : 'fe',
+                         'charge'    : charge,
+                         'cbar_label': 'Electric Field Force (N)',
+                         'normtype' : 'symlog'}
+
+        elif self.current_option.get() == 'Force - FeG':
+            charge = int(self.charge_entry.get())
+            plot_args = {'dataname'  : 'feg',
+                         'charge'    : charge,
+                         'cbar_label': 'Electron Temp. Gradient Force (N)',
+                         'normtype' : 'symlog'}
+
+        elif self.current_option.get() == 'Force - Net':
+            charge = int(self.charge_entry.get())
+            vz_mult = float(self.vzmult_entry.get())
+            plot_args = {'dataname'  : 'fnet',
+                         'charge'    : charge,
+                         'cbar_label': 'Net Force W{}+ (N)'.format(charge),
+                         'normtype'  : 'symlog',
+                         'vz_mult'   : vz_mult}
 
         else:
             self.message_box.insert(tk.END, 'Plot option not found.\n')
@@ -803,6 +883,10 @@ class Window(tk.Frame):
         # Option to show metal rings.
         if self.mr_cb_var.get() == 1:
             plot_args['show_mr'] = True
+
+        # Option to show core data.
+        if self.core_cb_var.get() == 1:
+            plot_args['no_core'] = True
 
         # Option to supply a vmin or vmax. Put in a try since this may not even
         # be defined yet if the extra plot option window isn't open.

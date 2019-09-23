@@ -84,7 +84,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 # A nice looking font.
-plt.rcParams['font.family'] = 'serif'
+#plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.family'] = 'DejaVu Sans'
 
 # These are the "Tableau 20" colors as RGB.
 tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
@@ -203,7 +204,7 @@ class OedgePlots:
         with open(dat_path) as f:
             self.dat_file = f.read()
 
-    def read_data_2d(self, dataname, charge=None, scaling=1.0, fix_fill=False):
+    def read_data_2d(self, dataname, charge=None, scaling=1.0, fix_fill=False, no_core=False):
         """
         Reads in 2D data into a 1D array, in a form that is then passed easily
         to PolyCollection for plotting.
@@ -247,6 +248,12 @@ class OedgePlots:
                         else:
                             data[count] = raw_data[charge + 1][ir][ik] * scaling
 
+                        # If we don't want the core data in the plot, then let's
+                        # replace it with just None.
+                        if no_core:
+                            if ir < self.irsep - 1:
+                                #data[count] = None
+                                data[count] = 0.0
                     count = count + 1
 
         # This will fix an issue where the netCDF will fill in values (that are
@@ -258,7 +265,7 @@ class OedgePlots:
 
         return data
 
-    def read_data_2d_kvhs_t13(self):
+    def read_data_2d_kvhs_t13(self, no_core=False):
         """
         Special function for plotting the flow velocity. This
         is because some DIVIMP options (T13, T31, T37?, T38?...) add
@@ -275,7 +282,7 @@ class OedgePlots:
             pol_opt = float(self.dat_file.split('POL DRIFT OPT')[1].split(':')[0])
             if pol_opt == 0.0:
                 print("Error: Poloidal drift option T13 was not on for this run.")
-                return None
+                return -1
 
             # Get the relevant table for the extra drifts out of the .dat file.
             add_data = self.dat_file.split('TABLE OF DRIFT REGION BY RING - RINGS ' + \
@@ -313,6 +320,13 @@ class OedgePlots:
 
                                data[count] = data[count] + add_df['Vdrift (m/s)'].loc[ir]
 
+                        # If we don't want the core data in the plot, then let's
+                        # replace it with just None.
+                        if no_core:
+                            if ir < self.irsep - 1:
+                                #data[count] = None
+                                data[count] = 0.0
+
                         count = count + 1
 
             return data
@@ -340,29 +354,47 @@ class OedgePlots:
 
         return lines
 
-    def calculate_forces(self, force, vz_mult = 0.0, charge=None, t13=False):
+    def calculate_forces(self, force, vz_mult = 0.0, charge=None, no_core=False, imp_amu=183.84):
         """
         Return 2D representations of the parallel forces (FF, FiG, FeG, FPG, FE)
         in the same format as read_data_2d for easy plotting. This data is not
         returned in the NetCDF file, so we calculate it here. Ideally we would
         use exactly what DIVIMP calculates, but that doesn't seem to be here yet.
 
-        force : One of 'FF', 'FiG', 'FeG', 'FPG', 'FE' or 'fnet' (to sum them all).
-        vz_mult : Fraction of the background velocity used for vz (needed only in FF).
-        t13 : Flag to make sure we add on the additional background flow velocity if it was used in this run.
+        force   : One of 'FF', 'FiG', 'FeG', 'FPG', 'FE' or 'Fnet' (to sum
+                  them all).
+        charge  : Charge of impurity ion needed for some of the forces.
+        vz_mult : Fraction of the background velocity used for vz (needed only
+                  in FF).
+        no_core :
+        imp_amu : The Mass in AMU of the impurity to be followed (default is W).
+                    Carbon is 12.01 AMU.
         """
 
         # Temperature and density values for calculations.
-        te = self.read_data_2d('KTEBS')
-        ti = self.read_data_2d('KTIBS')
-        ne = self.read_data_2d('KNBS')
+        te = self.read_data_2d('KTEBS', no_core=no_core)
+        ti = self.read_data_2d('KTIBS', no_core=no_core)
+        ne = self.read_data_2d('KNBS',  no_core=no_core)
         col_log = 15
         qe      = 1.602E-19
         amu_kg  = 1.66E-27
-        fact = np.power(self.qtim, 2) * qe / amu_kg
+        fact = np.power(self.qtim, 2) * qe / (imp_amu * amu_kg)
+
+        # See if T13 was on. Important for FF calculations.
+        try:
+            pol_opt = float(self.dat_file.split('POL DRIFT OPT')[1].split(':')[0])
+            if pol_opt == 0.0:
+                t13 = False
+            elif pol_opt == 1.0:
+                print("Additional poloidal drift option T13 was ON.")
+                t13 = True
+
+        except:
+            print("Warning: Unable to determine if T13 was on/off. Possible .dat \
+                   file was not loaded?")
 
         # Friction force calculations.
-        if force in ['FF', 'ff', 'fnet', 'Fnet', 'FNET']:
+        if force.lower() in ['ff', 'fnet']:
 
             # Slowing down time.
             try:
@@ -377,13 +409,14 @@ class OedgePlots:
             # TODO: Currently will assume impurity velocity is some fraction of the
             # background velocity (default zero), though this is obviously not true
             # and a better implementation would use the real values wherever they are.
+            # This would require having the velocity distribution of the impurities.
             if t13:
                 vi = self.read_data_2d_kvhs_t13()
             else:
 
                 # Don't forget KVHS is scaled by 1/QTIM to get m/s.
                 scaling = 1.0 / self.qtim
-                vi = self.read_data_2d('KVHS', scaling=scaling)
+                vi = self.read_data_2d('KVHS', scaling=scaling, no_core=no_core)
 
             vz = vz_mult * vi
 
@@ -391,68 +424,69 @@ class OedgePlots:
             ff = self.crmi * amu_kg * (vi - vz) / tau_s
 
             # If not 'fnet', then go ahead and return.
-            if force in ['FF', 'ff']:
+            if force.lower() == 'ff':
                 return ff
 
         # TODO: Pressure gradient force calculations.
-        if force in ['FPG', 'fpg', 'fnet', 'Fnet', 'FNET']:
+        if force.lower() in ['fpg', 'fnet']:
 
             # Parallel collisional diffusion time.
-            tau_par = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
-                      (ne * np.power(charge, 2) * col_log)
+            #tau_par = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
+            #          (ne * np.power(charge, 2) * col_log)
 
+            # Need to probably figure this out.
             fpg = 0
 
             # If not 'fnet', then go ahead and return.
-            if force in ['FPG', 'fpg']:
+            if force.lower() == 'fpg':
                 return fpg
 
         # Electron temperature gradient force calculations.
-        if force in ['FeG', 'FEG', 'feg', 'fnet', 'Fnet', 'FNET']:
+        if force.lower() in ['feg', 'fnet']:
             alpha = 0.71 * np.power(charge, 2)
 
             # The electron temperature gradient from the code. I don't understand
             # this scaling factor, but Jake uses it to get into presumably eV/m.
-            kfegs = self.read_data_2d('KFEGS', scaling = qe / fact)
+            kfegs = self.read_data_2d('KFEGS', scaling = qe / fact, no_core=no_core)
 
             # Calculate the force.
             feg = alpha * kfegs
 
             # If not 'fnet', then go ahead and return.
-            if force in ['FeG', 'FEG', 'feg']:
+            if force.lower() == 'feg':
                 return feg
 
         # Ion temperature gradient force calculations.
-        if force in ['FiG', 'FIG', 'fig', 'fnet', 'Fnet', 'FNET']:
+        if force.lower() in ['fig', 'fnet']:
             mu = self.crmi / (self.crmi + self.crmb)
             beta = 3 * (mu + 5 * np.sqrt(2) * np.power(charge, 2) * \
-                   (1.1 * np.power(mu, 5/2)- 0.35 * np.power(mu, 3/2)) - 1) / \
+                   (1.1 * np.power(mu, 5/2) - 0.35 * np.power(mu, 3/2)) - 1) / \
                    (2.6 - 2 * mu + 5.4 * np.power(mu, 2))
             print("FiG: Beta = {:.2f}".format(beta))
 
             # Again, must scale the gradient with this scaling factor.
-            kfigs = self.read_data_2d('KFIGS', scaling = qe / fact)
+            kfigs = self.read_data_2d('KFIGS', scaling = qe / fact, no_core=no_core)
 
             # Calculate the force.
             fig = beta * kfigs
 
             # If not 'fnet', then go ahead and return.
-            if force in ['FiG', 'FIG', 'fig']:
+            if force.lower() == 'fig':
                 return fig
 
         # Electric field force calculations.
-        if force in ['FE', 'fe', 'fnet', 'Fnet', 'FNET']:
+        if force.lower() in ['fe', 'fnet']:
 
             # This also gets scaled by a factor as well in Jake's code.
-            e_pol = self.read_data_2d('E_POL', scaling = qe / fact)
+            e_pol = self.read_data_2d('E_POL', scaling = qe / fact, no_core=no_core)
             fe = charge * qe * e_pol
 
             # If not 'fnet', then go ahead and return.
-            if force in ['FE', 'fe']:
+            if force.lower() == 'fe':
                 return fe
 
         # Net force calculation.
-        if force in ['fnet', 'Fnet', 'FNET']:
+        if force.lower() == 'fnet':
             return ff + fpg + feg + fig + fe
 
     def plot_contour_polygon(self, dataname, charge=None, scaling=1.0,
@@ -461,7 +495,7 @@ class OedgePlots:
                              cbar_label=None, fontsize=16, lut=21,
                              smooth_cmap=False, vmin=None, vmax=None,
                              show_cp=None, ptip=None, show_mr=False,
-                             fix_fill=False, own_data=None):
+                             fix_fill=False, own_data=None, no_core=False, vz_mult=0.0):
 
         """
         Create a standalone figure using the PolyCollection object of matplotlib.
@@ -500,6 +534,9 @@ class OedgePlots:
                      want to plot the ratio of two data point or something. So if
                      you wanted to ratio of two datasets returned by read_data_2d,
                      then you could say own_data = data1 / data2.
+        no_core:     Don't include data in the core region.
+        vz_mult:     An optional input for if you're plotting the friction force.
+                       See calculate_forces for more info.
         """
 
         # Make sure show_cp and ptip is in list form if not.
@@ -521,42 +558,43 @@ class OedgePlots:
             # options.
             # Flow velocity with additional velocity specified by T13.
             if dataname == 'KVHSimp':
-                data = self.read_data_2d_kvhs_t13()
-                if data == None:
-                    return None
+                data = self.read_data_2d_kvhs_t13(no_core=no_core)
+                #if data == -1:
+                #    return None
 
             # Special option to plot the ring numbers.
             elif dataname == 'Ring':
-                data = self.read_data_2d('KTEBS', scaling='Ring')
+                data = self.read_data_2d('KTEBS', scaling='Ring', no_core=no_core)
 
             # Divide the background velocity by the sounds speed to get the Mach number.
             elif dataname == 'KVHSimp - Mach':
-                te   = self.read_data_2d('KTEBS')
-                ti   = self.read_data_2d('KTIBS')
+                te   = self.read_data_2d('KTEBS', no_core=no_core)
+                ti   = self.read_data_2d('KTIBS', no_core=no_core)
                 kvhs = self.read_data_2d_kvhs_t13()
                 mi   = self.crmb * 931.494*10**6 / (3e8)**2  # amu --> eV s2 / m2
                 cs   = np.sqrt((te + ti) / mi)
                 data = kvhs / cs  # i.e. the Mach number.
 
             elif dataname == 'KVHS - Mach':
-                te   = self.read_data_2d('KTEBS')
-                ti   = self.read_data_2d('KTIBS')
-                kvhs = self.read_data_2d('KVHS', charge, scaling, fix_fill)
+                te   = self.read_data_2d('KTEBS', no_core=no_core)
+                ti   = self.read_data_2d('KTIBS', no_core=no_core)
+                kvhs = self.read_data_2d('KVHS',  no_core=no_core, charge=charge,
+                                         scaling=scaling, fix_fill=fix_fill)
                 mi   = self.crmb * 931.494*10**6 / (3e8)**2  # amu --> eV s2 / m2
                 cs   = np.sqrt((te + ti) / mi)
                 print("CRMB = {} amu".format(self.crmb))
                 data = kvhs / cs  # i.e. the Mach number.
 
             # Special function for plotting the forces on impuirties.
-            elif dataname in ['FF', 'FIG', 'FEG', 'FPG', 'FE', 'ff', 'fig', 'feg', \
-                            'fpg', 'fe', 'FiG', 'FeG', 'FNET', 'Fnet', 'fnet']:
+            elif dataname.lower() in ['ff', 'fig', 'feg', 'fpg', 'fe', 'fnet']:
 
                 # Need to reorganize so we can do the t13 flag and vz_mult.
-                data = self.calculate_forces(dataname, charge=charge)
+                data = self.calculate_forces(dataname, charge=charge,
+                                             no_core=no_core, vz_mult=vz_mult)
 
             # Everything else in the netCDF file.
             else:
-                data = self.read_data_2d(dataname, charge, scaling, fix_fill)
+                data = self.read_data_2d(dataname, charge, scaling, fix_fill, no_core)
 
         # Remove any cells that have nan values.
         not_nan_idx = np.where(~np.isnan(data))[0]
@@ -1326,7 +1364,7 @@ class OedgePlots:
 
         return (closest_cell[0][0], closest_cell[1][0])
 
-    def fake_probe(self, r_start, r_end, z_start, z_end, data='Te', num_locs=100, plot=None):
+    def fake_probe(self, r_start, r_end, z_start, z_end, data='Te', num_locs=100, plot=None, fontsize=16):
         """
         Return data, and plot, of a mock probe. Plot is useful if the probe has
         a constant R or Z value, just choose the correct option for it.
@@ -1392,6 +1430,8 @@ class OedgePlots:
 
             except AttributeError:
                 print("Error: .dat file has not been loaded.")
+            except IndexError:
+                print("Warning: Can't add on T13 flag if DIVIMP is not run.")
 
             # Fill in the psin values for the dataframe.
             for i in range(0, len(rs)):
@@ -1446,8 +1486,9 @@ class OedgePlots:
             fig = plt.figure()
             ax  = fig.add_subplot(111)
             ax.plot(x, y, lw=5, color='k')
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel(ylabel)
+            ax.set_xlabel(xlabel, fontsize=fontsize)
+            ax.set_ylabel(ylabel, fontsize=fontsize)
+            ax.tick_params(axis='both', labelsize=fontsize*0.75)
 
             # Set correct limit on X axis.
             #if plot == 'Z':
@@ -1459,7 +1500,7 @@ class OedgePlots:
 
         return output_df
 
-    def along_ring(self, ring, dataname, ylabel=None, charge=None):
+    def along_ring(self, ring, dataname, ylabel=None, charge=None, vz_mult=0.0, plot_it=True):
         """
         Plot data along a specified ring. Will return the x, y data just in case
         you want it.
@@ -1548,17 +1589,118 @@ class OedgePlots:
             else:
                 y = self.nc[dataname][:][charge][ring] * scaling
 
+        # Pull from the forces data if you want a force plot.
+        elif dataname.lower() in ['ff', 'fig', 'feg', 'fpg', 'fe', 'fnet', 'ff']:
+
+            # Some constants and required factors.
+            col_log = 15
+            qe      = 1.602E-19
+            amu_kg  = 1.66E-27
+            fact = np.power(self.qtim, 2) * qe / amu_kg
+
+            if dataname.lower() == 'fig':
+
+                # Need charge to calculate FiG.
+                if charge == None:
+                    print("Error: Must supply a charge state to calculate FiG")
+                    return None
+
+                mu = self.crmi / (self.crmi + self.crmb)
+                beta = 3 * (mu + 5 * np.sqrt(2) * np.power(charge, 2) * \
+                       (1.1 * np.power(mu, 5/2)- 0.35 * np.power(mu, 3/2)) - 1) / \
+                       (2.6 - 2 * mu + 5.4 * np.power(mu, 2))
+                print("FiG: Beta = {:.2f}".format(beta))
+
+                # Again, must scale the gradient with this scaling factor.
+                #kfigs = self.read_data_2d('KFIGS', scaling = qe / fact)
+
+                kfigs = self.nc['KFIGS'][:][ring].data * qe / fact
+
+                # Calculate the force.
+                fig = beta * kfigs
+                y = fig
+
+            elif dataname.lower() == 'ff':
+
+                # Need charge to calculate FF.
+                if charge == None:
+                    print("Error: Must supply a charge sate to calculate FiG")
+                    return None
+
+                ti = self.nc['KTIBS'][:][ring]
+                ne = self.nc['KNBS'][:][ring]
+
+                # Slowing down time.
+                tau_s = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
+                        ((1 + self.crmb / self.crmi) * ne * np.power(charge, 2) * col_log)
+
+                # TODO: Currently will assume impurity velocity is some fraction of the
+                # background velocity (default zero), though this is obviously not true
+                # and a better implementation would use the real values wherever they are.
+
+                # Don't forget KVHS is scaled by 1/QTIM to get m/s.
+                scaling = 1.0 / self.qtim
+                #vi = self.read_data_2d('KVHS', scaling=scaling)
+                vi = self.nc['KVHS'][:][ring].data * scaling
+
+                vz = vz_mult * vi
+
+                # Calculate the force.
+                ff = self.crmi * amu_kg * (vi - vz) / tau_s
+                y = ff
+
+            elif dataname.lower() == 'fe':
+
+                # This also gets scaled by a factor as well in Jake's code.
+                #e_pol = self.read_data_2d('E_POL', scaling = qe / fact
+                e_pol = self.nc['E_POL'][:][ring].data * qe / fact
+                fe = charge * qe * e_pol
+                y = fe
+
+            elif dataname.lower() == 'feg':
+
+                alpha = 0.71 * np.power(charge, 2)
+
+                # The electron temperature gradient from the code. I don't understand
+                # this scaling factor, but Jake uses it to get into presumably eV/m.
+                #kfegs = self.read_data_2d('KFEGS', scaling = qe / fact)
+                kfegs = self.nc['KFEGS'][:][ring] * qe / fact
+
+                # Calculate the force.
+                feg = alpha * kfegs
+                y = feg
+
+            elif dataname.lower() == 'fpg':
+
+                # Parallel collisional diffusion time.
+                tau_par = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
+                          (ne * np.power(charge, 2) * col_log)
+
+                print("Error: FPG not implemented")
+                return None
+
+
         else:
             # Get the data for this ring.
             y = self.nc[dataname][:][ring].data
 
+        # Remove any (0, 0) data points that may occur due to fortran being fortran.
+        drop_idx = np.array([])
+        for i in range(0, len(x)):
+             if x[i] == 0.0 and y[i] == 0.0:
+                 drop_idx = np.append(drop_idx, i)
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ax.plot(x, y, 'k-')
-        ax.set_xlabel('S (m)', fontsize=18)
-        ax.set_ylabel(ylabel, fontsize=18)
-        fig.tight_layout()
-        fig.show()
+        x = np.delete(x, drop_idx)
+        y = np.delete(y, drop_idx)
+
+        if plot_it:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.plot(x, y, 'k-')
+            ax.set_xlabel('S (m)', fontsize=18)
+            ax.set_ylabel(ylabel, fontsize=18)
+            ax.tick_params(axis='both', labelsize=18*0.75)
+            fig.tight_layout()
+            fig.show()
 
         return x, y

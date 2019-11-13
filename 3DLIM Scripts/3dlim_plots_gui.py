@@ -18,7 +18,7 @@ col2_width = 30
 col3_width = 7
 
 #plot options
-plot_op = ['option 1', 'option 2', 'Temperature']
+plot_op = ['option 1', 'Temperature']
 
 class Window(tk.Frame):
 
@@ -127,11 +127,14 @@ class Window(tk.Frame):
         self.current_option.set(plot_op[0])
         self.plot_options = tk.OptionMenu(self.sel_frame, self.current_option, *plot_op)
         self.plot_options.grid(row=row, column=1, padx=padx, pady=pady)
+        self.current_option.trace('w', self.option_selection)
 
+        '''
         #Option Selection Button
         self.option_button = tk.Button(self.sel_frame, text='Extra Options')
         self.option_button.grid(row=row, column=2, padx=padx, pady=pady)
         self.option_button['command'] = self.option_selection
+        '''
 
         row += 1
 
@@ -145,23 +148,29 @@ class Window(tk.Frame):
 
         #function to take current options and plot the selected graph
 
+        #checks to see if there is a file selected
         if self.netcdf_entry.get() == '':
             self.message_box.insert(tk.END, 'No netCDF File Selected\n')
         else:
+            #Graphs temperature graph
             if self.current_option.get() == 'Temperature':
+
+                #gets the ylim
                 try:
                     ylim = int(self.temp_ylim.get())
                 except:
                     ylim=500
 
                 self.dl.plot_2d('CTEMBS', ylim=ylim)
+            self.message_box.insert(tk.END, 'Plotted')
 
 
 
-    def option_selection(self):
+    def option_selection(self, var, ind, mode):
 
         #function to make selection of plot and show additional plot options
 
+        #option 1 selection options
         if self.current_option.get() == 'option 1':
             self.opt_frame.grid_forget()
             self.opt_frame1 = tk.Frame(self.master, bg=cname)
@@ -170,11 +179,15 @@ class Window(tk.Frame):
             self.opt1but = tk.Button(self.opt_frame1, width=col3_width)
             self.opt1but.grid(row=5, column=4)
 
+        #The temperature is selected this is what happens
         elif self.current_option.get() == 'Temperature':
+
+            #creates new frame for the temperature selection
             self.opt_frame.grid_forget()
             self.opt_Temp = tk.Frame(self.master, bg=cname)
             self.opt_Temp.grid(row=5, column=4, columnspan=4, sticky='WE')
 
+            #Adds Entry box for the ylim
             tk.Label(self.opt_Temp, text='y Postition: ', bg=cname).grid(row=5, column=4)
             self.temp_ylim = tk.Entry(self.opt_Temp, width=col2_width)
             self.temp_ylim.grid(row=5, column=5, padx=padx, pady=pady)
@@ -185,6 +198,7 @@ class Window(tk.Frame):
 
         #function for Browse button to get netcdf file
 
+        #adds the netcdf file
         self.message_box.insert(tk.END, 'Loading...\n')
         root = tk.Tk(); root.withdraw()
         netcdf_path = tk.filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
@@ -203,6 +217,7 @@ class Window(tk.Frame):
         except:
             pass
 
+        #adds the dat file
         dat_path = netcdf_path.split('.nc')[0] + '.dat'
         try:
             f = open(dat_path, 'r')
@@ -213,6 +228,7 @@ class Window(tk.Frame):
         except:
             pass
 
+        #adds the lim file
         lim_path = netcdf_path.split('.nc')[0] + '.lim'
         try:
             f = open(lim_path, 'r')

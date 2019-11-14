@@ -419,7 +419,7 @@ class Window(tk.Frame):
         row = row + 1
 
         # Entry to choose what multiplier to use for FF calculation.
-        tk.Label(self.opt_window, text='vz Mult (for FF):').grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
+        tk.Label(self.opt_window, text='vz Multiplier (for FF):').grid(row=row, column=0, padx=padx, pady=pady, sticky='W')
         self.vzmult_entry = tk.Entry(self.opt_window)
         self.vzmult_entry.insert(0, 0)
         self.vzmult_entry.grid(row=row, column=1, padx=padx, pady=pady)

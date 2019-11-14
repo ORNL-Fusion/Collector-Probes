@@ -554,6 +554,52 @@ class Readout:
             props = dict(facecolor='white')
             #ax.text(0.05, 0.95, textstr, bbox=props)
 
+        def imp_contour_plot_radial(self, plot_num, pmin=-0.005, pmax=0, iz_state=5):
+
+            # Get positions of the center of each bin.
+            xs       = self.netcdf.variables['XS'][:].data
+            xwids    = self.netcdf.variables['XWIDS'][:].data
+            rad_locs = xs-xwids/2.0
+            ps       = self.netcdf.variables['PS'][:].data
+            pwids    = self.netcdf.variables['PWIDS'][:].data
+            pol_locs = ps-pwids/2.0
+            ys       = self.netcdf.variables['YS'][:].data
+            ywids    = self.netcdf.variables['YWIDS'][:].data
+            par_locs = ys-ywids/2.0
+
+            # Also mirror the par_locs to cover both sides (i.e. from -L to L instead of 0 to L).
+            # Need to add a zero in the as the middle point, hence two appends.
+            par_locs = np.append(np.append(-par_locs[::-1], 0), par_locs)
+
+            # Load ddlim3 variable array of the specific ionization state.
+            if type(iz_state) is list:
+                # Add capability to do a range of ionization states.
+                pass
+            else:
+                ddlim3 =self.netcdf.variables['DDLIM3'][:, iz_state, :, :].data
+
+            # Sum over the radial range to create a 2D plot.
+            sum_range = np.where(np.logical_and(pol_locs>pmin, pol_locs<pmax))[0]
+            summed_ddlim3 = ddlim3[sum_range,:,:].sum(axis=0)
+
+            # Plotting commands.
+            X, Y = np.meshgrid(par_locs, rad_locs)
+            Z    = summed_ddlim3
+            ax   = self.master_fig.axes[plot_num]
+            cont = ax.contourf(X, Y, Z.T)
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+            cl   = float(self.netcdf['CL'][:].data)
+            ax.set_xlim([-cl, cl])
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Radial (m)', fontsize=fontsize)
+            #cp = patches.Rectangle((-0.2,-0.015), width=0.4, height=0.03, color='k')
+            #ax.add_patch(cp)
+            textstr = r'Integration region:' + \
+                      r'\n$\mathrm{P_min}$ = ' + str(pmin) + \
+                      r'\n$\mathrm{P_max}$ = ' + str(pmax)
+            props = dict(facecolor='white')
+            #ax.text(0.05, 0.95, textstr, bbox=props)
+
         def force_plots(self, plot_num, rad_loc=-0.01, cl=9.9, separate_plot=True):
 
             # First, grab that while big force table, splitting it at the start

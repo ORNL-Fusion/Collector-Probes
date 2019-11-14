@@ -68,7 +68,8 @@ except:
     print("Error: Poloidal plot.")
 
 try:
-    grid.imp_contour_plot(6)
+    #grid.imp_contour_plot(6)
+    grid.imp_contour_plot_radial(6, pmin=0.10, pmax=0.13)
 except:
     print('Error: Impurity contour plot.')
 

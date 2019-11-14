@@ -99,6 +99,9 @@ for i in range(len(tableau20)):
     r, g, b = tableau20[i]
     tableau20[i] = (r / 255., g / 255., b / 255.)
 
+# A very small number.
+epsilon = 1e-30
+
 # Create class object to hold in netcdf data as well as plotting routines. Use
 # Ordered Dict prototype so we can index the class object with the data name.
 # Ex: self['BTS']
@@ -253,7 +256,7 @@ class OedgePlots:
                         if no_core:
                             if ir < self.irsep - 1:
                                 #data[count] = None
-                                data[count] = 0.0
+                                data[count] = epsilon
                     count = count + 1
 
         # This will fix an issue where the netCDF will fill in values (that are
@@ -325,7 +328,7 @@ class OedgePlots:
                         if no_core:
                             if ir < self.irsep - 1:
                                 #data[count] = None
-                                data[count] = 0.0
+                                data[count] = epsilon
 
                         count = count + 1
 
@@ -354,7 +357,7 @@ class OedgePlots:
 
         return lines
 
-    def calculate_forces(self, force, vz_mult = 0.0, charge=None, no_core=False, imp_amu=183.84):
+    def calculate_forces(self, force, vz_mult = 0.0, charge=None, no_core=False):
         """
         Return 2D representations of the parallel forces (FF, FiG, FeG, FPG, FE)
         in the same format as read_data_2d for easy plotting. This data is not
@@ -367,8 +370,6 @@ class OedgePlots:
         vz_mult : Fraction of the background velocity used for vz (needed only
                   in FF).
         no_core :
-        imp_amu : The Mass in AMU of the impurity to be followed (default is W).
-                    Carbon is 12.01 AMU.
         """
 
         # Temperature and density values for calculations.
@@ -378,7 +379,7 @@ class OedgePlots:
         col_log = 15
         qe      = 1.602E-19
         amu_kg  = 1.66E-27
-        fact = np.power(self.qtim, 2) * qe / (imp_amu * amu_kg)
+        fact = np.power(self.qtim, 2) * qe / (self.crmi * amu_kg)
 
         # See if T13 was on. Important for FF calculations.
         try:
@@ -495,7 +496,8 @@ class OedgePlots:
                              cbar_label=None, fontsize=16, lut=21,
                              smooth_cmap=False, vmin=None, vmax=None,
                              show_cp=None, ptip=None, show_mr=False,
-                             fix_fill=False, own_data=None, no_core=False, vz_mult=0.0):
+                             fix_fill=False, own_data=None, no_core=False,
+                             vz_mult=0.0):
 
         """
         Create a standalone figure using the PolyCollection object of matplotlib.
@@ -587,8 +589,6 @@ class OedgePlots:
 
             # Special function for plotting the forces on impuirties.
             elif dataname.lower() in ['ff', 'fig', 'feg', 'fpg', 'fe', 'fnet']:
-
-                # Need to reorganize so we can do the t13 flag and vz_mult.
                 data = self.calculate_forces(dataname, charge=charge,
                                              no_core=no_core, vz_mult=vz_mult)
 
@@ -605,6 +605,9 @@ class OedgePlots:
         # Create a good sized figure with correct proportions.
         fig = plt.figure(figsize=(7, 9))
         ax  = fig.add_subplot(111)
+
+        # Data sorted so the first index is the minimum.
+        #sort_data = np.sort(np.unique(data))
 
         if normtype == 'linear':
             if vmin == None:
@@ -834,6 +837,8 @@ class OedgePlots:
                 writer = csv.writer(f, delimiter='\t')
                 f.write(xaxis+'\tITF\tOTF\n')
                 writer.writerows(zip(x, y_itf, y_otf))
+
+        return x, y_itf, y_otf
 
     def plot_lp_input(self):
         """
@@ -1465,6 +1470,19 @@ class OedgePlots:
                 probe = kvhs_adj[ring][knot]
                 ylabel = 'Velocity (m/s)'
 
+            # Plot of the connection length to the inner target.
+            elif data == 'L OTF':
+                smax = self.nc['KSMAXS'][:][ring]
+                s    = self.nc['KSS'][:][ring][knot]
+                probe = smax - s
+                ylabel = 'L ITF (m)'
+
+            elif data == 'L ITF':
+                s    = self.nc['KSS'][:][ring][knot]
+                probe = s
+                ylabel = 'L OTF (m)'
+
+
             output_df['(R, Z)'][i] = (rs[i], zs[i])
             output_df[data][i]   = probe
 
@@ -1618,7 +1636,7 @@ class OedgePlots:
 
                 # Calculate the force.
                 fig = beta * kfigs
-                y = fig
+                y = np.array(fig, dtype=np.float64)
 
             elif dataname.lower() == 'ff':
 
@@ -1627,8 +1645,8 @@ class OedgePlots:
                     print("Error: Must supply a charge sate to calculate FiG")
                     return None
 
-                ti = self.nc['KTIBS'][:][ring]
-                ne = self.nc['KNBS'][:][ring]
+                ti = self.nc['KTIBS'][:][ring].data
+                ne = self.nc['KNBS'][:][ring].data
 
                 # Slowing down time.
                 tau_s = 1.47E13 * self.crmi * ti * np.sqrt(ti / self.crmb) / \
@@ -1647,7 +1665,7 @@ class OedgePlots:
 
                 # Calculate the force.
                 ff = self.crmi * amu_kg * (vi - vz) / tau_s
-                y = ff
+                y = np.array(ff, dtype=np.float64)
 
             elif dataname.lower() == 'fe':
 
@@ -1655,7 +1673,7 @@ class OedgePlots:
                 #e_pol = self.read_data_2d('E_POL', scaling = qe / fact
                 e_pol = self.nc['E_POL'][:][ring].data * qe / fact
                 fe = charge * qe * e_pol
-                y = fe
+                y = np.array(fe, dtype=np.float64)
 
             elif dataname.lower() == 'feg':
 
@@ -1668,7 +1686,7 @@ class OedgePlots:
 
                 # Calculate the force.
                 feg = alpha * kfegs
-                y = feg
+                y = np.array(feg, dtype=np.float64)
 
             elif dataname.lower() == 'fpg':
 
@@ -1682,14 +1700,16 @@ class OedgePlots:
 
         else:
             # Get the data for this ring.
-            y = self.nc[dataname][:][ring].data
+            y = np.array(self.nc[dataname][:][ring].data, dtype=np.float64)
 
         # Remove any (0, 0) data points that may occur due to fortran being fortran.
         drop_idx = np.array([])
         for i in range(0, len(x)):
+             #print("{}: {} {}".format(i, x[i]==0.0, y[i]==0.0))
              if x[i] == 0.0 and y[i] == 0.0:
                  drop_idx = np.append(drop_idx, i)
 
+        #print("{} drop_idx: {}".format(dataname, drop_idx))
         x = np.delete(x, drop_idx)
         y = np.delete(y, drop_idx)
 

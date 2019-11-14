@@ -43,8 +43,8 @@ class Window(tk.Frame):
 
     def create_widgets(self):
         """
-                Create all the buttons, message box, etc. and lay them all out.
-                """
+        Create all the buttons, message box, etc. and lay them all out.
+        """
 
         # Variable to keep track of row number so we don't have to!
         row = 0
@@ -145,8 +145,9 @@ class Window(tk.Frame):
 
 
     def plot_action(self):
-
-        #function to take current options and plot the selected graph
+        """
+        Function to take current options and plot the selected graph.
+        """
 
         #checks to see if there is a file selected
         if self.netcdf_entry.get() == '':
@@ -167,8 +168,9 @@ class Window(tk.Frame):
 
 
     def option_selection(self, var, ind, mode):
-
-        #function to make selection of plot and show additional plot options
+        """
+        Function to make selection of plot and show additional plot options.
+        """
 
         #option 1 selection options
         if self.current_option.get() == 'option 1':
@@ -195,8 +197,9 @@ class Window(tk.Frame):
 
 
     def browse_netcdf(self):
-
-        #function for Browse button to get netcdf file
+        """
+        Function for Browse button to get netcdf file.
+        """
 
         #adds the netcdf file
         self.message_box.insert(tk.END, 'Loading...\n')

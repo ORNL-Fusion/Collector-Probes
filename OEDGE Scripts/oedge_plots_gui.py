@@ -11,7 +11,7 @@ plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
              'Force - FE', 'Force - FeG', 'Impurity Density',
              'Impurity Density - Charge', 'Impurity Ionization', 'Density',
              'Density - Divertor', 'Rings', 'S Coordinate', 'Temperature',
-             'Temperature - Divertor']
+             'Temperature - Divertor', 'Area of Cells']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 fake_opts = ['Mach', 'Te', 'ne', 'Velocity']
 
@@ -844,6 +844,10 @@ class Window(tk.Frame):
                          'cbar_label': 'Net Force W{}+ (N)'.format(charge),
                          'normtype'  : 'symlog',
                          'vz_mult'   : vz_mult}
+
+        elif self.current_option.get() == 'Area of Bits':
+            charge = int(self.charge_entry.get())
+            plot_args = {'dataname'  : 'KAREAS'}
 
         else:
             self.message_box.insert(tk.END, 'Plot option not found.\n')

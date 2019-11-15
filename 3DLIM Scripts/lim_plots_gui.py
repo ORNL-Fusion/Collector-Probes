@@ -3,6 +3,7 @@ from tkinter import filedialog
 from tkinter import font
 import numpy as np
 import dlim_plots as dlim
+import lim_plots as limpt
 
 # Color name to indicate background color of section.
 cname = 'gray75'
@@ -18,7 +19,7 @@ col2_width = 30
 col3_width = 7
 
 #plot options
-plot_op = ['option 1', 'Temperature']
+plot_op = ['Center Line', 'Contour', 'Poloidal Profiles', 'Temperature']
 
 class Window(tk.Frame):
 
@@ -152,6 +153,63 @@ class Window(tk.Frame):
         #checks to see if there is a file selected
         if self.netcdf_entry.get() == '':
             self.message_box.insert(tk.END, 'No netCDF File Selected\n')
+
+        elif self.current_option.get() == 'Center Line':
+
+            try:
+                if self.centline_log == 1:
+                    plot_args = {'log': True}
+                else:
+                    plot_args = {'log': False}
+
+                if self.centline_exp ==1:
+                    plot_args['fit_exp'] = True
+                else:
+                    plot_args['fit_exp'] = False
+
+                self.dl.centerline(**plot_args)
+            except:
+                self.dl.centerline()
+
+        elif self.current_option.get() == 'Contour':
+
+            if self.side_option.get() == 2:
+                plot_args = {'side': 'ITF'}
+            else:
+                plot_args = {'side': 'OTF'}
+
+            if self.width_option.get() == 2:
+                plot_args['probe_width'] = 0.005
+            elif self.width_option.get() == 3:
+                plot_args['probe_width'] = 0.0025
+            elif self.width_option.get() == 4:
+                try:
+                    plot_args['probe_width'] = float(self.cont_widEnt.get())
+                except:
+                    self.message_box.insert(tk.END, 'Custom width failed.\n')
+                    plot_args['probe_width'] = 0.015
+            else:
+                plot_args['probe_width'] = 0.015
+
+            self.dl.deposition_contour(**plot_args)
+
+        elif self.current_option.get() == 'Poloidal Profiles':
+
+            if self.width_option.get() == 2:
+                plot_args = {'probe_width': 0.005}
+            elif self.width_option.get() == 3:
+                plot_args = {'probe_width': 0.0025}
+            elif self.width_option.get() == 4:
+                try:
+                    plot_args = {'probe_width': float(self.cont_widEnt.get())}
+                except:
+                    self.message_box.insert(tk.END, 'Custom width failed.\n')
+                    plot_args = {'probe_width': 0.015}
+            else:
+                plot_args = {'probe_width': 0.015}
+
+            self.dl.avg_pol_profiles(**plot_args)
+
         else:
             #Graphs temperature graph
             if self.current_option.get() == 'Temperature':
@@ -172,14 +230,109 @@ class Window(tk.Frame):
         Function to make selection of plot and show additional plot options.
         """
 
-        #option 1 selection options
-        if self.current_option.get() == 'option 1':
-            self.opt_frame.grid_forget()
-            self.opt_frame1 = tk.Frame(self.master, bg=cname)
-            self.opt_frame1.grid(row=5, column=4, columnspan=4, sticky='WE')
+        #The Center Line is selected this is what happens
+        if self.current_option.get() == 'Center Line':
 
-            self.opt1but = tk.Button(self.opt_frame1, width=col3_width)
-            self.opt1but.grid(row=5, column=4)
+            #creates new frame for the center line selection
+            self.delete_frames()
+            self.opt_centline = tk.Frame(self.master, bg=cname)
+            self.opt_centline.grid(row=5, column=4, columnspan=4, sticky='WE')
+
+            #Adds log options checkbox
+            tk.Label(self.opt_centline, text='Log plot: ', bg=cname, width=10, anchor='e').grid(row=5, column=4)
+            self.log_option = tk.IntVar()
+            self.centline_log = tk.Checkbutton(self.opt_centline, variable=self.log_option, onvalue=1, offvalue=0, bg=cname)
+            self.centline_log.grid(row=5, column=5)
+
+            #Adds exp options checkbox
+            tk.Label(self.opt_centline, text='Exponential fit: ', bg=cname, anchor='e').grid(row=5, column=6)
+            self.exp_option = tk.IntVar()
+            self.centline_exp = tk.Checkbutton(self.opt_centline, variable=self.exp_option, onvalue=1, offvalue=0, bg=cname)
+            self.centline_exp.grid(row=5, column=7)
+
+        #The contour is selected this is what happens
+        elif self.current_option.get() == 'Contour':
+
+            #creates new frame for the contour selection
+            self.delete_frames()
+            self.opt_cont = tk.Frame(self.master, bg=cname)
+            self.opt_cont.grid(row=5, column=4, columnspan=4, sticky='WE')
+
+            tk.Label(self.opt_cont, text='Side:', bg=cname).grid(row=5, column=4, columnspan=2)
+
+            tk.Label(self.opt_cont, text='Probe Width:', bg=cname).grid(row=5, column=6, columnspan=2)
+
+            #next row
+
+            #Adds side selection OTF
+            tk.Label(self.opt_cont, text='OTF: ', width=10, bg=cname, anchor='e').grid(row=6, column=4)
+            self.side_option = tk.IntVar()
+            self.side_option.set(1)
+            self.cont_OTF = tk.Radiobutton(self.opt_cont, variable=self.side_option, value=1, bg=cname)
+            self.cont_OTF.grid(row=6, column=5)
+
+            tk.Label(self.opt_cont, text='0.015: ', width=10, bg=cname, anchor='e').grid(row=6, column=6)
+            self.width_option = tk.IntVar()
+            self.width_option.set(1)
+            self.cont_widA = tk.Radiobutton(self.opt_cont, variable=self.width_option, value=1, bg=cname)
+            self.cont_widA.grid(row=6, column=7)
+
+            #next row
+
+            #Adds side selection ITF
+            tk.Label(self.opt_cont, text='ITF: ', width=10, bg=cname, anchor='e').grid(row=7, column=4)
+            self.cont_ITF = tk.Radiobutton(self.opt_cont, variable=self.side_option, value=2, bg=cname)
+            self.cont_ITF.grid(row=7, column=5)
+
+            tk.Label(self.opt_cont, text='0.005: ', width=10, bg=cname, anchor='e').grid(row=7, column=6)
+            self.cont_widB = tk.Radiobutton(self.opt_cont, variable=self.width_option, value=2, bg=cname)
+            self.cont_widB.grid(row=7, column=7)
+
+            #next row
+
+            tk.Label(self.opt_cont, text='0.0025: ', width=10, bg=cname, anchor='e').grid(row=8, column=6)
+            self.cont_widC = tk.Radiobutton(self.opt_cont, variable=self.width_option, value=3, bg=cname)
+            self.cont_widC.grid(row=8, column=7)
+
+            #next row
+
+            tk.Label(self.opt_cont, text='Other: ', width=10, bg=cname, anchor='e').grid(row=9, column=6)
+            self.cont_widO = tk.Radiobutton(self.opt_cont, variable=self.width_option, value=4, bg=cname)
+            self.cont_widO.grid(row=9, column=7)
+
+            self.cont_widEnt = tk.Entry(self.opt_cont)
+            self.cont_widEnt.grid(row=9, column=8)
+
+        elif self.current_option.get() == 'Poloidal Profiles':
+
+            self.delete_frames()
+            self.opt_polo = tk.Frame(self.master, bg=cname)
+            self.opt_polo.grid(row=5, column=4, columnspan=4, sticky='WE')
+
+            tk.Label(self.opt_polo, text='',bg=cname, width=10).grid(row=5, column=4, columnspan=2)
+
+            tk.Label(self.opt_polo, text='Probe Width:', bg=cname).grid(row=5, column=6, columnspan=2)
+
+            tk.Label(self.opt_polo, text='0.015: ', width=10, bg=cname, anchor='e').grid(row=6, column=6)
+            self.width_option = tk.IntVar()
+            self.width_option.set(1)
+            self.cont_widA = tk.Radiobutton(self.opt_polo, variable=self.width_option, value=1, bg=cname)
+            self.cont_widA.grid(row=6, column=7)
+
+            tk.Label(self.opt_polo, text='0.005: ', width=10, bg=cname, anchor='e').grid(row=7, column=6)
+            self.cont_widB = tk.Radiobutton(self.opt_polo, variable=self.width_option, value=2, bg=cname)
+            self.cont_widB.grid(row=7, column=7)
+
+            tk.Label(self.opt_polo, text='0.0025: ', width=10, bg=cname, anchor='e').grid(row=8, column=6)
+            self.cont_widC = tk.Radiobutton(self.opt_polo, variable=self.width_option, value=3, bg=cname)
+            self.cont_widC.grid(row=8, column=7)
+
+            tk.Label(self.opt_polo, text='Other: ', width=10, bg=cname, anchor='e').grid(row=9, column=6)
+            self.cont_widO = tk.Radiobutton(self.opt_polo, variable=self.width_option, value=4, bg=cname)
+            self.cont_widO.grid(row=9, column=7)
+
+            self.cont_widEnt = tk.Entry(self.opt_polo)
+            self.cont_widEnt.grid(row=9, column=8)
 
         #The temperature is selected this is what happens
         elif self.current_option.get() == 'Temperature':
@@ -190,11 +343,35 @@ class Window(tk.Frame):
             self.opt_Temp.grid(row=5, column=4, columnspan=4, sticky='WE')
 
             #Adds Entry box for the ylim
-            tk.Label(self.opt_Temp, text='y Postition: ', bg=cname).grid(row=5, column=4)
+            tk.Label(self.opt_Temp, text='y Position: ', bg=cname).grid(row=5, column=4)
             self.temp_ylim = tk.Entry(self.opt_Temp, width=col2_width)
             self.temp_ylim.grid(row=5, column=5, padx=padx, pady=pady)
 
+    def delete_frames(self):
+        try:
+            self.opt_frame.grid_forget()
+        except:
+            pass
 
+        try:
+            self.opt_Temp.grid_forget()
+        except:
+            pass
+
+        try:
+            self.opt_polo.grid_forget()
+        except:
+            pass
+
+        try:
+            self.opt_cont.grid_forget()
+        except:
+            pass
+
+        try:
+            self.opt_centline.grid_forget()
+        except:
+            pass
 
     def browse_netcdf(self):
         """
@@ -207,7 +384,7 @@ class Window(tk.Frame):
         netcdf_path = tk.filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
         self.netcdf_entry.delete(0, tk.END)
         self.netcdf_entry.insert(0, netcdf_path)
-        self.dl = dlim.dlim_plots(self.netcdf_entry.get())
+        self.dl = limpt.LimPlots(self.netcdf_entry.get())
         self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(netcdf_path.split('/')[-1]))
 
         cp_path = netcdf_path.split('.nc')[0] + '.collector_probe'

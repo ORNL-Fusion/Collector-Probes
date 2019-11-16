@@ -144,6 +144,16 @@ class Window(tk.Frame):
         self.plot_button.grid(row=row, column=2, padx=padx, pady=pady)
         self.plot_button['command'] = self.plot_action
 
+        row += 1
+
+        tk.Label(self.master, text='').grid(row=row, column=1)
+
+        row += 1
+
+        self.quit_button = tk.Button(self.master, text='Quit')
+        self.quit_button.grid(row=row, column=1)
+        self.quit_button['command'] = self.quit_command
+
 
     def plot_action(self):
         """
@@ -338,7 +348,7 @@ class Window(tk.Frame):
         elif self.current_option.get() == 'Temperature':
 
             #creates new frame for the temperature selection
-            self.opt_frame.grid_forget()
+            self.delete_frames()
             self.opt_Temp = tk.Frame(self.master, bg=cname)
             self.opt_Temp.grid(row=5, column=4, columnspan=4, sticky='WE')
 
@@ -418,6 +428,11 @@ class Window(tk.Frame):
             self.lim_path = lim_path
         except:
             pass
+
+    def quit_command(self):
+
+        self.master.quit()
+        self.master.destroy()
 
 
 def main():

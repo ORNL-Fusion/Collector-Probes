@@ -200,6 +200,8 @@ class Readout:
             #print("Max ITF/OTF: {:.2f}".format(itf_y.max()/otf_y.max()))
             print("Total ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
 
+            return {'itf_x':itf_x, 'itf_y':itf_y, 'otf_x':otf_x, 'otf_y':otf_y}
+
         def deposition_contour(self, plot_num, side, probe_width=0.015, rad_cutoff=0.1, mult_runs=False):
             """
             Plot the 2D tungsten distribution across the face.
@@ -348,8 +350,11 @@ class Readout:
 
             # Replace zeros in Z with just the smallest density value. Again to
             # stop all these zeros from messing up the contour levels.
-            Zmin = np.partition(np.unique(Z), 1)[1]
-            Z = np.clip(Z, Zmin, None)
+            try:
+                Zmin = np.partition(np.unique(Z), 1)[1]
+                Z = np.clip(Z, Zmin, None)
+            except:
+                pass
 
             # Create grid for plotting. Note we swap definitions for x and y since
             # we want the x-axis in the plot to be the parallel direction (it just
@@ -701,7 +706,7 @@ class Readout:
                 fig.tight_layout()
                 fig.show()
 
-        def vel_plots(self, plot_num, vp, cl=10.0, separate_plot=True):
+        def vel_plots(self, plot_num, vp, cl=10.0, separate_plot=True, vmin1=None, vmax1=None, vmin2=None, vmax2=None, clip=False):
             """
             TODO
 
@@ -750,6 +755,20 @@ class Readout:
             else:
                 print("Error: vp must be either vp1 or vp2.")
 
+            if vmin1 is None:
+                vmin1 = -Z1.max()
+            if vmax1 is None:
+                vmax1 = Z1.max()
+
+            if vmin2 is None:
+                vmin2 = -Z2.max()
+            if vmax2 is None:
+                vmax2 = Z2.max()
+
+            if clip:
+                Z1 = np.clip(Z1, vmin1, vmax1)
+                Z2 = np.clip(Z2, vmin2, vmax2)
+
             # Plotting commands.
             ax   = self.master_fig.axes[plot_num]
             cont = ax.contourf(X, Y, Z, vmin=-Z.max(), vmax=Z.max(), cmap='coolwarm')
@@ -760,13 +779,18 @@ class Readout:
             cbar.set_label(vp.upper() + ' (m/s)')
 
             if separate_plot:
+
+                # Bounds needed for the colorbar. Will just do 10 levels.
+                bounds1 = np.linspace(vmin1, vmax1, 10)
+                bounds2 = np.linspace(vmin2, vmax2, 10)
+
                 fig = plt.figure()
                 ax1 = fig.add_subplot(211)
                 ax2 = fig.add_subplot(212)
-                cont1 = ax1.contourf(X, Y, Z1, vmin=-Z1.max(), vmax=Z1.max(), cmap='coolwarm')
-                cont2 = ax2.contourf(X, Y, Z2, vmin=-Z2.max(), vmax=Z2.max(), cmap='coolwarm')
-                cbar1 = self.master_fig.colorbar(cont1, ax=ax1)
-                cbar2 = self.master_fig.colorbar(cont2, ax=ax2)
+                cont1 = ax1.contourf(X, Y, Z1, vmin=vmin1, vmax=vmax1, cmap='coolwarm')
+                cont2 = ax2.contourf(X, Y, Z2, vmin=vmin2, vmax=vmax2, cmap='coolwarm')
+                cbar1 = self.master_fig.colorbar(cont1, ax=ax1, ticks=bounds1)
+                cbar2 = self.master_fig.colorbar(cont2, ax=ax2, ticks=bounds2)
                 ax1.set_xlim([-cl, cl])
                 ax2.set_xlim([-cl, cl])
                 ax1.set_xlabel('Parallel (m)', fontsize=fontsize)
@@ -777,6 +801,88 @@ class Readout:
                 cbar2.set_label('VP2 (m/s)')
                 fig.tight_layout()
                 fig.show()
+
+        def force_plot_2d(self, vmin=None, vmax=None, force='FF', xlim=(-10,10)):
+
+            # First, grab that while big force table, splitting it at the start
+            # of each force table for each radial location (i.e. ix location).
+            lim_sfs = self.lim.split('Static forces')[1:]
+
+            # Fix the last element so it doesn't catch everything after ([:-2]
+            # to ignore an extra \n and space that bugs the rest up).
+            lim_sfs[-1] = lim_sfs[-1].split('***')[0][:-2]
+
+            # Column names for the dataframe.
+            col_names = ['IX', 'IY', 'XOUT', 'YOUT', 'FEG', 'FIG', 'FF', 'FE',
+                         'FVH', 'FF2', 'FE2', 'FVH2', 'FTOT1', 'FTOT2', 'TEGS',
+                         'TIGS', 'CFSS', 'CFVHXS', 'VP1', 'VP2', 'FFB', 'FEB',
+                         'CVHYS', 'CEYS', 'TE', 'TI', 'NE', 'VELB']
+
+            # List to hold all the force dataframes.
+            dflist = []
+            for sf in lim_sfs:
+
+                # Split up the rows for this radial location.
+                foo = sf.split('\n')[1:]
+
+                # Split up each entry in each row (each row is one big string
+                # at this point).
+                foo = [bar.split() for bar in foo]
+
+                # Put into dataframe and append to list with all of them.
+                df = pd.DataFrame(foo, columns=col_names)
+                dflist.append(df)
+
+            # Create a single multidimensional df out of these so it's all easier
+            # to work with.
+            big_df = pd.concat(dflist, keys=np.arange(1, len(dflist)))
+
+            # Our Z data will be our force, reshape to appropriate shape.
+            rows = big_df.index.max()[0]
+            cols = big_df.index.max()[1]
+            Z = np.array(big_df[force].values.reshape(rows, cols+1), dtype=np.float)
+
+            # Last column is Nones. Comment out if this changes ever.
+            Z = Z[:, :-1]
+
+            # The x-values for plotting minus the nans.
+            xs = np.array(big_df['XOUT'].unique(), dtype=np.float)
+            xs = xs[~np.isnan(xs)]
+
+            # The y-values.
+            ys = np.array(big_df['YOUT'].unique(), dtype=np.float)
+            ys = ys[~np.isnan(ys)]
+
+            if vmin is None:
+                vmin = Z.min()
+            if vmax is None:
+                vmax = Z.max()
+
+            # Clip array if needed.
+            Z = np.clip(Z, vmin, vmax)
+
+            Y, X = np.meshgrid(xs, ys)
+
+            # Plotting commands.
+            fig = plt.figure()
+            """
+            ax = fig.add_subplot(121)
+            cax = fig.add_subplot(122)
+            cmap = plt.get_cmap('coolwarm')
+            bounds = np.linspace(vmin, vmax, 10)
+            norm = colors.BoundaryNorm(bounds, cmap.N)
+            im = ax.imshow(Z, cmap=cmap, norm=norm, aspect='auto')
+            cbar = fig.colorbar(im, cax=cax, cmap=cmap, norm=norm, boundaries=bounds)
+            """
+            ax = fig.add_subplot(111)
+            divnorm = colors.DivergingNorm(vmin=vmin, vmax=vmax, vcenter=0)
+            cont = ax.contourf(X, Y, Z.T, cmap='coolwarm', norm=divnorm, levels=np.linspace(vmin, vmax, 11))
+            ax.set_xlim(xlim)
+            cbar = fig.colorbar(cont)
+            ax.set_xlabel('Parallel (m)')
+            ax.set_ylabel('Radial (m)')
+            cbar.ax.set_ylabel(force + ' (N)')
+
 
         def get_dep_array(self, mult_runs):
 

@@ -36,10 +36,10 @@ else:
 grid = Readout(netcdf_file=netcdf_path, dat_file=dat_path, lim_file=lim_path)
 grid.print_readout()
 
-#try:
-grid.centerline(0, mult_runs, log=log_center, fit_exp=fit_exp)
-#except:
-#    print("Error: Centerline plot.")
+try:
+    grid.centerline(0, mult_runs, log=log_center, fit_exp=fit_exp)
+except:
+    print("Error: Centerline plot.")
 
 #try:
 #    grid.avg_imp_vely(1)
@@ -70,11 +70,12 @@ except:
 try:
     #grid.imp_contour_plot(6)
     grid.imp_contour_plot_radial(6, pmin=0.10, pmax=0.13)
+    #grid.imp_contour_plot_radial(6, pmin=-0.20, pmax=0.20)
 except:
     print('Error: Impurity contour plot.')
 
 try:
-    grid.force_plots(7, separate_plot=sep_force_plot)
+    grid.force_plots(7, separate_plot=sep_force_plot, rad_loc=-0.05)
 except:
     print('Error: Force plots.')
 

@@ -130,7 +130,9 @@ class LimPlots:
 
         return self.dep_arr
 
+
     def centerline(self, log=False, fit_exp=False, plotnum=0):
+
         """
         Plot the ITF and OTF deposition along the centerlines on the same plot.
 
@@ -214,6 +216,7 @@ class LimPlots:
         print("Center ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
 
     def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.1, plotnum=0):
+
         """
         Plot the 2D tungsten distribution across the face.
 
@@ -292,6 +295,7 @@ class LimPlots:
         print('Total ITF/OTF (0-{} cm): {:.2f}'.format(rad_cutoff*100, Z_itf.sum()/Z_otf.sum()))
 
     def avg_pol_profiles(self, probe_width=0.015, rad_cutoff=0.5, plotnum=0):
+
         """
         Plot the average poloidal profiles for each side. Mainly to see if
         deposition peaks on the edges.

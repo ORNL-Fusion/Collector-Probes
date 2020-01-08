@@ -4,6 +4,7 @@ from tkinter import font
 import numpy as np
 import dlim_plots as dlim
 import lim_plots as limpt
+import matplotlib.pyplot as plt
 
 # Color name to indicate background color of section.
 cname = 'gray75'
@@ -108,6 +109,7 @@ class Window(tk.Frame):
         #Plot overview button to plot simple graphs
         self.overview_button = tk.Button(self.netcdf_frame, text='Plot Overview')
         self.overview_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
+        self.overview_button['command'] = self.overview
 
         row += 1
 
@@ -130,12 +132,14 @@ class Window(tk.Frame):
         self.plot_options.grid(row=row, column=1, padx=padx, pady=pady)
         self.current_option.trace('w', self.option_selection)
 
-        '''
-        #Option Selection Button
-        self.option_button = tk.Button(self.sel_frame, text='Extra Options')
-        self.option_button.grid(row=row, column=2, padx=padx, pady=pady)
-        self.option_button['command'] = self.option_selection
-        '''
+        row += 1
+
+        #multiplot selector to plot multiple plots
+        self.multiplot = tk.IntVar()
+        self.multiplot.set(0)
+        self.multiplot_selector = tk.Checkbutton(self.sel_frame, variable=self.multiplot, bg=cname2, text='Multiplot: ')
+        self.multiplot_selector.grid(row=row, column=1, padx=padx, pady=pady)
+        self.multiplot_selector['command'] = self.multiplot_tab
 
         row += 1
 
@@ -154,18 +158,24 @@ class Window(tk.Frame):
         self.quit_button.grid(row=row, column=1)
         self.quit_button['command'] = self.quit_command
 
-
-    def plot_action(self):
+    def overview(self):
         """
-        Function to take current options and plot the selected graph.
+        Function to plot the overview plot
         """
 
-        #checks to see if there is a file selected
+        # checks to see if there is a file selected
         if self.netcdf_entry.get() == '':
             self.message_box.insert(tk.END, 'No netCDF File Selected\n')
 
-        elif self.current_option.get() == 'Center Line':
+        else:
+            self.dl.overviewplot()
 
+    def plot_arguments(self):
+        """
+        Function to get the plot arguments for plotting the graphs with
+        """
+
+        if self.current_option.get() == 'Center Line':
             try:
                 if self.centline_log == 1:
                     plot_args = {'log': True}
@@ -176,10 +186,8 @@ class Window(tk.Frame):
                     plot_args['fit_exp'] = True
                 else:
                     plot_args['fit_exp'] = False
-
-                self.dl.centerline(**plot_args)
             except:
-                self.dl.centerline()
+                plot_args = {}
 
         elif self.current_option.get() == 'Contour':
 
@@ -201,8 +209,6 @@ class Window(tk.Frame):
             else:
                 plot_args['probe_width'] = 0.015
 
-            self.dl.deposition_contour(**plot_args)
-
         elif self.current_option.get() == 'Poloidal Profiles':
 
             if self.width_option.get() == 2:
@@ -218,22 +224,50 @@ class Window(tk.Frame):
             else:
                 plot_args = {'probe_width': 0.015}
 
-            self.dl.avg_pol_profiles(**plot_args)
-
-        else:
-            #Graphs temperature graph
-            if self.current_option.get() == 'Temperature':
-
-                #gets the ylim
-                try:
-                    ylim = int(self.temp_ylim.get())
-                except:
-                    ylim=500
-
-                self.dl.plot_2d('CTEMBS', ylim=ylim)
-            self.message_box.insert(tk.END, 'Plotted')
+        return plot_args
 
 
+    def plot_action(self):
+        """
+        Function to take current options and plot the selected graph.
+        """
+
+        #checks to see if there is a file selected
+        if self.netcdf_entry.get() == '':
+            self.message_box.insert(tk.END, 'No netCDF File Selected\n')
+            return
+
+        if self.multiplot.get() == 0:
+            plot_args = self.plot_arguments()
+
+            if self.current_option.get() == 'Center Line':
+
+                self.dl.centerline(**plot_args)
+
+            elif self.current_option.get() == 'Contour':
+
+                self.dl.deposition_contour(**plot_args)
+
+            elif self.current_option.get() == 'Poloidal Profiles':
+
+                self.dl.avg_pol_profiles(**plot_args)
+
+            else:
+                #Graphs temperature graph
+                if self.current_option.get() == 'Temperature':
+
+                    #gets the ylim
+                    try:
+                        ylim = int(self.temp_ylim.get())
+                    except:
+                        ylim=500
+
+                    self.dl.plot_2d('CTEMBS', ylim=ylim)
+                self.message_box.insert(tk.END, 'Plotted')
+
+        elif self.multiplot == 1:
+
+            self.dl.muliplot_end()
 
     def option_selection(self, var, ind, mode):
         """
@@ -382,6 +416,102 @@ class Window(tk.Frame):
             self.opt_centline.grid_forget()
         except:
             pass
+
+    def multiplot_tab(self):
+        """
+        Function to either open or close the multiplot tab
+        """
+
+        if self.multiplot.get() ==0:
+            self.mul_frame.grid_forget()
+
+        elif self.multiplot.get() == 1:
+
+            self.dl.multiplot_start()
+
+            row = 0
+
+            self.mul_frame = tk.Frame(self.master, bg=cname)
+            self.mul_frame.grid(row=0, rowspan=8, column=6, sticky='NS')
+
+            tk.Label(self.mul_frame, text='Multiplot Selector:', bg=cname).grid(row=row, column=1)
+
+            row += 1
+
+            self.plot1_button = tk.Button(self.mul_frame, text='Plot 1')
+            self.plot1_button.grid(row=row, column=0, padx=padx, pady=pady)
+            self.plot1_button['command'] = self.plot1_command
+
+            self.plot2_button = tk.Button(self.mul_frame, text='Plot 2')
+            self.plot2_button.grid(row=row, column=1, padx=padx, pady=pady)
+
+            self.plot3_button = tk.Button(self.mul_frame, text='Plot 3')
+            self.plot3_button.grid(row=row, column=2, padx=padx, pady=pady)
+
+            row +=1
+
+            self.plot4_button = tk.Button(self.mul_frame, text='Plot 4')
+            self.plot4_button.grid(row=row, column=0, padx=padx, pady=pady)
+
+            self.plot5_button = tk.Button(self.mul_frame, text='Plot 5')
+            self.plot5_button.grid(row=row, column=1, padx=padx, pady=pady)
+
+            self.plot6_button = tk.Button(self.mul_frame, text='Plot 6')
+            self.plot6_button.grid(row=row, column=2, padx=padx, pady=pady)
+
+            row += 1
+
+            self.plot7_button = tk.Button(self.mul_frame, text='Plot 7')
+            self.plot7_button.grid(row=row, column=0, padx=padx, pady=pady)
+
+            self.plot8_button = tk.Button(self.mul_frame, text='Plot 8')
+            self.plot8_button.grid(row=row, column=1, padx=padx, pady=pady)
+
+            self.plot9_button = tk.Button(self.mul_frame, text='Plot 9')
+            self.plot9_button.grid(row=row, column=2, padx=padx, pady=pady)
+
+            row += 1
+
+            tk.Label(self.mul_frame, text='', bg=cname).grid(row=row, column=1)
+
+            row += 1
+
+            tk.Label(self.mul_frame, text='Selected Plots:', bg=cname).grid(row=row, column=1, padx=padx, pady=pady)
+
+            row += 1
+
+            self.plot1_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=0, padx=padx, pady=pady)
+            self.plot2_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=1, padx=padx, pady=pady)
+            self.plot3_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=2, padx=padx, pady=pady)
+
+            row += 1
+
+            self.plot4_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=0, padx=padx, pady=pady)
+            self.plot5_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=1, padx=padx, pady=pady)
+            self.plot6_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=2, padx=padx, pady=pady)
+
+            row += 1
+
+            self.plot7_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=0, padx=padx, pady=pady)
+            self.plot8_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=1, padx=padx, pady=pady)
+            self.plot9_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=2, padx=padx, pady=pady)
+
+    def plot1_command(self):
+
+        plot_args = self.plot_arguments()
+        plot_args = {'plotnum': 1}
+
+        if self.current_option.get() == 'Center Line':
+
+            self.dl.centerline(**plot_args)
+
+        elif self.current_option.get() == 'Contour':
+
+            self.dl.deposition_contour(**plot_args)
+
+        elif self.current_option.get() == 'Poloidal Profiles':
+
+            self.dl.avg_pol_profiles(**plot_args)
 
     def browse_netcdf(self):
         """

@@ -130,7 +130,7 @@ class LimPlots:
 
         return self.dep_arr
 
-    def centerline(self, log=False, fit_exp=False):
+    def centerline(self, log=False, fit_exp=False, plotnum=0):
         """
         Plot the ITF and OTF deposition along the centerlines on the same plot.
 
@@ -164,8 +164,11 @@ class LimPlots:
         otf_y = dep_arr[np.where(pol_locs == cline)[0], np.where(rad_locs < 0.0)[0]]
 
         # Plotting commands.
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        if plotnum == 0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum-1]
 
         # Option for a log axis.
         if log:
@@ -204,12 +207,13 @@ class LimPlots:
             print("  ITF = {:.2f}".format(1/popt_itf[1]*100))
             print("  OTF = {:.2f}".format(1/popt_otf[1]*100))
 
-        fig.tight_layout()
-        fig.show()
+        if plotnum ==0:
+            fig.tight_layout()
+            fig.show()
 
         print("Center ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
 
-    def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.1):
+    def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.1, plotnum=0):
         """
         Plot the 2D tungsten distribution across the face.
 
@@ -268,20 +272,26 @@ class LimPlots:
         else:
             X = X_otf; Y = Y_otf; Z = Z_otf
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        if plotnum ==0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum-1]
+
         ax.contourf(X*100, Y*100, Z, levels=levels, cmap='Reds')
         ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
         ax.set_ylabel('Z location (cm)', fontsize=fontsize)
         ax.set_ylim([-probe_width*100, probe_width*100])
         props = dict(facecolor='white')
         ax.text(0.75, 0.85, side, bbox=props, fontsize=fontsize*1.5, transform=ax.transAxes)
-        fig.tight_layout()
-        fig.show()
+
+        if plotnum ==0:
+            fig.tight_layout()
+            fig.show()
 
         print('Total ITF/OTF (0-{} cm): {:.2f}'.format(rad_cutoff*100, Z_itf.sum()/Z_otf.sum()))
 
-    def avg_pol_profiles(self, probe_width=0.015, rad_cutoff=0.5):
+    def avg_pol_profiles(self, probe_width=0.015, rad_cutoff=0.5, plotnum=0):
         """
         Plot the average poloidal profiles for each side. Mainly to see if
         deposition peaks on the edges.
@@ -328,18 +338,49 @@ class LimPlots:
         otf_peak = (peak1 + peak2) / 2.0
 
         # Plotting commands.
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
+        if plotnum ==0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum-1]
+
         ax.plot(pol_locs, avg_pol_itf/avg_pol_itf.max(), label='ITF', color=tableau20[6])
         ax.plot(pol_locs, avg_pol_otf/avg_pol_otf.max(), label='OTF', color=tableau20[8])
         ax.legend(fontsize=fontsize)
         ax.set_xlabel('Poloidal (m)', fontsize=fontsize)
         ax.set_ylabel('Deposition (normalized)', fontsize=fontsize)
         ax.set_xlim([-probe_width, probe_width])
-        fig.tight_layout()
-        fig.show()
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
 
         # Print and then return the message for the GUI to use.
         message = "OTF/ITF Peaking Ratio: {:.2f}".format(otf_peak/itf_peak)
         print(message)
         return message
+
+    def overviewplot(self):
+
+        self.master_fig = plt.figure(figsize=(12,6))
+        for x in range(1, 10):
+            self.master_fig.add_subplot(3, 3, x)
+
+        self.centerline(plotnum=1)
+        self.deposition_contour(side='ITF', plotnum=2)
+        self.deposition_contour(side='OTF', plotnum=3)
+
+        self.master_fig.tight_layout()
+        self.master_fig.show()
+
+    def multiplot_start(self):
+
+        self.master_fig = plt.figure(figsize=(12, 6))
+        for x in range(1, 10):
+            self.master_fig.add_subplot(3, 3, x)
+
+    def multiplot_end(self):
+
+        self.master_fig.tight_layout()
+        self.master_fig.show()
+

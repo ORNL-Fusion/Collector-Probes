@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import netCDF4
 from scipy.optimize import curve_fit
+from matplotlib     import colors
 
 
 # Some plot properties to make them a bit nicer.
@@ -364,6 +365,587 @@ class LimPlots:
         print(message)
         return message
 
+    def te_contour(self, plotnum=0):
+        """
+        Plot the 2D background electron plasma temperature.
+
+        plot_num: Location in grid to place this plot. I.e. if the grid_shape
+                  is (3,3), then enter a number between 0-8, where the locations
+                  are labelled left to right.
+        """
+
+        # Get the connection length to restrict the plot between the two absorbing surfaces.
+        cl = float(self.nc['CL'][:].data)
+
+        # Same with the location of the plasma center (the top of the box).
+        ca = float(self.nc['CA'][:].data)
+
+        # Get the X and Y grid data.
+        x = self.nc.variables['XOUTS'][:].data
+        y = self.nc.variables['YOUTS'][:].data
+
+        # 2D grid of the temperature data.
+        Z = self.nc.variables['CTEMBS'][:].data
+
+        # Trim the zeros from the edges of the x and y arrays, and the associated
+        # data points as well. This is done to stop this data from messing up
+        # the contours in the contour plot.
+        xkeep_min = np.nonzero(x)[0].min()
+        xkeep_max = np.nonzero(x)[0].max()
+        ykeep_min = np.nonzero(y)[0].min()
+        ykeep_max = np.nonzero(y)[0].max()
+        x = x[xkeep_min:xkeep_max]
+        y = y[ykeep_min:ykeep_max]
+        Z = Z[ykeep_min:ykeep_max, xkeep_min:xkeep_max]
+
+        # Furthermore, trim the data off that is beyond CL.
+        ykeep_cl = np.where(np.abs(y) < cl)[0]
+        y = y[ykeep_cl]
+        Z = Z[ykeep_cl, :]
+
+        # Replace zeros in Z with just the smallest density value. Again to
+        # stop all these zeros from messing up the contour levels.
+        try:
+            Zmin = np.partition(np.unique(Z), 1)[1]
+            Z = np.clip(Z, Zmin, None)
+        except:
+            pass
+
+        # Create grid for plotting. Note we swap definitions for x and y since
+        # we want the x-axis in the plot to be the parallel direction (it just
+        # looks better that way).
+        Y, X = np.meshgrid(x, y)
+
+        # Plotting commands.
+        if plotnum ==0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum-1]
+
+        cont = ax.contourf(X, Y, Z, cmap='magma', levels=10)
+        ax.set_xlim([-cl, cl])
+        # ax.set_ylim([None, ca])
+        ax.set_ylim([None, 0.01])  # Contour weird near edge.
+        ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+        ax.set_ylabel('Radial (m)', fontsize=fontsize)
+        if plotnum == 0:
+            cbar = fig.colorbar(cont, ax=ax)
+        else:
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+        cbar.set_label('Background Te (eV)')
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
+
+    def ne_contour(self, plotnum=0):
+        """
+        Plot the 2D background plasma density.
+
+        plot_num: Location in grid to place this plot. I.e. if the grid_shape
+                  is (3,3), then enter a number between 0-8, where the locations
+                  are labelled left to right.
+        """
+        # Get the connection length to restrict the plot between the two absorbing surfaces.
+        cl = float(self.nc['CL'][:].data)
+        # Same with the location of the plasma center (the top of the box)
+        ca = float(self.nc['CA'][:].data)
+
+        # Get the X and Y grid data.
+        x = self.nc.variables['XOUTS'][:].data
+        y = self.nc.variables['YOUTS'][:].data
+
+        # 2D grid of the temperature data.
+        Z = self.nc.variables['CRNBS'][:].data
+
+        # Trim the zeros from the edges of the x and y arrays, and the associated
+        # data points as well. This is done to stop this data from messing up
+        # the contours in the contour plot.
+        xkeep_min = np.nonzero(x)[0].min()
+        xkeep_max = np.nonzero(x)[0].max()
+        ykeep_min = np.nonzero(y)[0].min()
+        ykeep_max = np.nonzero(y)[0].max()
+        x = x[xkeep_min:xkeep_max]
+        y = y[ykeep_min:ykeep_max]
+        Z = Z[ykeep_min:ykeep_max, xkeep_min:xkeep_max]
+
+        # Furthermore, trim the data off that is beyond CL.
+        ykeep_cl = np.where(np.abs(y) < cl)[0]
+        y = y[ykeep_cl]
+        Z = Z[ykeep_cl, :]
+
+        # Replace zeros in Z with just the smallest density value. Again to
+        # stop all these zeros from messing up the contour levels.
+        Zmin = np.partition(np.unique(Z), 1)[1]
+        Z = np.clip(Z, Zmin, None)
+
+        # Create grid for plotting. Note we swap definitions for x and y since
+        # we want the x-axis in the plot to be the parallel direction (it just
+        # looks better that way).
+        Y, X = np.meshgrid(x, y)
+
+        if plotnum ==0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum-1]
+
+        # Create our own levels since the automatic ones are bad.
+        lev_exp = np.arange(np.floor(np.log10(Z.min()) - 1), np.ceil(np.log10(Z.max()) + 1), 0.25)
+        levs = np.power(10, lev_exp)
+
+        cont = ax.contourf(X, Y, Z, cmap='magma', levels=levs, norm=colors.LogNorm())
+        ax.set_xlim([-cl, cl])
+        # ax.set_ylim([None, ca])
+        ax.set_ylim([None, 0.01])  # Contour weird near edge.
+        ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+        ax.set_ylabel('Radial (m)', fontsize=fontsize)
+        if plotnum == 0:
+            cbar = fig.colorbar(cont,ax=ax)
+        else:
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+        cbar.set_label('Background ne (m-3)')
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
+
+    def avg_imp_vely(self, plotnum=0):
+        """
+        SVYBAR: Average impurity velocity at X coordinates in QXS.
+
+        plotnum: Location in grid to place this plot. I.e. if the grid_shape
+                  is (3,3), then enter a number between 0-8, where the locations
+                  are labelled left to right.
+        """
+
+        # Grab the data.
+        x = self.nc.variables['QXS'][:].data
+        y = self.nc.variables['SVYBAR'][:].data
+
+        # Plotting commands.
+        if plotnum == 0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum - 1]
+
+        ax.plot(x, y, '.', ms=ms, color=tableau20[6])
+        ax.set_xlabel('Radial coordinates (m)', fontsize=fontsize)
+        ax.set_ylabel('Average Y imp. vel. (m/s)', fontsize=fontsize)
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
+
+    def imp_contour_plot(self, plotnum=0, rmin=-0.005, rmax=0, iz_state=5):
+
+        # Get positions of the center of each bin.
+        xs = self.nc.variables['XS'][:].data
+        xwids = self.nc.variables['XWIDS'][:].data
+        rad_locs = xs - xwids / 2.0
+        ps = self.nc.variables['PS'][:].data
+        pwids = self.nc.variables['PWIDS'][:].data
+        pol_locs = ps - pwids / 2.0
+        ys = self.nc.variables['YS'][:].data
+        ywids = self.nc.variables['YWIDS'][:].data
+        par_locs = ys - ywids / 2.0
+
+        # Also mirror the par_locs to cover both sides (i.e. from -L to L instead of 0 to L).
+        # Need to add a zero in the as the middle point, hence two appends.
+        par_locs = np.append(np.append(-par_locs[::-1], 0), par_locs)
+
+        # Load ddlim3 variable array of the specific ionization state.
+        if type(iz_state) is list:
+            # Add capability to do a range of ionization states.
+            pass
+        else:
+            ddlim3 = self.nc.variables['DDLIM3'][:, iz_state, :, :].data
+
+        # Sum over the radial range to create a 2D plot.
+        sum_range = np.where(np.logical_and(rad_locs > rmin, rad_locs < rmax))[0]
+        summed_ddlim3 = ddlim3[:, :, sum_range].sum(axis=2)
+
+        # Plotting commands.
+        X, Y = np.meshgrid(par_locs, pol_locs)
+        Z = summed_ddlim3
+
+        if plotnum == 0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum - 1]
+
+        cont = ax.contourf(X, Y, Z)
+        if plotnum == 0:
+            cbar = fig.colorbar(cont, ax=ax)
+        else:
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+        cl = float(self.nc['CL'][:].data)
+        ax.set_xlim([-cl, cl])
+        ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+        ax.set_ylabel('Poloidal (m)', fontsize=fontsize)
+        cp = patches.Rectangle((-0.2, -0.015), width=0.4, height=0.03, color='k')
+        ax.add_patch(cp)
+        textstr = r'Integration region:' + \
+                  r'\n$\mathrm{R_min}$ = ' + str(rmin) + \
+                  r'\n$\mathrm{R_max}$ = ' + str(rmax)
+        props = dict(facecolor='white')
+        # ax.text(0.05, 0.95, textstr, bbox=props)
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
+
+    def imp_contour_plot_radial(self, plotnum=0, pmin=-0.005, pmax=0, iz_state=5):
+
+        # Get positions of the center of each bin.
+        xs = self.nc.variables['XS'][:].data
+        xwids = self.nc.variables['XWIDS'][:].data
+        rad_locs = xs - xwids / 2.0
+        ps = self.nc.variables['PS'][:].data
+        pwids = self.nc.variables['PWIDS'][:].data
+        pol_locs = ps - pwids / 2.0
+        ys = self.nc.variables['YS'][:].data
+        ywids = self.nc.variables['YWIDS'][:].data
+        par_locs = ys - ywids / 2.0
+
+        # Also mirror the par_locs to cover both sides (i.e. from -L to L instead of 0 to L).
+        # Need to add a zero in the as the middle point, hence two appends.
+        par_locs = np.append(np.append(-par_locs[::-1], 0), par_locs)
+
+        # Load ddlim3 variable array of the specific ionization state.
+        if type(iz_state) is list:
+            # Add capability to do a range of ionization states.
+            pass
+        else:
+            ddlim3 = self.nc.variables['DDLIM3'][:, iz_state, :, :].data
+
+        # Sum over the radial range to create a 2D plot.
+        sum_range = np.where(np.logical_and(pol_locs > pmin, pol_locs < pmax))[0]
+        summed_ddlim3 = ddlim3[sum_range, :, :].sum(axis=0)
+
+        # Plotting commands.
+        X, Y = np.meshgrid(par_locs, rad_locs)
+        Z = summed_ddlim3
+
+        if plotnum == 0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum - 1]
+
+        cont = ax.contourf(X, Y, Z.T)
+        cbar = self.master_fig.colorbar(cont, ax=ax)
+        cl = float(self.nc['CL'][:].data)
+        ax.set_xlim([-cl, cl])
+        ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+        ax.set_ylabel('Radial (m)', fontsize=fontsize)
+        # cp = patches.Rectangle((-0.2,-0.015), width=0.4, height=0.03, color='k')
+        # ax.add_patch(cp)
+        textstr = r'Integration region:' + \
+                  r'\n$\mathrm{P_min}$ = ' + str(pmin) + \
+                  r'\n$\mathrm{P_max}$ = ' + str(pmax)
+        props = dict(facecolor='white')
+        # ax.text(0.05, 0.95, textstr, bbox=props)
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
+
+    def force_plots(self, plotnum=0, rad_loc=-0.01, cl=9.9, separate_plot=False):
+
+        # First, grab that while big force table, splitting it at the start
+        # of each force table for each radial location (i.e. ix location).
+        lim_sfs = self.lim.split('Static forces')[1:]
+
+        # Fix the last element so it doesn't catch everything after ([:-2]
+        # to ignore an extra \n and space that bugs the rest up).
+        lim_sfs[-1] = lim_sfs[-1].split('***')[0][:-2]
+
+        # Column names for the dataframe.
+        col_names = ['IX', 'IY', 'XOUT', 'YOUT', 'FEG', 'FIG', 'FF', 'FE',
+                     'FVH', 'FF2', 'FE2', 'FVH2', 'FTOT1', 'FTOT2', 'TEGS',
+                     'TIGS', 'CFSS', 'CFVHXS', 'VP1', 'VP2', 'FFB', 'FEB',
+                     'CVHYS', 'CEYS', 'TE', 'TI', 'NE', 'VELB']
+
+        # List to hold all the force dataframes.
+        dflist = []
+        for sf in lim_sfs:
+            # Split up the rows for this radial location.
+            foo = sf.split('\n')[1:]
+
+            # Split up each entry in each row (each row is one big string
+            # at this point).
+            foo = [bar.split() for bar in foo]
+
+            # Put into dataframe and append to list with all of them.
+            df = pd.DataFrame(foo, columns=col_names)
+            dflist.append(df)
+
+        # Create a single multidimensional df out of these so it's all easier
+        # to work with.
+        big_df = pd.concat(dflist, keys=np.arange(1, len(dflist)))
+
+        # Plot at a location near the tip of the probe (say R=-0.01).
+        for idx in np.unique(big_df.index.get_level_values(0).values):
+            if np.float(big_df.loc[idx]['XOUT'][0]) > rad_loc:
+                break
+
+        # Get values from dataframe for plotting.
+        x = np.array(big_df.loc[idx]['YOUT'].values, dtype=np.float64)
+        y1 = np.array(big_df.loc[idx]['FTOT1'].values, dtype=np.float64)
+        y2 = np.array(big_df.loc[idx]['FTOT2'].values, dtype=np.float64)
+
+        # Remove nans.
+        x = x[~np.isnan(x)]
+        y1 = y1[~np.isnan(y1)]
+        y2 = y2[~np.isnan(y2)]
+
+        # Only want values between -cl and cl.
+        valid_idx = np.where(np.logical_and(x > -cl, x < cl))
+        x = x[valid_idx]
+        y1 = y1[valid_idx]
+        y2 = y2[valid_idx]
+
+        if plotnum == 99:
+            pass
+        else:
+            if plotnum == 0:
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+            else:
+                ax = self.master_fig.axes[plotnum - 1]
+            ax.plot(x, y1, '-', color=tableau20[6], label='FTOT1')
+            ax.plot(x, y2, '-', color=tableau20[8], label='FTOT2')
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Force (N?)', fontsize=fontsize)
+            ax.legend(fontsize=fontsize)
+            ax.axhline(0, linestyle='--', color='k')
+
+            if plotnum == 0:
+                fig.tight_layout()
+                fig.show()
+
+        # If you want a separate plot made with all the forces, more detailed.
+        if separate_plot:
+            x = np.array(big_df.loc[idx]['YOUT'].values, dtype=np.float64)[:-1]
+            valid_idx = np.where(np.logical_and(x > -cl, x < cl))
+            x = x[valid_idx]
+
+            ftot1 = np.array(big_df.loc[idx]['FTOT1'].values, dtype=np.float64)[:-1][valid_idx]
+            ftot2 = np.array(big_df.loc[idx]['FTOT2'].values, dtype=np.float64)[:-1][valid_idx]
+            ff1 = np.array(big_df.loc[idx]['FF'].values, dtype=np.float64)[:-1][valid_idx]
+            ff2 = np.array(big_df.loc[idx]['FF2'].values, dtype=np.float64)[:-1][valid_idx]
+            feg = np.array(big_df.loc[idx]['FEG'].values, dtype=np.float64)[:-1][valid_idx]
+            figf = np.array(big_df.loc[idx]['FIG'].values, dtype=np.float64)[:-1][valid_idx]
+            fe = np.array(big_df.loc[idx]['FE'].values, dtype=np.float64)[:-1][valid_idx]
+            fvh1 = np.array(big_df.loc[idx]['FVH'].values, dtype=np.float64)[:-1][valid_idx]
+            fvh2 = np.array(big_df.loc[idx]['FVH2'].values, dtype=np.float64)[:-1][valid_idx]
+
+            fig = plt.figure(figsize=(7, 5))
+            ax = fig.add_subplot(111)
+            ax.plot(x, ftot1, '-', color=tableau20[2], label='FTOT1')
+            ax.plot(x, ftot2, '--', color=tableau20[2], label='FTOT2')
+            ax.plot(x, ff1, '-', color=tableau20[4], label='FF1')
+            ax.plot(x, ff2, '--', color=tableau20[4], label='FF2')
+            ax.plot(x, feg, '-', color=tableau20[6], label='FEG')
+            ax.plot(x, figf, '-', color=tableau20[8], label='FIG')
+            ax.plot(x, fe, '-', color=tableau20[10], label='FE')
+            ax.plot(x, fvh1, '-', color=tableau20[12], label='FVH1')
+            ax.plot(x, fvh2, '--', color=tableau20[12], label='FVH2')
+            ax.legend(fontsize=fontsize)
+            ax.set_xlabel('Parallel (m)')
+            ax.set_ylabel('Force (N?)')
+            fig.tight_layout()
+            fig.show()
+
+    def vel_plots(self, vp, plotnum=0, cl=10.0, separate_plot=False, vmin1=None, vmax1=None, vmin2=None, vmax2=None,
+                  clip=False):
+        """
+        TODO
+
+        vp: Either 'vp1' (background plasma) or 'vp2' (disturbed plasma from CP).
+        """
+
+        # These lines are copied from the above force_plots. See them for comments.
+        lim_sfs = self.lim.split('Static forces')[1:]
+        lim_sfs[-1] = lim_sfs[-1].split('***')[0][:-2]
+        col_names = ['IX', 'IY', 'XOUT', 'YOUT', 'FEG', 'FIG', 'FF', 'FE',
+                     'FVH', 'FF2', 'FE2', 'FVH2', 'FTOT1', 'FTOT2', 'TEGS',
+                     'TIGS', 'CFSS', 'CFVHXS', 'VP1', 'VP2', 'FFB', 'FEB',
+                     'CVHYS', 'CEYS', 'TE', 'TI', 'NE', 'VELB']
+        dflist = []
+        for sf in lim_sfs:
+            foo = sf.split('\n')[1:]
+            foo = [bar.split() for bar in foo]
+            df = pd.DataFrame(foo, columns=col_names)
+            dflist.append(df)
+        big_df = pd.concat(dflist, keys=np.arange(1, len(dflist)))
+
+        # Unstack the big_df into individual velocity dfs for easier plotting.
+        vp1_df = big_df['VP1'].unstack()
+        vp2_df = big_df['VP2'].unstack()
+
+        # May be a better way for this, but last column is nans, so drop them.
+        vp1_df = vp1_df[vp1_df.columns[:-1]]
+        vp2_df = vp2_df[vp2_df.columns[:-1]]
+
+        # Get the x, y values into numpy arrays. Remove nans.
+        x = np.unique(np.array(big_df['XOUT'].values, dtype=np.float64))
+        y = np.unique(np.array(big_df['YOUT'].values, dtype=np.float64))
+        x = x[~np.isnan(x)]
+        y = y[~np.isnan(y)]
+
+        # Create 2D grids for the contour plot.
+        Y, X = np.meshgrid(x, y)
+        Z1 = np.array(vp1_df.values.T, dtype=np.float64)
+        Z2 = np.array(vp2_df.values.T, dtype=np.float64)
+
+        # Choose the relevant Z. Cast to float.
+        if vp == 'vp1':
+            Z = Z1
+        elif vp == 'vp2':
+            Z = Z2
+        else:
+            print("Error: vp must be either vp1 or vp2.")
+
+        if vmin1 is None:
+            vmin1 = -Z1.max()
+        if vmax1 is None:
+            vmax1 = Z1.max()
+
+        if vmin2 is None:
+            vmin2 = -Z2.max()
+        if vmax2 is None:
+            vmax2 = Z2.max()
+
+        if clip:
+            Z1 = np.clip(Z1, vmin1, vmax1)
+            Z2 = np.clip(Z2, vmin2, vmax2)
+
+        # Plotting commands.
+        if plotnum == 0:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+        else:
+            ax = self.master_fig.axes[plotnum - 1]
+
+        cont = ax.contourf(X, Y, Z, vmin=-Z.max(), vmax=Z.max(), cmap='coolwarm')
+        cbar = self.master_fig.colorbar(cont, ax=ax)
+        ax.set_xlim([-cl, cl])
+        ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+        ax.set_ylabel('Radial (m)', fontsize=fontsize)
+        cbar.set_label(vp.upper() + ' (m/s)')
+
+        if plotnum==0:
+            fig.tight_layout()
+            fig.show()
+
+        if separate_plot:
+            # Bounds needed for the colorbar. Will just do 10 levels.
+            bounds1 = np.linspace(vmin1, vmax1, 10)
+            bounds2 = np.linspace(vmin2, vmax2, 10)
+
+            fig = plt.figure()
+            ax1 = fig.add_subplot(211)
+            ax2 = fig.add_subplot(212)
+            cont1 = ax1.contourf(X, Y, Z1, vmin=vmin1, vmax=vmax1, cmap='coolwarm')
+            cont2 = ax2.contourf(X, Y, Z2, vmin=vmin2, vmax=vmax2, cmap='coolwarm')
+            cbar1 = self.master_fig.colorbar(cont1, ax=ax1, ticks=bounds1)
+            cbar2 = self.master_fig.colorbar(cont2, ax=ax2, ticks=bounds2)
+            ax1.set_xlim([-cl, cl])
+            ax2.set_xlim([-cl, cl])
+            ax1.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax2.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax1.set_ylabel('Radial (m)', fontsize=fontsize)
+            ax2.set_ylabel('Radial (m)', fontsize=fontsize)
+            cbar1.set_label('VP1 (m/s)')
+            cbar2.set_label('VP2 (m/s)')
+            fig.tight_layout()
+            fig.show()
+
+    def force_plot_2d(self, plotnum=0, vmin=None, vmax=None, force='FF', xlim=(-10, 10)):
+
+        # First, grab that while big force table, splitting it at the start
+        # of each force table for each radial location (i.e. ix location).
+        lim_sfs = self.lim.split('Static forces')[1:]
+
+        # Fix the last element so it doesn't catch everything after ([:-2]
+        # to ignore an extra \n and space that bugs the rest up).
+        lim_sfs[-1] = lim_sfs[-1].split('***')[0][:-2]
+
+        # Column names for the dataframe.
+        col_names = ['IX', 'IY', 'XOUT', 'YOUT', 'FEG', 'FIG', 'FF', 'FE',
+                     'FVH', 'FF2', 'FE2', 'FVH2', 'FTOT1', 'FTOT2', 'TEGS',
+                     'TIGS', 'CFSS', 'CFVHXS', 'VP1', 'VP2', 'FFB', 'FEB',
+                     'CVHYS', 'CEYS', 'TE', 'TI', 'NE', 'VELB']
+
+        # List to hold all the force dataframes.
+        dflist = []
+        for sf in lim_sfs:
+            # Split up the rows for this radial location.
+            foo = sf.split('\n')[1:]
+
+            # Split up each entry in each row (each row is one big string
+            # at this point).
+            foo = [bar.split() for bar in foo]
+
+            # Put into dataframe and append to list with all of them.
+            df = pd.DataFrame(foo, columns=col_names)
+            dflist.append(df)
+
+        # Create a single multidimensional df out of these so it's all easier
+        # to work with.
+        big_df = pd.concat(dflist, keys=np.arange(1, len(dflist)))
+
+        # Our Z data will be our force, reshape to appropriate shape.
+        rows = big_df.index.max()[0]
+        cols = big_df.index.max()[1]
+        Z = np.array(big_df[force].values.reshape(rows, cols + 1), dtype=np.float)
+
+        # Last column is Nones. Comment out if this changes ever.
+        Z = Z[:, :-1]
+
+        # The x-values for plotting minus the nans.
+        xs = np.array(big_df['XOUT'].unique(), dtype=np.float)
+        xs = xs[~np.isnan(xs)]
+
+        # The y-values.
+        ys = np.array(big_df['YOUT'].unique(), dtype=np.float)
+        ys = ys[~np.isnan(ys)]
+
+        if vmin is None:
+            vmin = Z.min()
+        if vmax is None:
+            vmax = Z.max()
+
+        # Clip array if needed.
+        Z = np.clip(Z, vmin, vmax)
+
+        Y, X = np.meshgrid(xs, ys)
+
+        # Plotting commands.
+        fig = plt.figure()
+        """
+        ax = fig.add_subplot(121)
+        cax = fig.add_subplot(122)
+        cmap = plt.get_cmap('coolwarm')
+        bounds = np.linspace(vmin, vmax, 10)
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+        im = ax.imshow(Z, cmap=cmap, norm=norm, aspect='auto')
+        cbar = fig.colorbar(im, cax=cax, cmap=cmap, norm=norm, boundaries=bounds)
+        """
+        ax = fig.add_subplot(111)
+        divnorm = colors.DivergingNorm(vmin=vmin, vmax=vmax, vcenter=0)
+        cont = ax.contourf(X, Y, Z.T, cmap='coolwarm', norm=divnorm, levels=np.linspace(vmin, vmax, 11))
+        ax.set_xlim(xlim)
+        cbar = fig.colorbar(cont)
+        ax.set_xlabel('Parallel (m)')
+        ax.set_ylabel('Radial (m)')
+        cbar.ax.set_ylabel(force + ' (N)')
+
     def overviewplot(self):
 
         self.master_fig = plt.figure(figsize=(12,6))
@@ -373,15 +955,22 @@ class LimPlots:
         self.centerline(plotnum=1)
         self.deposition_contour(side='ITF', plotnum=2)
         self.deposition_contour(side='OTF', plotnum=3)
+        self.te_contour(plotnum=4)
+        self.ne_contour(plotnum=5)
+        self.avg_pol_profiles(plotnum=6)
+        self.imp_contour_plot_radial(plotnum=7)
+        self.force_plots(plotnum=8)
+        self.vel_plots(vp='vp2', plotnum=9)
 
         self.master_fig.tight_layout()
         self.master_fig.show()
 
     def multiplot_start(self):
-
+        """
         self.master_fig = plt.figure(figsize=(12, 6))
         for x in range(1, 10):
             self.master_fig.add_subplot(3, 3, x)
+        """
 
     def multiplot_end(self):
 

@@ -20,7 +20,7 @@ col2_width = 30
 col3_width = 7
 
 #plot options
-plot_op = ['Center Line', 'Contour', 'Poloidal Profiles', 'Temperature']
+plot_op = ['Center Line', 'Contour', 'Poloidal Profiles', 'Temperature Contour', 'Plasma Density', 'Impurity Velocity']
 
 class Window(tk.Frame):
 
@@ -224,8 +224,19 @@ class Window(tk.Frame):
             else:
                 plot_args = {'probe_width': 0.015}
 
-        return plot_args
+        elif self.current_option.get() == 'Temperature Contour':
 
+            plot_args = {}
+
+        elif self.current_option.get() == 'Plasma Density':
+
+            plot_args = {}
+
+        elif self.current_option.get() == 'Impurity Velocity':
+
+            plot_args = {}
+
+        return plot_args
 
     def plot_action(self):
         """
@@ -252,18 +263,20 @@ class Window(tk.Frame):
 
                 self.dl.avg_pol_profiles(**plot_args)
 
+            elif self.current_option.get() == 'Temperature Contour':
+
+                self.dl.te_contour(**plot_args)
+
+            elif self.current_option.get() == 'Plasma Density':
+
+                self.dl.ne_contour(**plot_args)
+
+            elif self.current_option.get() == 'Impurity Velocity':
+
+                self.dl.avg_imp_vely(**plot_args)
+
             else:
-                #Graphs temperature graph
-                if self.current_option.get() == 'Temperature':
-
-                    #gets the ylim
-                    try:
-                        ylim = int(self.temp_ylim.get())
-                    except:
-                        ylim=500
-
-                    self.dl.plot_2d('CTEMBS', ylim=ylim)
-                self.message_box.insert(tk.END, 'Plotted')
+                self.message_box.insert(tk.END, 'Plotting Failed')
 
         elif self.multiplot == 1:
 
@@ -422,12 +435,12 @@ class Window(tk.Frame):
         Function to either open or close the multiplot tab
         """
 
-        if self.multiplot.get() ==0:
+        if self.multiplot.get() == 0:
             self.mul_frame.grid_forget()
 
         elif self.multiplot.get() == 1:
 
-            self.dl.multiplot_start()
+            #self.dl.multiplot_start()
 
             row = 0
 

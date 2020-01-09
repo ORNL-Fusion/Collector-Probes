@@ -66,13 +66,13 @@ class Window(tk.Frame):
 
         #Add scrollbar to message box
         self.scroll = tk.Scrollbar(self.master)
-        self.scroll.grid(row=0, column=5, rowspan=5, pady=pady, sticky='NS')
+        self.scroll.grid(row=0, column=5, pady=pady, sticky='NS')
         self.scroll.config(command=self.message_box.yview)
         self.message_box.config(yscrollcommand=self.scroll.set)
 
         #Make new frame for file stuff
         self.netcdf_frame = tk.Frame(self.master, bg=cname)
-        self.netcdf_frame.grid(row=row, column=0, columnspan=4, sticky='WE')
+        self.netcdf_frame.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
         tk.Label(self.netcdf_frame, text='Input Files:', bg=cname, width=col1_width).grid(row=row, column=1, sticky='E')
 
         #Browse Button to browse for netcdf files
@@ -115,13 +115,17 @@ class Window(tk.Frame):
 
         #Make a new frame for plot selection
         self.sel_frame = tk.Frame(self.master, bg=cname2)
-        self.sel_frame.grid(row=row, column=0, columnspan=4, sticky='WE')
+        self.sel_frame.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
         tk.Label(self.sel_frame, text='Plot Selection:', bg=cname2).grid(row=row, column=1)
 
         #Make a new frame for plot options
         self.opt_frame = tk.Frame(self.master, bg=cname)
-        self.opt_frame.grid(row=row, column=4, sticky='WE')
-        tk.Label(self.opt_frame, text='Additional Plot Options', bg=cname).grid(row=row, column=5)
+        self.opt_frame.grid(row=row, column=4, padx=padx, pady=pady, sticky='NSWE')
+        tk.Label(self.opt_frame, text='Additional Plot Options', bg=cname).grid(row=1, column=1)
+        self.opt_frame.grid_rowconfigure(0, weight=1)
+        self.opt_frame.grid_rowconfigure(2, weight=1)
+        self.opt_frame.grid_columnconfigure(0, weight=1)
+        self.opt_frame.grid_columnconfigure(2, weight=1)
 
         row += 1
 
@@ -293,19 +297,23 @@ class Window(tk.Frame):
             #creates new frame for the center line selection
             self.delete_frames()
             self.opt_centline = tk.Frame(self.master, bg=cname)
-            self.opt_centline.grid(row=5, column=4, columnspan=4, sticky='WE')
+            self.opt_centline.grid(row=5, column=4, columnspan=4, padx=padx, pady=pady, sticky='NSWE')
 
             #Adds log options checkbox
-            tk.Label(self.opt_centline, text='Log plot: ', bg=cname, width=10, anchor='e').grid(row=5, column=4)
+            tk.Label(self.opt_centline, text='Log plot: ', bg=cname, width=10, anchor='e').grid(row=1, column=1)
             self.log_option = tk.IntVar()
             self.centline_log = tk.Checkbutton(self.opt_centline, variable=self.log_option, onvalue=1, offvalue=0, bg=cname)
-            self.centline_log.grid(row=5, column=5)
+            self.centline_log.grid(row=1, column=2)
 
             #Adds exp options checkbox
-            tk.Label(self.opt_centline, text='Exponential fit: ', bg=cname, anchor='e').grid(row=5, column=6)
+            tk.Label(self.opt_centline, text='Exponential fit: ', bg=cname, anchor='e').grid(row=1, column=3)
             self.exp_option = tk.IntVar()
             self.centline_exp = tk.Checkbutton(self.opt_centline, variable=self.exp_option, onvalue=1, offvalue=0, bg=cname)
-            self.centline_exp.grid(row=5, column=7)
+            self.centline_exp.grid(row=1, column=4)
+
+            #Centers checkboxes in frame
+            self.opt_centline.grid_rowconfigure(0, weight=1)
+            self.opt_centline.grid_rowconfigure(2, weight=1)
 
         #The contour is selected this is what happens
         elif self.current_option.get() == 'Contour':
@@ -313,7 +321,7 @@ class Window(tk.Frame):
             #creates new frame for the contour selection
             self.delete_frames()
             self.opt_cont = tk.Frame(self.master, bg=cname)
-            self.opt_cont.grid(row=5, column=4, columnspan=4, sticky='WE')
+            self.opt_cont.grid(row=5, column=4, columnspan=4, padx=padx, pady=pady, sticky='NSWE')
 
             tk.Label(self.opt_cont, text='Side:', bg=cname).grid(row=5, column=4, columnspan=2)
 
@@ -364,7 +372,7 @@ class Window(tk.Frame):
 
             self.delete_frames()
             self.opt_polo = tk.Frame(self.master, bg=cname)
-            self.opt_polo.grid(row=5, column=4, columnspan=4, sticky='WE')
+            self.opt_polo.grid(row=5, column=4, columnspan=4, padx=padx, pady=pady, sticky='NSWE')
 
             tk.Label(self.opt_polo, text='',bg=cname, width=10).grid(row=5, column=4, columnspan=2)
 
@@ -392,17 +400,36 @@ class Window(tk.Frame):
             self.cont_widEnt.grid(row=9, column=8)
 
         #The temperature is selected this is what happens
-        elif self.current_option.get() == 'Temperature':
+        elif self.current_option.get() == 'Temperature Contour':
 
             #creates new frame for the temperature selection
             self.delete_frames()
             self.opt_Temp = tk.Frame(self.master, bg=cname)
-            self.opt_Temp.grid(row=5, column=4, columnspan=4, sticky='WE')
+            self.opt_Temp.grid(row=5, column=4, padx=padx, pady=pady, sticky='WENS')
 
-            #Adds Entry box for the ylim
-            tk.Label(self.opt_Temp, text='y Position: ', bg=cname).grid(row=5, column=4)
-            self.temp_ylim = tk.Entry(self.opt_Temp, width=col2_width)
-            self.temp_ylim.grid(row=5, column=5, padx=padx, pady=pady)
+            #Adds centered text in frame
+            tk.Label(self.opt_Temp, text='No Extra Options for Temperature Contour', bg=cname).grid(row=1, column=1)
+            self.opt_Temp.grid_rowconfigure(0, weight=1)
+            self.opt_Temp.grid_rowconfigure(2, weight=1)
+            self.opt_Temp.grid_columnconfigure(0, weight=1)
+            self.opt_Temp.grid_columnconfigure(2, weight=1)
+
+        elif self.current_option.get() == 'Plasma Density':
+
+            #creates new frame for the Plasma Density selection
+            self.delete_frames()
+            self.opt_Plasma = tk.Frame(self.master, bg=cname)
+            self.opt_Plasma.grid(row=5, column=4, padx=padx, pady=pady, sticky='NSEW')
+
+            #Adds centered text in frame
+            tk.Label(self.opt_Plasma, text='No Extra Options for Plasma Density', bg=cname).grid(row=1, column=1)
+            self.opt_Plasma.grid_rowconfigure(0, weight=1)
+            self.opt_Plasma.grid_rowconfigure(2, weight=1)
+            self.opt_Plasma.grid_columnconfigure(0, weight=1)
+            self.opt_Plasma.grid_columnconfigure(2, weight=1)
+
+
+
 
     def delete_frames(self):
         try:
@@ -427,6 +454,11 @@ class Window(tk.Frame):
 
         try:
             self.opt_centline.grid_forget()
+        except:
+            pass
+
+        try:
+            self.opt_Plasma.grid_forget()
         except:
             pass
 

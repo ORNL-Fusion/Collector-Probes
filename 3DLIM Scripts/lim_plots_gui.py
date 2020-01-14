@@ -20,7 +20,7 @@ col2_width = 30
 col3_width = 7
 
 #plot options
-plot_op = ['Center Line', 'Contour', 'Poloidal Profiles', 'Temperature Contour', 'Plasma Density', 'Impurity Velocity']
+plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles', 'Temperature Contour', 'Plasma Density', 'Impurity Velocity']
 
 class Window(tk.Frame):
 
@@ -154,12 +154,8 @@ class Window(tk.Frame):
 
         row += 1
 
-        tk.Label(self.master, text='').grid(row=row, column=1)
-
-        row += 1
-
-        self.quit_button = tk.Button(self.master, text='Quit')
-        self.quit_button.grid(row=row, column=1)
+        self.quit_button = tk.Button(self.master, text='Quit', width=col1_width)
+        self.quit_button.grid(row=row, column=1, padx=padx, pady=pady)
         self.quit_button['command'] = self.quit_command
 
     def overview(self):
@@ -240,6 +236,9 @@ class Window(tk.Frame):
 
             plot_args = {}
 
+        else:
+            plot_args = {}
+
         return plot_args
 
     def plot_action(self):
@@ -279,8 +278,12 @@ class Window(tk.Frame):
 
                 self.dl.avg_imp_vely(**plot_args)
 
+            elif self.current_option.get() == 'Please Select Option':
+
+                self.message_box.insert(tk.END, 'Please Select a Plot Option \n')
+
             else:
-                self.message_box.insert(tk.END, 'Plotting Failed')
+                self.message_box.insert(tk.END, 'Plotting Failed \n')
 
         elif self.multiplot == 1:
 
@@ -427,9 +430,6 @@ class Window(tk.Frame):
             self.opt_Plasma.grid_rowconfigure(2, weight=1)
             self.opt_Plasma.grid_columnconfigure(0, weight=1)
             self.opt_Plasma.grid_columnconfigure(2, weight=1)
-
-
-
 
     def delete_frames(self):
         try:

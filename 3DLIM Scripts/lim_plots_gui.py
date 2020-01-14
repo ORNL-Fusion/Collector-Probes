@@ -612,6 +612,7 @@ class Window(tk.Frame):
 
 def main():
 
+    plt.ion()
     root = tk.Tk()
     window = Window(root)
     window.mainloop()

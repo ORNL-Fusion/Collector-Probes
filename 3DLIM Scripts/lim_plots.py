@@ -948,7 +948,7 @@ class LimPlots:
 
     def overviewplot(self):
 
-        self.master_fig = plt.figure(figsize=(12,6))
+        self.master_fig = plt.figure(figsize=(15,10))
         for x in range(1, 10):
             self.master_fig.add_subplot(3, 3, x)
 

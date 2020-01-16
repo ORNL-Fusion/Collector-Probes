@@ -1,10 +1,14 @@
-import tkinter as tk
-from tkinter import filedialog
-from tkinter import font
-import numpy as np
-import dlim_plots as dlim
-import lim_plots as limpt
+import tkinter           as tk
+import numpy             as np
+import dlim_plots        as dlim
+import lim_plots         as limpt
 import matplotlib.pyplot as plt
+from tkinter             import filedialog
+from tkinter             import font
+import matplotlib
+
+# sazmod - I get the feeling the tkagg backend is more stable.
+matplotlib.use('tkagg')
 
 # Color name to indicate background color of section.
 cname = 'gray75'

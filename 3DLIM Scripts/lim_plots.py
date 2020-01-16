@@ -216,7 +216,7 @@ class LimPlots:
 
         print("Center ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
 
-    def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.1, plotnum=0):
+    def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.05, plotnum=0):
 
         """
         Plot the 2D tungsten distribution across the face.
@@ -976,4 +976,3 @@ class LimPlots:
 
         self.master_fig.tight_layout()
         self.master_fig.show()
-

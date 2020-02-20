@@ -977,4 +977,3 @@ class LimPlots:
 
         self.master_fig.tight_layout()
         self.master_fig.show()
-

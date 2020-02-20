@@ -1,6 +1,16 @@
+'''
+
+Author: Kenneth Bott
+Email: kbott@vols.utk.edu
+
+This file creates a GUI to make graphing of fusion data easier
+
+'''
+
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import font
+from PIL     import ImageTk, Image
 import numpy as np
 import dlim_plots as dlim
 import lim_plots as limpt
@@ -20,7 +30,7 @@ col2_width = 30
 col3_width = 7
 
 #plot options
-plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles', 'Temperature Contour', 'Plasma Density', 'Impurity Velocity']
+plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles', 'Temperature Contour', 'Plasma Density', 'Impurity Velocity', 'Impurity Contour']
 
 class Window(tk.Frame):
 
@@ -31,6 +41,8 @@ class Window(tk.Frame):
         super().__init__(master)
         self.master = master
         self.master.title('3dlim plotting GUI')
+        self.master.rowconfigure(0, weight=1)
+        self.master.columnconfigure(0, weight=1)
         self.netcdf_loaded = False
         self.cp_cb_mid_var = tk.IntVar()
         self.cp_cb_top_var = tk.IntVar()
@@ -72,7 +84,7 @@ class Window(tk.Frame):
 
         #Make new frame for file stuff
         self.netcdf_frame = tk.Frame(self.master, bg=cname)
-        self.netcdf_frame.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
+        self.netcdf_frame.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='NSWE')
         tk.Label(self.netcdf_frame, text='Input Files:', bg=cname, width=col1_width).grid(row=row, column=1, sticky='E')
 
         #Browse Button to browse for netcdf files
@@ -135,6 +147,14 @@ class Window(tk.Frame):
         self.plot_options = tk.OptionMenu(self.sel_frame, self.current_option, *plot_op)
         self.plot_options.grid(row=row, column=1, padx=padx, pady=pady)
         self.current_option.trace('w', self.option_selection)
+
+        #Power T image
+        self.image = Image.open("PowerTimage.png")
+        self.image = self.image.resize((100,100))
+        self.render = ImageTk.PhotoImage(image=self.image)
+        self.img = tk.Label(self.sel_frame, image=self.render)
+        self.img.image = self.render
+        self.img.grid(row=row, column=2, padx=padx, pady=pady)
 
         row += 1
 
@@ -236,6 +256,10 @@ class Window(tk.Frame):
 
             plot_args = {}
 
+        elif self.current_option.get() == 'Impurity Contour':
+
+            plot_args = {}
+
         else:
             plot_args = {}
 
@@ -277,6 +301,10 @@ class Window(tk.Frame):
             elif self.current_option.get() == 'Impurity Velocity':
 
                 self.dl.avg_imp_vely(**plot_args)
+
+            elif self.current_option.get() == 'Impurity Contour':
+
+                self.dl.imp_contour_plot(**plot_args)
 
             elif self.current_option.get() == 'Please Select Option':
 
@@ -431,6 +459,17 @@ class Window(tk.Frame):
             self.opt_Plasma.grid_columnconfigure(0, weight=1)
             self.opt_Plasma.grid_columnconfigure(2, weight=1)
 
+        elif self.current_option.get() == 'Impurity Contour':
+
+            #creates new frame for the Impurtiy Contour selection
+            self.delete_frames()
+            self.opt_ImpCon = tk.Frame(self.master, bg=cname)
+            self.opt_ImpCon.grid(row=5, column=4, columnspan=4, padx=padx, pady=pady, sticky='NSEW')
+
+            #Adds rmin entry box
+            tk.Label(self.opt_ImpCon, text='rmin: ', bg=cname).grid(row=1, column=1, padx=padx, pady=pady)
+            tk.Entry(self.opt_ImpCon).grid(row=1, column=2, padx=padx, pady=pady)
+
     def delete_frames(self):
         try:
             self.opt_frame.grid_forget()
@@ -459,6 +498,11 @@ class Window(tk.Frame):
 
         try:
             self.opt_Plasma.grid_forget()
+        except:
+            pass
+
+        try:
+            self.opt_ImpCon.grid_forget()
         except:
             pass
 

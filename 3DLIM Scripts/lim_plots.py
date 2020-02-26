@@ -8,6 +8,7 @@ from a 3DLIM run.
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import pandas as pd
 import netCDF4
 from scipy.optimize import curve_fit
@@ -1132,7 +1133,7 @@ class LimPlots:
         for x in range(1, 10):
             self.master_fig.add_subplot(3, 3, x)
 
-        self.centerline(plotnum=1)
+        self.centerline(plotnum=1, log=True)
         self.deposition_contour(side='ITF', plotnum=2)
         self.deposition_contour(side='OTF', plotnum=3)
         self.te_contour(plotnum=4)

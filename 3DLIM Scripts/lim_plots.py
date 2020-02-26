@@ -12,6 +12,8 @@ import pandas as pd
 import netCDF4
 from scipy.optimize import curve_fit
 from matplotlib     import colors
+from matplotlib     import patches
+from matplotlib     import ticker
 
 
 # Some plot properties to make them a bit nicer.
@@ -539,7 +541,7 @@ class LimPlots:
             fig.tight_layout()
             fig.show()
 
-    def imp_contour_plot(self, plotnum=0, rmin=-0.005, rmax=0, iz_state=5):
+    def imp_contour_plot(self, plotnum=0, rmin=-0.005, rmax=0, iz_state=10, show_steps=True):
 
         # Get positions of the center of each bin.
         xs = self.nc.variables['XS'][:].data
@@ -592,13 +594,40 @@ class LimPlots:
                   r'\n$\mathrm{R_min}$ = ' + str(rmin) + \
                   r'\n$\mathrm{R_max}$ = ' + str(rmax)
         props = dict(facecolor='white')
+
+        # Show where the step in the absorbing boundary occurs.
+        if show_steps:
+
+            # Left step.
+            if rmin < self.nc.variables['xabsorb1a_step'][:].data:
+                #ax.axvline(self.nc.variables['yabsorb1a_step'][:].data, color='k', linestyle='--')
+                rect = patches.Rectangle((self.nc.variables['yabsorb1a_step'][:].data, 999), 9999, 9999, color='grey', angle=180, alpha=0.6)
+                ax.add_patch(rect)
+
+            # Right step.
+            if rmin < self.nc.variables['xabsorb2a_step'][:].data:
+                #ax.axvline(self.nc.variables['yabsorb2a_step'][:].data, color='k', linestyle='--')
+                rect = patches.Rectangle((self.nc.variables['yabsorb2a_step'][:].data, -999), 9999, 9999, color='grey', alpha=0.6)
+                ax.add_patch(rect)
+
         # ax.text(0.05, 0.95, textstr, bbox=props)
 
         if plotnum==0:
             fig.tight_layout()
             fig.show()
 
-    def imp_contour_plot_radial(self, plotnum=0, pmin=-0.005, pmax=0, iz_state=5):
+    def imp_contour_plot_radial(self, plotnum=0, pmin=-0.005, pmax=0, iz_state=10, show_steps=True, vmax=None):
+        """
+        Create a plot of the impurity density in the (parallel, radial) plane.
+
+        plotnum:
+        pmin:
+        pmax:
+        iz_state:
+        separate_plot:
+        show_steps:
+        vmax:
+        """
 
         # Get positions of the center of each bin.
         xs = self.nc.variables['XS'][:].data
@@ -622,39 +651,105 @@ class LimPlots:
         else:
             ddlim3 = self.nc.variables['DDLIM3'][:, iz_state, :, :].data
 
+        # This is incorrect. We need to integrate, not just sum, by multiplying by the bin widths.
         # Sum over the radial range to create a 2D plot.
-        sum_range = np.where(np.logical_and(pol_locs > pmin, pol_locs < pmax))[0]
-        summed_ddlim3 = ddlim3[sum_range, :, :].sum(axis=0)
+        #sum_range = np.where(np.logical_and(pol_locs >= pmin, pol_locs <= pmax))[0]
+        sum_range = np.where(np.logical_and(ps >= pmin, ps <= pmax))[0]
+
+        # To truly get the range from pmin to pmax, we probably will need to reach
+        # into the bin where the limit actually is.
+        #                   sum_range[0]          sum_range[1]
+        #                       |                     |
+        #       0          1    |     2          3    |     4
+        # --------------------------------------------------------
+        # |          |     *****|**********|**********|******    |
+        # |          |     *****|**********|**********|******    |
+        # --------------------------------------------------------
+        #                 ^                                 ^
+        #                 |                                 |
+        #               pmin                              pmax
+        #
+        # Since the value for ddlim3 is essentially an average for that bin, we
+        # can just take abs(ps[1]-pmin) / pwidth[1] * ddlim3[1] of that bin and
+        # add it on to our summed_ddlim3.
+
+        # This isn't elegant but matrix math is confusing.
+        summed_ddlim3 = np.zeros((len(par_locs), len(rad_locs)))
+        for i in range(0, len(sum_range)):
+            summed_ddlim3 += ddlim3[sum_range,:,:][i] * abs(ps[sum_range[i]])
+
+        # Now add on the contributions from the edge cells it may or may not
+        # spill into. If the poloidal boundary of the "left-most" ps cell does not
+        # equal pmin, then that means we're spilling into a cell to the left.
+        if abs(ps[sum_range[0]] - pmin) > 1e-5:
+            left_cell = sum_range[0] - 1
+            frac_of_left = 1 - abs(ps[left_cell] - pmin) / pwids[left_cell]
+            print("ps[{}] = {:.4f} but pmin = {:.4f}. Adding on {:.2f} from left cell, ps[{}] = {:.3f}.".format(sum_range[0], ps[sum_range[0]], pmin, frac_of_left, left_cell, ps[left_cell]))
+            summed_ddlim3 += ddlim3[left_cell, :, :] * frac_of_left
+        if abs(ps[sum_range[-1]] - pmax) > 1e-5:
+            right_cell = sum_range[-1] + 1
+            frac_of_right = 1 - abs(ps[right_cell] - pmax) / pwids[right_cell]
+            print("ps[{}] = {:.4f} but pmax = {:.4f}. Adding on {:.2f} from right cell, ps[{}] = {:.3f}.".format(sum_range[-1], ps[sum_range[-1]], pmax, frac_of_right, right_cell, ps[right_cell]))
+            summed_ddlim3 += ddlim3[right_cell, :, :] * frac_of_right
+
+        #summed_ddlim3 = ddlim3[sum_range, :, :].sum(axis=0)
+
+        if vmax != None:
+            summed_ddlim3 = np.clip(summed_ddlim3, 0, vmax)
 
         # Plotting commands.
         X, Y = np.meshgrid(par_locs, rad_locs)
         Z = summed_ddlim3
 
         if plotnum == 0:
-            fig = plt.figure()
+            fig = plt.figure(figsize=(10,8))
             ax = fig.add_subplot(111)
         else:
             ax = self.master_fig.axes[plotnum - 1]
 
+
+        def fmt(x, pos):
+            a, b = '{:.2e}'.format(x).split('e')
+            b = int(b)
+            return r'${} \times 10^{{{}}}$'.format(a, b)
+
         cont = ax.contourf(X, Y, Z.T)
-        cbar = self.master_fig.colorbar(cont, ax=ax)
+        if plotnum == 0:
+            cbar = fig.colorbar(cont, ax=ax, format='%.2e')
+        else:
+            cbar = self.master_fig.colorbar(cont, ax=ax, format='%.2e')
         cl = float(self.nc['CL'][:].data)
         ax.set_xlim([-cl, cl])
+        fontsize=16
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
         ax.set_ylabel('Radial (m)', fontsize=fontsize)
+        cbar.set_label('Imp. Density W{}+'.format(iz_state))
         # cp = patches.Rectangle((-0.2,-0.015), width=0.4, height=0.03, color='k')
         # ax.add_patch(cp)
-        textstr = r'Integration region:' + \
-                  r'\n$\mathrm{P_min}$ = ' + str(pmin) + \
-                  r'\n$\mathrm{P_max}$ = ' + str(pmax)
+        textstr = r'Integration region:' + '\n' + \
+                  r'$\mathrm{P_{min}}$ = ' + str(pmin) + '\n' + \
+                  r'$\mathrm{P_{max}}$ = ' + str(pmax)
         props = dict(facecolor='white')
-        # ax.text(0.05, 0.95, textstr, bbox=props)
+
+        if show_steps:
+
+            # Swap x and y bc that's how it plotted.
+            y = self.nc.variables['xabsorb1a_step'][:].data
+            x = self.nc.variables['yabsorb1a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+            ax.add_patch(rect)
+            y = self.nc.variables['xabsorb2a_step'][:].data
+            x = self.nc.variables['yabsorb2a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+            ax.add_patch(rect)
+
+        ax.text(0.6, 0.05, textstr, fontsize=fontsize, bbox=props, transform=ax.transAxes)
 
         if plotnum==0:
             fig.tight_layout()
             fig.show()
 
-    def force_plots(self, plotnum=0, rad_loc=-0.01, cl=9.9, separate_plot=False):
+    def force_plots(self, plotnum=0, rad_loc=-0.01, cl=9.9, separate_plot=False, show_steps=True):
 
         # First, grab that while big force table, splitting it at the start
         # of each force table for each radial location (i.e. ix location).
@@ -673,6 +768,7 @@ class LimPlots:
         # List to hold all the force dataframes.
         dflist = []
         for sf in lim_sfs:
+
             # Split up the rows for this radial location.
             foo = sf.split('\n')[1:]
 
@@ -694,7 +790,7 @@ class LimPlots:
                 break
 
         # Get values from dataframe for plotting.
-        x = np.array(big_df.loc[idx]['YOUT'].values, dtype=np.float64)
+        x  = np.array(big_df.loc[idx]['YOUT'].values,  dtype=np.float64)
         y1 = np.array(big_df.loc[idx]['FTOT1'].values, dtype=np.float64)
         y2 = np.array(big_df.loc[idx]['FTOT2'].values, dtype=np.float64)
 
@@ -709,25 +805,6 @@ class LimPlots:
         y1 = y1[valid_idx]
         y2 = y2[valid_idx]
 
-        if plotnum == 99:
-            pass
-        else:
-            if plotnum == 0:
-                fig = plt.figure()
-                ax = fig.add_subplot(111)
-            else:
-                ax = self.master_fig.axes[plotnum - 1]
-            ax.plot(x, y1, '-', color=tableau20[6], label='FTOT1')
-            ax.plot(x, y2, '-', color=tableau20[8], label='FTOT2')
-            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
-            ax.set_ylabel('Force (N?)', fontsize=fontsize)
-            ax.legend(fontsize=fontsize)
-            ax.axhline(0, linestyle='--', color='k')
-
-            if plotnum == 0:
-                fig.tight_layout()
-                fig.show()
-
         # If you want a separate plot made with all the forces, more detailed.
         if separate_plot:
             x = np.array(big_df.loc[idx]['YOUT'].values, dtype=np.float64)[:-1]
@@ -741,8 +818,8 @@ class LimPlots:
             feg = np.array(big_df.loc[idx]['FEG'].values, dtype=np.float64)[:-1][valid_idx]
             figf = np.array(big_df.loc[idx]['FIG'].values, dtype=np.float64)[:-1][valid_idx]
             fe = np.array(big_df.loc[idx]['FE'].values, dtype=np.float64)[:-1][valid_idx]
-            fvh1 = np.array(big_df.loc[idx]['FVH'].values, dtype=np.float64)[:-1][valid_idx]
-            fvh2 = np.array(big_df.loc[idx]['FVH2'].values, dtype=np.float64)[:-1][valid_idx]
+            #fvh1 = np.array(big_df.loc[idx]['FVH'].values, dtype=np.float64)[:-1][valid_idx]
+            #fvh2 = np.array(big_df.loc[idx]['FVH2'].values, dtype=np.float64)[:-1][valid_idx]
 
             fig = plt.figure(figsize=(7, 5))
             ax = fig.add_subplot(111)
@@ -753,16 +830,70 @@ class LimPlots:
             ax.plot(x, feg, '-', color=tableau20[6], label='FEG')
             ax.plot(x, figf, '-', color=tableau20[8], label='FIG')
             ax.plot(x, fe, '-', color=tableau20[10], label='FE')
-            ax.plot(x, fvh1, '-', color=tableau20[12], label='FVH1')
-            ax.plot(x, fvh2, '--', color=tableau20[12], label='FVH2')
+            #ax.plot(x, fvh1, '-', color=tableau20[12], label='FVH1')
+            #ax.plot(x, fvh2, '--', color=tableau20[12], label='FVH2')
             ax.legend(fontsize=fontsize)
             ax.set_xlabel('Parallel (m)')
             ax.set_ylabel('Force (N?)')
+
+            # Show where the step in the absorbing boundary occurs.
+            if show_steps:
+
+                # Left step.
+                if rad_loc < self.nc.variables['xabsorb1a_step'][:].data:
+                    #ax.axvline(self.nc.variables['yabsorb1a_step'][:].data, color='k', linestyle='--')
+                    rect = patches.Rectangle((self.nc.variables['yabsorb1a_step'][:].data, 999), 9999, 9999, color='grey', angle=180, alpha=0.6)
+                    ax.add_patch(rect)
+
+                # Right step.
+                if rad_loc < self.nc.variables['xabsorb2a_step'][:].data:
+                    #ax.axvline(self.nc.variables['yabsorb2a_step'][:].data, color='k', linestyle='--')
+                    rect = patches.Rectangle((self.nc.variables['yabsorb2a_step'][:].data, -999), 9999, 9999, color='grey', alpha=0.6)
+                    ax.add_patch(rect)
+
+
             fig.tight_layout()
             fig.show()
 
+        else:
+
+            if plotnum == 99:
+                pass
+            else:
+                if plotnum == 0:
+                    fig = plt.figure()
+                    ax = fig.add_subplot(111)
+                else:
+                    ax = self.master_fig.axes[plotnum - 1]
+                ax.plot(x, y1, '-', color=tableau20[6], label='FTOT1')
+                ax.plot(x, y2, '-', color=tableau20[8], label='FTOT2')
+                ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+                ax.set_ylabel('Force (N?)', fontsize=fontsize)
+                ax.legend(fontsize=fontsize)
+                ax.axhline(0, linestyle='--', color='k')
+
+                # Show where the step in the absorbing boundary occurs.
+                if show_steps:
+
+                    # Left step.
+                    if rad_loc < self.nc.variables['xabsorb1a_step'][:].data:
+                        #ax.axvline(self.nc.variables['yabsorb1a_step'][:].data, color='k', linestyle='--')
+                        rect = patches.Rectangle((self.nc.variables['yabsorb1a_step'][:].data, 999), 9999, 9999, color='grey', angle=180, alpha=0.6)
+                        ax.add_patch(rect)
+
+                    # Right step.
+                    if rad_loc < self.nc.variables['xabsorb2a_step'][:].data:
+                        #ax.axvline(self.nc.variables['yabsorb2a_step'][:].data, color='k', linestyle='--')
+                        rect = patches.Rectangle((self.nc.variables['yabsorb2a_step'][:].data, -999), 9999, 9999, color='grey', alpha=0.6)
+                        ax.add_patch(rect)
+
+                if plotnum == 0:
+                    fig.tight_layout()
+                    fig.show()
+
+
     def vel_plots(self, vp, plotnum=0, cl=10.0, separate_plot=False, vmin1=None, vmax1=None, vmin2=None, vmax2=None,
-                  clip=False):
+                  clip=False, show_steps=True):
         """
         TODO
 
@@ -825,36 +956,23 @@ class LimPlots:
             Z1 = np.clip(Z1, vmin1, vmax1)
             Z2 = np.clip(Z2, vmin2, vmax2)
 
-        # Plotting commands.
-        if plotnum == 0:
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
-        else:
-            ax = self.master_fig.axes[plotnum - 1]
-
-        cont = ax.contourf(X, Y, Z, vmin=-Z.max(), vmax=Z.max(), cmap='coolwarm')
-        cbar = self.master_fig.colorbar(cont, ax=ax)
-        ax.set_xlim([-cl, cl])
-        ax.set_xlabel('Parallel (m)', fontsize=fontsize)
-        ax.set_ylabel('Radial (m)', fontsize=fontsize)
-        cbar.set_label(vp.upper() + ' (m/s)')
-
-        if plotnum==0:
-            fig.tight_layout()
-            fig.show()
-
         if separate_plot:
+
             # Bounds needed for the colorbar. Will just do 10 levels.
             bounds1 = np.linspace(vmin1, vmax1, 10)
             bounds2 = np.linspace(vmin2, vmax2, 10)
 
+            # Clip the data.
+            Z1 = np.clip(Z1, vmin1, vmax1)
+            Z2 = np.clip(Z2, vmin2, vmax2)
+
             fig = plt.figure()
             ax1 = fig.add_subplot(211)
             ax2 = fig.add_subplot(212)
-            cont1 = ax1.contourf(X, Y, Z1, vmin=vmin1, vmax=vmax1, cmap='coolwarm')
-            cont2 = ax2.contourf(X, Y, Z2, vmin=vmin2, vmax=vmax2, cmap='coolwarm')
-            cbar1 = self.master_fig.colorbar(cont1, ax=ax1, ticks=bounds1)
-            cbar2 = self.master_fig.colorbar(cont2, ax=ax2, ticks=bounds2)
+            cont1 = ax1.contourf(X, Y, Z1, vmin=vmin1, vmax=vmax1, cmap='coolwarm', levels=bounds1)
+            cont2 = ax2.contourf(X, Y, Z2, vmin=vmin2, vmax=vmax2, cmap='coolwarm', levels=bounds2)
+            cbar1 = fig.colorbar(cont1, ax=ax1, ticks=bounds1, boundaries=bounds1)
+            cbar2 = fig.colorbar(cont2, ax=ax2, ticks=bounds2, boundaries=bounds2)
             ax1.set_xlim([-cl, cl])
             ax2.set_xlim([-cl, cl])
             ax1.set_xlabel('Parallel (m)', fontsize=fontsize)
@@ -863,10 +981,60 @@ class LimPlots:
             ax2.set_ylabel('Radial (m)', fontsize=fontsize)
             cbar1.set_label('VP1 (m/s)')
             cbar2.set_label('VP2 (m/s)')
+
+            if show_steps:
+
+                # Swap x and y bc that's how it plotted.
+                y = self.nc.variables['xabsorb1a_step'][:].data
+                x = self.nc.variables['yabsorb1a_step'][:].data
+                rect1 = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                rect2 = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                ax1.add_patch(rect1)
+                ax2.add_patch(rect2)
+                y = self.nc.variables['xabsorb2a_step'][:].data
+                x = self.nc.variables['yabsorb2a_step'][:].data
+                rect1 = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                rect2 = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                ax1.add_patch(rect1)
+                ax2.add_patch(rect2)
+
             fig.tight_layout()
             fig.show()
 
-    def force_plot_2d(self, plotnum=0, vmin=None, vmax=None, force='FF', xlim=(-10, 10)):
+        else:
+
+            # Plotting commands.
+            if plotnum == 0:
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
+            else:
+                ax = self.master_fig.axes[plotnum - 1]
+
+            cont = ax.contourf(X, Y, Z, vmin=-Z.max(), vmax=Z.max(), cmap='coolwarm')
+            cbar = self.master_fig.colorbar(cont, ax=ax)
+            ax.set_xlim([-cl, cl])
+            ax.set_xlabel('Parallel (m)', fontsize=fontsize)
+            ax.set_ylabel('Radial (m)', fontsize=fontsize)
+            cbar.set_label(vp.upper() + ' (m/s)')
+
+            if show_steps:
+
+                # Swap x and y bc that's how it plotted.
+                y = self.nc.variables['xabsorb1a_step'][:].data
+                x = self.nc.variables['yabsorb1a_step'][:].data
+                rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                ax.add_patch(rect)
+                y = self.nc.variables['xabsorb2a_step'][:].data
+                x = self.nc.variables['yabsorb2a_step'][:].data
+                rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                ax.add_patch(rect)
+
+            if plotnum==0:
+                fig.tight_layout()
+                fig.show()
+
+
+    def force_plot_2d(self, plotnum=0, vmin=None, vmax=None, force='FF', xlim=(-10, 10), show_steps=True):
 
         # First, grab that while big force table, splitting it at the start
         # of each force table for each radial location (i.e. ix location).
@@ -945,6 +1113,18 @@ class LimPlots:
         ax.set_xlabel('Parallel (m)')
         ax.set_ylabel('Radial (m)')
         cbar.ax.set_ylabel(force + ' (N)')
+
+        if show_steps:
+
+            # Swap x and y bc that's how it plotted.
+            y = self.nc.variables['xabsorb1a_step'][:].data
+            x = self.nc.variables['yabsorb1a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+            ax.add_patch(rect)
+            y = self.nc.variables['xabsorb2a_step'][:].data
+            x = self.nc.variables['yabsorb2a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+            ax.add_patch(rect)
 
     def overviewplot(self):
 

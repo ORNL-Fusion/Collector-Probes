@@ -162,6 +162,8 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     ne_filt       = np.array([])
     jsat_filt     = np.array([])
     heatflux_filt = np.array([])
+    r_filt        = np.array([])
+    z_filt        = np.array([])
 
     # Go through one probe at a time to get data for plotting.
     for key in lps.keys():
@@ -217,6 +219,8 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
 
             # Assign probe names so we can identify these data points later.
             pnames_filt   = np.append(pnames_filt, key)
+            r_filt        = np.append(r_filt, lps[key]['rprobe'])
+            z_filt        = np.append(z_filt, lps[key]['zprobe'])
 
 
     # Enumerate the pnames so they can be used for color selection.
@@ -287,4 +291,6 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     fig.tight_layout()
     fig.show()
 
-    return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt, 'jsat (A/cm2)':jsat_filt, 'heatflux (W/cm2)':heatflux_filt}
+    return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt,
+           'jsat (A/cm2)':jsat_filt, 'heatflux (W/cm2)':heatflux_filt,
+           'pnames':pnames_filt, 'R':r_filt, 'Z':z_filt}

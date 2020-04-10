@@ -1,7 +1,7 @@
 """
-Author: Shawn Zamperini
-Email:  zamp@utk.edu
-Date:   9/9/19
+Author : Shawn Zamperini
+Email  : zamp@utk.edu
+Date   : 4/9/20
 
 This script started with some code written by Jake Nichols, but has moved on
 to be it's own standalone script. It provides a framework to plot OEDGE output
@@ -75,6 +75,7 @@ along_ring
 """
 
 import netCDF4
+import warnings
 import numpy             as np
 import matplotlib        as mpl
 import matplotlib.pyplot as plt
@@ -201,6 +202,7 @@ class OedgePlots:
         suitible for pandas or anything like that, so just read it in as a text
         with newlines at the end of each line.
 
+        Input
         dat_path: Path location of .dat file.
         """
         self.datpath = dat_path
@@ -212,12 +214,17 @@ class OedgePlots:
         Reads in 2D data into a 1D array, in a form that is then passed easily
         to PolyCollection for plotting.
 
+        Input
         dataname : The 2D data as named in the netCDF file.
         charge   : The charge state to be plotted, if applicable.
         scaling  : Scaling factor to apply to the data, if applicable. Secret
                      option is 'Ring' to just return the ring number at each cell.
         fix_fill : Swap out the default huge number that it seems is put in when
                      there is no data with just a zero. Better for plotting.
+        no_core:   Exclude any core data.
+
+        Output
+        data : The data in a 2D format compatible with plot_contour_polygon.
         """
 
         # Get the 2D data from the netCDF file. Some special options included.
@@ -272,9 +279,14 @@ class OedgePlots:
         """
         Special function for plotting the flow velocity. This
         is because some DIVIMP options (T13, T31, T37?, T38?...) add
-        additional flow values not reflected in KVHS. These
-        additional values are in the .dat file, and thus it is required to run
-        this function.
+        additional flow values not reflected in KVHS. These additional values
+        are in the .dat file, and thus it is required to run this function.
+
+        Input
+        no_core : Exclude the core data.
+
+        Output
+        data : The data in a 2D format compatible with plot_contour_polygon.
         """
 
         # Make sure .dat file has been loaded.
@@ -342,6 +354,10 @@ class OedgePlots:
         """
         Return collection of lines to be plotted with LineCollection method
         of matplotlib for the separatrix.
+
+        Output
+        lines : List of coordinates to draw the separatrix in a format friendly
+                 for LineCollection.
         """
 
         # Get (R, Z) coordinates of separatrix.
@@ -364,12 +380,16 @@ class OedgePlots:
         returned in the NetCDF file, so we calculate it here. Ideally we would
         use exactly what DIVIMP calculates, but that doesn't seem to be here yet.
 
+        Input
         force   : One of 'FF', 'FiG', 'FeG', 'FPG', 'FE' or 'Fnet' (to sum
                   them all).
         charge  : Charge of impurity ion needed for some of the forces.
         vz_mult : Fraction of the background velocity used for vz (needed only
                   in FF).
-        no_core :
+        no_core : Exclude core data.
+
+        Output
+        force : The force data in a 2D format compatible with plot_contour_polygon.
         """
 
         # Temperature and density values for calculations.
@@ -505,6 +525,7 @@ class OedgePlots:
         able to control most whatever you want through the options since this
         was made to be a versatile function.
 
+        Input
         dataname:    The netCDF variable name to plot. Some special datanames
                        will perform extra data handling: KVHSimp, ...
         charge:      The charge state to be plotted, if applicable.
@@ -533,16 +554,18 @@ class OedgePlots:
                        values with 1e36. I think zero is more appropriate for
                        plotting correctly.
         own_data:    Bring your own data to work day. This could be used if you
-                     want to plot the ratio of two data point or something. So if
-                     you wanted to ratio of two datasets returned by read_data_2d,
-                     then you could say own_data = data1 / data2.
+                      want to plot the ratio of two data point or something. So if
+                      you wanted to ratio of two datasets returned by read_data_2d,
+                      then you could say own_data = data1 / data2.
         no_core:     Don't include data in the core region.
         vz_mult:     An optional input for if you're plotting the friction force.
                        See calculate_forces for more info.
+
+        Output
+        fig : The plotted Figure object.
         """
 
         # Make sure show_cp and ptip is in list form if not.
-        #if show_cp != None:
         if type(show_cp) is not list:
             show_cp = [show_cp]
         if type(ptip) is not list:
@@ -556,13 +579,11 @@ class OedgePlots:
         # Get the data through normal means.
         else:
 
-            # Read in the data into a form for PolyCollection. Account for special
-            # options.
+            # Read in the data into a form for PolyCollection. Account for
+            # special options.
             # Flow velocity with additional velocity specified by T13.
             if dataname == 'KVHSimp':
                 data = self.read_data_2d_kvhs_t13(no_core=no_core)
-                #if data == -1:
-                #    return None
 
             # Special option to plot the ring numbers.
             elif dataname == 'Ring':
@@ -598,16 +619,12 @@ class OedgePlots:
 
         # Remove any cells that have nan values.
         not_nan_idx = np.where(~np.isnan(data))[0]
-        #not_nan_idx = np.where(~np.isnan(data))
         mesh = np.array(self.mesh)[not_nan_idx, :, :]
         data = data[not_nan_idx]
 
         # Create a good sized figure with correct proportions.
         fig = plt.figure(figsize=(7, 9))
         ax  = fig.add_subplot(111)
-
-        # Data sorted so the first index is the minimum.
-        #sort_data = np.sort(np.unique(data))
 
         if normtype == 'linear':
             if vmin == None:
@@ -638,8 +655,19 @@ class OedgePlots:
                 vmin = -np.abs(data[~np.isnan(data)]).max()
             if vmax == None:
                 vmax = -vmin
-            norm = mpl.colors.SymLogNorm(linthresh=0.01 * vmax, vmin=vmin, vmax=vmax)
+            norm = mpl.colors.SymLogNorm(linthresh=0.01 * vmax, vmin=vmin, vmax=vmax, base=10)
             cmap = 'coolwarm'
+
+        # Shamelessly copied from StackOverflow. The end of nipy_spectral is
+        # grey, which makes it look like there's a hole in the largest data. Fix
+        # this by just grabbing a subset of the colormap from 0.0-0.95, leaving
+        # out the last portion that's grey.
+        if cmap == 'nipy_spectral':
+            cmap_obj = plt.get_cmap(cmap)
+            new_cmap = mpl.colors.LinearSegmentedColormap.from_list(
+              'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap_obj.name, a=0, b=0.95),
+              cmap_obj(np.linspace(0, 0.95, 500)), N=lut)
+            cmap = new_cmap
 
         # Choose whether to discretize the colormap or not first.
         if smooth_cmap:
@@ -665,7 +693,7 @@ class OedgePlots:
 
         # Use correct amount of levels for colorbar, if specified.
         if levels is not None:
-            cbar = fig.colorbar(coll, ax=ax, boundaries=levels, ticks=levels)
+            cbar = fig.colorbar(coll, ax=ax, boundaries=levels, ticks=levels, extend='both')
         else:
             cbar = fig.colorbar(coll, ax=ax, extend='both')
 
@@ -736,6 +764,7 @@ class OedgePlots:
             ax.add_patch(shelf_rect)
 
         # Organize plot, add labels.
+        ax.axis('equal')
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         ax.set_xlabel('R (m)', fontsize=fontsize)
@@ -846,7 +875,8 @@ class OedgePlots:
         """
         pass
 
-    def create_ts(self, shots, times, ref_time, filename=None, load_all_ts=False):
+    def create_ts(self, shots, times, ref_time, filename=None, load_all_ts=False,
+                  filter=False, method='median', med_bin=11):
         """
         Function to create a Thomson scattering file in the correct format for
         comparing to OEDGE results. Outputs an Excel file with the data in a
@@ -854,17 +884,26 @@ class OedgePlots:
         remember that this TS file only applies to the grid is was generated on!
         Using this Excel file with a different grid will not work!
 
-        shots:         Shots to load TS data for to compare OEDGE against.
-        times:         Times of which to load a gfile for. If load_all_ts is set
+        Input
+        shots         : Shots to load TS data for to compare OEDGE against.
+        times         : Times of which to load a gfile for. If load_all_ts is set
                          to True, the min and max of these times will be used
                          and will grab all available TS times between from EFIT04.
-        ref_time:      Time frame to map all the TS measurements back to.
-        write_to_file: Should normally be True.
-        filename:      Excel output file with the TS data mapped to S.
-        load_all_ts:   Choose whether or not to load ALL the times the TS laser
+        ref_time      : Time frame to map all the TS measurements back to.
+        write_to_file : Should normally be True.
+        filename      : Excel output file with the TS data mapped to S.
+        load_all_ts   : Choose whether or not to load ALL the times the TS laser
                          had fired for from EFIT04. This takes a long time to
                          load, but should only need to be used once per
                          output file.
+        filter        : Choose whether to filter ELMs or not.
+        method        : Method of filtering. Right now 'median' is the only
+                         one worth choosing.
+        med_bin       : Bin size for median filtering (i.e. get the median of
+                         every med_bin data points). 
+
+        Output
+        filename : The filename you input.
         """
 
         # Import here instead of top just in case someone is using the GUI and
@@ -890,12 +929,12 @@ class OedgePlots:
             # Load in TS data, then map it to a reference EFIT time (i.e. the time
             # that the OEDGE grid used).
             self.ts_div = ThomsonClass(shot, 'divertor')
-            self.ts_div.load_ts(verbal=False)
+            self.ts_div.load_ts(verbal=False, filter=filter, method=method, med_bin=med_bin)
             self.ts_core = ThomsonClass(shot, 'core')
-            self.ts_core.load_ts(verbal=False)
+            self.ts_core.load_ts(verbal=False, filter=filter, method=method, med_bin=med_bin)
 
-            # If load_al_ts is True, use ALL the times TS data is available for. This
-            # could take a REALLY long time though, so give a warning.
+            # If load_all_ts is True, use ALL the times TS data is available for.
+            # This could take a REALLY long time though, so give a warning.
             if load_all_ts:
                 print('Warning: Loading all TS times. This could take a long time...')
 
@@ -917,15 +956,15 @@ class OedgePlots:
                 ref_time_div  = div_times[ref_idx_div]
 
                 # Load the times. This is where we will spend some time loading.
-                self.ts_div.map_to_efit(times=div_times, ref_time=ref_time_div)
-                self.ts_core.map_to_efit(times=core_times, ref_time=ref_time_core)
+                self.ts_div.map_to_efit(times=div_times, ref_time=ref_time_div, tree='EFIT01')
+                self.ts_core.map_to_efit(times=core_times, ref_time=ref_time_core, tree='EFIT01')
                 num_rows = (len(div_times) * len(self.ts_div.ref_df.index)) + (len(core_times) * len(self.ts_core.ref_df.index))
 
             else:
 
                 # Just load TS data with the given times.
-                self.ts_div.map_to_efit(times=times, ref_time=ref_time)
-                self.ts_core.map_to_efit(times=times, ref_time=ref_time)
+                self.ts_div.map_to_efit(times=times, ref_time=ref_time, tree='EFIT01')
+                self.ts_core.map_to_efit(times=times, ref_time=ref_time, tree='EFIT01')
                 num_rows = len(times) * (len(self.ts_div.ref_df.index) + len(self.ts_core.ref_df.index))
 
             # Initialize DataFrame to hold the S values for this shot. Filling in the index
@@ -988,7 +1027,6 @@ class OedgePlots:
                  "this time frame. These values are only useful for the core " +
                  "Thomson, since finding them for the divertor is difficult.")
 
-
         if filename == None:
             filename = 'ts_mapped_to_s_' + str(shot) + '.xlsx'
         self.s_df_all.to_excel(filename)
@@ -1001,25 +1039,28 @@ class OedgePlots:
                    dashed_rings=True):
         """
         Function to create plots to compare the OEDGE results to Thomson
-        scattering. A PDF file is output with all the graphs for each ring.
+        scattering. A PDF file is output with all the graphs for each ring. This
+        function only really makes sense with L-mode shots since it has no ELM
+        filtering capablities.
 
-        ts_filename: The Excel file created from "create_ts" above. Has all the
-                     TS data mapped to S.
-        rings:       OEDGE rings to compare the TS against.
-        show_legend: One of 'all' or 'short'. 'all' will show which shot is
-                     which color, and 'short' will only show OEDGE and the
-                     average TS values, binned accordinagly with std. dev.
-        nrows:       Number of rows of plots for the PDF file.
-        ncols:       Number of columns of plots for the PDF file.
-        bin_width:   Width of each bin, in meters, to bin the TS data along S
-                     into. This makes getting averages and a standard deviation
-                     possible, making comparing TS to OEDGE much more meaningful.
-        output_file: What the save the PDF as.
-        rad_bin_width: Bin width for the R-Rsep OMP plots to bin the TS data into.
-        core_sweep_bug_time: Handles a bug in the ThomsonClass script. See
-                     explanation in the comment about 15 lines down from here.
-        filter_zeros: Get rid of some zeros that aren't real data.
-        dashed_rings: Put dashed lines on the plots for every tenth ring.
+        Input
+        ts_filename   : The Excel file created from "create_ts" above. Has all the
+                         TS data mapped to S.
+        rings         : OEDGE rings to compare the TS against.
+        show_legend   : One of 'all' or 'short'. 'all' will show which shot is
+                         which color, and 'short' will only show OEDGE and the
+                         average TS values, binned accordinagly with std. dev.
+        nrows         : Number of rows of plots for the PDF file.
+        ncols         : Number of columns of plots for the PDF file.
+        bin_width     : Width of each bin, in meters, to bin the TS data along S
+                         into. This makes getting averages and a standard deviation
+                         possible, making comparing TS to OEDGE much more meaningful.
+        output_file   : What the save the PDF as.
+        rad_bin_width : Bin width for the R-Rsep OMP plots to bin the TS data into.
+        core_sweep_bug_time : Handles a bug in the ThomsonClass script. See
+                         explanation in the comment about 15 lines down from here.
+        filter_zeros  : Get rid of some zeros that aren't real data.
+        dashed_rings  : Put dashed lines on the plots for every tenth ring.
         """
 
         # Warning that pops up but is unecessary.
@@ -1053,15 +1094,21 @@ class OedgePlots:
         pdf_filename = output_file
         with PdfPages(pdf_filename) as pdf:
 
-            # Get the Z of the OMP.
+            # Get the R, Z of the OMP.
             z0 = self.nc['Z0'][:].data
             r0 = self.nc['R0'][:].data
 
             # Get Rsep at the OMP.
-            sep_ring     = self.nc['IRSEP'][:] - 1  # Subtract 1 for indexing means.
-            dist         = np.abs(self.zs[sep_ring] - z0)
+            sep_ring = self.nc['IRSEP'][:] - 1  # Subtract 1 for indexing means.
+            omp_side = self.rs[sep_ring] > r0
+            zs_omp   = self.zs[sep_ring][omp_side]
+            rs_omp   = self.rs[sep_ring][omp_side]
+            dist     = np.abs(zs_omp - z0)
+            #dist         = np.abs(self.zs[sep_ring] - z0)
             rsepomp_cell = np.where(dist == dist.min())[0]
-            rsepomp      = self.rs[sep_ring, rsepomp_cell]
+            rsepomp      = rs_omp[rsepomp_cell]
+            zsepomp      = zs_omp[rsepomp_cell]
+            #rsepomp      = self.rs[sep_ring, rsepomp_cell]
 
             # Get the Thomson R's and Z's. Only upstream and rings outside IRSEP.
             # Downstream comparisons will have to be with Langmuir probes and
@@ -1085,12 +1132,31 @@ class OedgePlots:
                 # Only want the OMP side, so take cells on the right half of R0.
                 omp_side = self.rs[ts_ring[i]] > r0
 
-                dist = np.abs(self.zs[ts_ring[i]][omp_side] - z0)
-                omp_cell = np.where(dist == dist.min())[0]
-                romp = self.rs[ts_ring[i]][omp_side][omp_cell]
+
+                #dist = np.abs(self.zs[ts_ring[i]][omp_side] - z0)
+                #omp_cell = np.where(dist == dist.min())[0]
+                #romp = self.rs[ts_ring[i]][omp_side][omp_cell]
+                #print("Ring {}. romp = {}".format(ts_ring[i], romp))
 
                 # Find R-Rsep OMP.
-                ts_romp[i] = romp - rsepomp
+                #ts_romp[i] = romp - rsepomp
+
+
+                # We are making a bit of an approximation here. If we were to
+                # take the closest knot to the OMP for each ring, then it's possible
+                # that each ring's corresponding knot could either be slightly above
+                # or below the OMP, making R-Rsep OMP negative (which is obivously)
+                # not true. So instead we assume the OMP cell of each ring is the
+                # same cell as the separatrix one calculated above. So in effect
+                # the "radial" profile at the OMP we end up with may actually
+                # be at a slight angle upwards or downwards, depending on the grid,
+                # but we assume it to be negligible (probably a safe assumption).
+                romp = self.rs[ts_ring[i]][omp_side][rsepomp_cell]
+                zomp = self.zs[ts_ring[i]][omp_side][rsepomp_cell]
+                #old_settings = np.seterr(all='ignore')
+                romp_approx = np.sqrt(np.power(romp-rsepomp, 2) + np.power(zomp-zsepomp, 2))
+                #np.seterr(**old_settings)
+                ts_romp[i] = romp_approx
 
             # Now need to get the OEDGE values at the OMP.
             more_rings = np.arange(sep_ring, self.irwall)
@@ -1114,16 +1180,34 @@ class OedgePlots:
                 #print(ring)
 
                 try:
+
+
                     # Get the RminRsep OMP values for these values mapped to the OMP.
                     omp_side = self.rs[ring] > r0
-                    dist = np.abs(self.zs[ring][omp_side] - z0)
-                    omp_cell = np.where(dist == dist.min())[0]
-                    romp = self.rs[ring][omp_side][omp_cell]
-                    oedge_romps = np.append(oedge_romps, romp - rsepomp)
+                    #dist = np.abs(self.zs[ring][omp_side] - z0)
+                    #omp_cell = np.where(dist == dist.min())[0]
+                    #romp = self.rs[ring][omp_side][omp_cell]
+                    #print("Ring {} omp_cell = {}, {}, {}".format(ring, omp_cell, romp, romp-rsepomp))
+                    #if romp-rsepomp < 1e-4:
+                    #    omp_cell = omp_cell - 1
+                    #    romp = self.rs[ring][omp_side][omp_cell]
+                    #    print("  Updated to {}, {}, {}".format(omp_cell, romp, romp-rsepomp))
+                    #oedge_romps = np.append(oedge_romps, romp - rsepomp)
+
+
+                    # Overwrite with the approximation already explained above.
+                    romp = self.rs[ring][omp_side][rsepomp_cell]
+                    zomp = self.zs[ring][omp_side][rsepomp_cell]
+                    #old_settings = np.seterr(all='ignore')
+                    romp_approx = np.sqrt(np.power(romp-rsepomp, 2) + np.power(zomp-zsepomp, 2))
+                    #np.seterr(**old_settings)
+                    oedge_romps = np.append(oedge_romps, romp_approx)
 
                     if ring % 10 == 0:
                         oedge_ring_dashed = np.append(oedge_ring_dashed, int(ring))
-                        oedge_ring_romps  = np.append(oedge_ring_romps, romp - rsepomp)
+                        #oedge_ring_romps  = np.append(oedge_ring_romps, romp - rsepomp)
+                        oedge_ring_romps  = np.append(oedge_ring_romps, romp_approx)
+                        #print("Added to dashed rings: {} at {}".format(ring, romp-rsepomp))
 
                     # Get the Te, ne values along the R value where TS is taken. Need
                     # to find which cell on this ring this is at. Just to be safe only
@@ -1135,7 +1219,7 @@ class OedgePlots:
                     oedge_neomp = np.append(oedge_neomp, self.nc['KNBS'][:][ring][above_omp][close_cell])
 
                 except ValueError:
-                    #print("Maybe ring {} isn't to the right of the OMP.".format(ring))
+                    print("Maybe ring {} isn't to the right of the OMP.".format(ring))
                     pass
 
             # Sort the OEDGE data for plotting.
@@ -1161,8 +1245,10 @@ class OedgePlots:
                 # Bin the Thomson data some to get averages and error bars.
                 bins = np.arange(ts_romp.min(), ts_romp.max()+rad_bin_width, rad_bin_width)
                 digi = np.digitize(ts_romp, bins)
-                bin_means = [y[digi == i].mean() for i in range(1, len(bins))]
-                bin_stds = [y[digi == i].std() for i in range(1, len(bins))]
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    bin_means = [y[digi == i].mean() for i in range(1, len(bins))]
+                    bin_stds = [y[digi == i].std() for i in range(1, len(bins))]
                 bin_centers = bins[:-1] + rad_bin_width / 2.0
 
                 line1, = axs[graph_num].plot(ts_romp, y, '.', color='lightgrey', alpha=0.35, zorder=-32)
@@ -1219,20 +1305,32 @@ class OedgePlots:
 
                         # Get only the portion matching this shot.
                         smaller_ring_df = ring_df[ring_df['Shot'] == shot]
+                        s_core = smaller_ring_df[smaller_ring_df['System'] == 'core']['S (m)']
+                        s_div  = smaller_ring_df[smaller_ring_df['System'] == 'divertor']['S (m)']
 
                         # Choose correct data for Y axis.
                         if oedge_data == 'Te':
                             y = smaller_ring_df['Te (eV)']
+                            y_core = smaller_ring_df[smaller_ring_df['System'] == 'core']['Te (eV)']
+                            y_div  = smaller_ring_df[smaller_ring_df['System'] == 'divertor']['Te (eV)']
                         if oedge_data == 'ne':
                             y = smaller_ring_df['ne (m-3)']
+                            y_core = smaller_ring_df[smaller_ring_df['System'] == 'core']['ne (m-3)']
+                            y_div  = smaller_ring_df[smaller_ring_df['System'] == 'divertor']['ne (m-3)']
 
                         # Plot it with a specific color. 2 because those colors are better.
                         # zorder is needed because of a matplotlib bug where the
                         # errorbars render under these data points, which we don't
                         # want.
-                        ls = axs[graph_count].plot(smaller_ring_df['S (m)'], y, '.',
+                        #ls = axs[graph_count].plot(smaller_ring_df['S (m)'], y, '.',
+                        #                           color=tableau20[color], label=shot,
+                        #                           alpha=1.0, zorder=-32)
+                        ls = axs[graph_count].plot(s_core, y_core, '.',
                                                    color=tableau20[color], label=shot,
                                                    alpha=1.0, zorder=-32)
+                        ls = axs[graph_count].plot(s_div, y_div, 'o',
+                                                   color=tableau20[color], label=shot,
+                                                   alpha=1.0, zorder=-32, markerfacecolor='none', markeredgecolor=tableau20[color])
                         color += 1
 
                         # Prevent going past the size of tableau20 array.
@@ -1280,12 +1378,20 @@ class OedgePlots:
                         #axs[graph_count].plot(ring_df['S (m)'], ring_df['Te (eV)'], '.')
                         oedge_dat = self.nc['KTEBS'][:][ring-1].data
                         axs[graph_count].set_ylabel('Te (eV)')
+                        axs[graph_count].set_ylim([0, 200])
 
                     # ne plots.
                     if oedge_data == 'ne':
                         #axs[graph_count].plot(ring_df['S (m)'], ring_df['ne (m-3)'], '.')
                         oedge_dat = self.nc['KNBS'][:][ring-1].data
                         axs[graph_count].set_ylabel('ne (m-3)')
+                        axs[graph_count].set_ylim([0, 1.5e20])
+
+                    try:
+                        max_bin = max(bin_means)
+                    except:
+                        max_bin = 0
+                    axs[graph_count].set_ylim([0, max([max_bin, max(oedge_dat)])*1.5])
 
                     # Drop some extra zeros that sneak in.
                     keep_idx = np.where(oedge_s != 0.0)[0]
@@ -1336,6 +1442,11 @@ class OedgePlots:
         make sure everything looks alright. Note if there is a strike point
         sweep it will make it look like the core is sweeping a range as well
         when it really isn't. Chose time_cutoff to indicate start of sweep.
+
+        ts_filename : The file created from create_ts.
+        time_cutoff : Fix a small bug in how the core data is plotted when
+                       there's a strike point sweep. This would be the start of
+                       the sweep time so you don't use core data that is goofed up.
         """
 
         # Load up a plot. Just do Te, it doesn't really matter what data.
@@ -1362,6 +1473,13 @@ class OedgePlots:
         """
         This function will return the ring and the knot on that ring of the cell
         closest to the input (r, z). Outputs as (ring, knot) in a tuple.
+
+        Input
+        r : R location of the point on the grid.
+        z : Z location of the point on the grid.
+
+        Output
+        ring, knot : The ring and knot of which cell this point is in.
         """
 
         dist = np.sqrt((r - self.rs)**2 + (z - self.zs)**2)
@@ -1369,14 +1487,27 @@ class OedgePlots:
 
         return (closest_cell[0][0], closest_cell[1][0])
 
-    def fake_probe(self, r_start, r_end, z_start, z_end, data='Te', num_locs=100, plot=None, fontsize=16):
+    def fake_probe(self, r_start, r_end, z_start, z_end, data='Te', num_locs=100,
+                   plot=None, show_plot=True, fontsize=16):
         """
         Return data, and plot, of a mock probe. Plot is useful if the probe has
         a constant R or Z value, just choose the correct option for it.
 
-        data: One of 'Te', 'ne', 'Mach' or 'Velocity'.
-        plot: Either None, 'R' or 'Z' (or 'r' or 'z'), or 'psin'. If the probe is at a
-              constant R, then use 'R', likewise for 'Z'.
+        Input
+        r_start   : R coordinate of the measurement starting point.
+        r_end     : R coordinate of the measurement ending point.
+        z_start   : Z coordinate of the measurement starting point.
+        z_end     : Z coordinate of the measurement ending point.
+        data      : One of 'Te', 'ne', 'Mach', 'Velocity', 'L OTF', or 'L ITF'.
+        num_locs  :
+        plot      : Either None, 'R' or 'Z' (or 'r' or 'z'), or 'psin'. If the probe is at a
+                     constant R, then use 'R', likewise for 'Z'.
+        show_plot : Show the plot or not (i.e. if you just want the data).
+        fontsize  : Font size for the data labels.
+
+        Output
+        x, y : The data used in the plot that simulates, for example, a plunging
+                Langmuir probe or something.
         """
 
         # Create rs and zs to get measurements at.
@@ -1436,7 +1567,7 @@ class OedgePlots:
             except AttributeError:
                 print("Error: .dat file has not been loaded.")
             except IndexError:
-                print("Warning: Can't add on T13 flag if DIVIMP is not run.")
+                print("Warning: Can't add on T13 data if DIVIMP is not run.")
 
             # Fill in the psin values for the dataframe.
             for i in range(0, len(rs)):
@@ -1501,38 +1632,54 @@ class OedgePlots:
                 xlabel = 'Psin'
             y = output_df[data].values
 
-            fig = plt.figure()
-            ax  = fig.add_subplot(111)
-            ax.plot(x, y, lw=5, color='k')
-            ax.set_xlabel(xlabel, fontsize=fontsize)
-            ax.set_ylabel(ylabel, fontsize=fontsize)
-            ax.tick_params(axis='both', labelsize=fontsize*0.75)
+            if show_plot:
+                fig = plt.figure()
+                ax  = fig.add_subplot(111)
+                ax.plot(x, y, lw=3, color='k')
+                ax.set_xlabel(xlabel, fontsize=fontsize)
+                ax.set_ylabel(ylabel, fontsize=fontsize)
+                ax.tick_params(axis='both', labelsize=fontsize*0.75)
 
-            # Set correct limit on X axis.
-            #if plot == 'Z':
-            #    ax.set_xlim([r_start, r_end])
-            #elif plot == 'R':
-            #    ax.set_xlim([z_start, z_end])
+                # Set correct limit on X axis.
+                #if plot == 'Z':
+                #    ax.set_xlim([r_start, r_end])
+                #elif plot == 'R':
+                #    ax.set_xlim([z_start, z_end])
 
-            fig.show()
+                fig.show()
 
-        return output_df
+        #return output_df
+        return x, y
 
     def along_ring(self, ring, dataname, ylabel=None, charge=None, vz_mult=0.0, plot_it=True):
         """
         Plot data along a specified ring. Will return the x, y data just in case
         you want it.
 
-        ring:     The ring number to plot data for.
-        dataname: The NetCDF variable you want the dat along the ring for. Special
-                  options include 'Mach' or 'Velocity' that can add on the additional
-                  drift option T13 if it was on.
+        Input
+        ring     : The ring number to plot data for.
+        dataname : The NetCDF variable you want the dat along the ring for. Special
+                    options include 'Mach' or 'Velocity' that can add on the additional
+                    drift option T13 if it was on.
+        ylabel   : Label for the Y-axis.
+        charge   : Charge, if needed.
+        vz_mult  : The multiplier to be used in FF calculations (see calculate forces).
+        plot_it  : Show the plot or not.
+
+        Output
+        x, y : The data used to make the plot. Would be S, data.
         """
 
         # Get the parallel to B coordinate. Not sure why this "1" is needed, but
         # these is a like extra point in this KSB data to be ignored for the test
         # cases I work with.
         x = self.nc['KSB'][:][ring][1:].data
+
+        # Some translations.
+        if dataname == 'KVHS - Mach':
+            dataname = 'Mach'
+        elif dataname == 'KVHS':
+            dataname = 'Velocity'
 
         # If we want the Mach number (or speed), we need to do a little data
         # preprocessing first to see if the additional T13 drift option was on.
@@ -1583,6 +1730,12 @@ class OedgePlots:
             except AttributeError:
                 print("Error: .dat file has not been loaded.")
 
+            except IndexError:
+
+                # Happens if DIVIMP not run, and since T13 is a DIVIMP only option,
+                # it's irrelevant when jsut creating background.
+                pass
+
             # Finally put it into the y value of the ring we want.
             if dataname == 'Mach':
 
@@ -1605,7 +1758,7 @@ class OedgePlots:
             if charge == 'all':
                 y = self.nc[dataname][:].sum(axis=0)[ring] * scaling
             else:
-                y = self.nc[dataname][:][charge][ring] * scaling
+                y = self.nc[dataname][:][charge-1][ring] * scaling
 
         # Pull from the forces data if you want a force plot.
         elif dataname.lower() in ['ff', 'fig', 'feg', 'fpg', 'fe', 'fnet', 'ff']:
@@ -1614,7 +1767,9 @@ class OedgePlots:
             col_log = 15
             qe      = 1.602E-19
             amu_kg  = 1.66E-27
-            fact = np.power(self.qtim, 2) * qe / amu_kg
+            emi = 1.602192E-19 / 1.672614E-27
+            #fact = np.power(self.qtim, 2) * qe / amu_kg
+            fact = np.power(self.qtim, 2) * emi / self.crmi
 
             if dataname.lower() == 'fig':
 
@@ -1633,6 +1788,7 @@ class OedgePlots:
                 #kfigs = self.read_data_2d('KFIGS', scaling = qe / fact)
 
                 kfigs = self.nc['KFIGS'][:][ring].data * qe / fact
+                #kfigs = self.nc['KFIGS'][:][ring].data / fact
 
                 # Calculate the force.
                 fig = beta * kfigs
@@ -1642,7 +1798,7 @@ class OedgePlots:
 
                 # Need charge to calculate FF.
                 if charge == None:
-                    print("Error: Must supply a charge sate to calculate FiG")
+                    print("Error: Must supply a charge state to calculate FF")
                     return None
 
                 ti = self.nc['KTIBS'][:][ring].data
@@ -1700,7 +1856,10 @@ class OedgePlots:
 
         else:
             # Get the data for this ring.
-            y = np.array(self.nc[dataname][:][ring].data, dtype=np.float64)
+            if charge == None:
+                y = np.array(self.nc[dataname][:][ring].data, dtype=np.float64)
+            else:
+                y = np.array(self.nc[dataname][:][charge-1][ring].data, dtype=np.float64)
 
         # Remove any (0, 0) data points that may occur due to fortran being fortran.
         drop_idx = np.array([])

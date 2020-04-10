@@ -42,7 +42,8 @@ class ThomsonClass:
                + "  Shot:   " + str(self.shot) + "\n" \
                + "  System: " + str(self.system)
 
-    def load_ts(self, verbal=True, times=None, tunnel=True):
+    def load_ts(self, verbal=True, times=None, tunnel=True, filter=False,
+                fs='FS04', avg_thresh=2, method='simple', med_bin=11):
         """
         Function to get all the data from the Thomson Scattering "BLESSED" tree
         on atlas. The data most people probably care about is the temperature (eV)
@@ -60,6 +61,7 @@ class ThomsonClass:
         times: Provide times that a polynomial fit will be applied to, and then
                averaged over. This is my attempt at smoothing the TS data when
                it's noisy (maybe to help with ELMs).
+        filter: Run the filter function to do a simple filter of the data.
         """
 
         # Create thin connection to MDSplus on atlas. Tunnel if connection locally.
@@ -161,8 +163,17 @@ class ThomsonClass:
         self.temp_df = self.temp_df.transpose()
         self.dens_df = self.dens_df.transpose()
 
+        # Filter the data from ELMs and just replace with the filtered dataframes.
+        if filter:
+            print("Filtering data...")
+            self.filter_elms(fs=fs, avg_thresh=avg_thresh, method=method)
+            self.temp_df_unfiltered = self.temp_df
+            self.dens_df_unfiltered = self.dens_df
+            self.temp_df = self.temp_df_filt
+            self.dens_df = self.dens_df_filt
+
+        # Do a polynomial fit to the data. Fifth-order.
         if times is not None:
-            # Do a polynomial fit to the data. Fifth-order.
             self.temp_df_poly = pd.DataFrame()
             self.dens_df_poly = pd.DataFrame()
             xp = np.linspace(times.min(), times.max(), 1000)
@@ -190,8 +201,8 @@ class ThomsonClass:
             self.dens_df_poly.index = xp
 
             # Can we just swap temp_df out with temp_df_poly?
-            self.temp_df = self.temp_df_poly
-            self.dens_df = self.dens_df_poly
+            #self.temp_df = self.temp_df_poly
+            #self.dens_df = self.dens_df_poly
 
 
     def load_gfile_mds(self, shot, time, tree="EFIT04", exact=False,
@@ -529,7 +540,7 @@ class ThomsonClass:
 
                 #for time in range(0, len(times)):
                 for time in times:
-                    
+
                     # Get the tuple data point for this chord at this time (r-rsep_omp, Te).
                     tmp_p = self.temp_df_omp[str(time) + ' psin'].values[chord][0]
                     tmp_o = self.temp_df_omp[time].values[chord][0]
@@ -830,15 +841,104 @@ class ThomsonClass:
         else:
             print("Error: ref_time not one of the times in map_to_efit.")
 
-    def filter_elms(self, replace='linear'):
+    def filter_elms(self, method='simple', fs='FS04', avg_thresh=2, plot_it=True,
+                    med_bin=11):
         """
         Method to filter ELM data. Replace Te, ne data that was taken during an
         ELM with either exclude or with a linear fit between the value before the ELM
-        and the value at the end. Uses FS04 signal (divertor).
+        and the value at the end.
 
-        replace: Either 'exclude' or 'linear'. linear will replace the intra-ELM values
-                 with a linear fit.
+        method     : One of 'simple' or 'median'.
+        fs         : Simple method. Which filterscope to get data from/
+        avg_thresh : Simple method. Anything above the average filterscope
+                      value * avg_thresh will be considered an ELM and data in
+                      that time range will be filtered out of the Thomson data.
+        plot_it    : Plot the filtered data.
+        med_bin    : Median method. Size of bins for the median filter (i.e. get
+                      the median of every med_bin data points). Must be odd.
         """
 
-        # First pull in the filterscope data from FS04 to detect ELMs.
-        fs04 = gadata('FS04', shot=self.shot, connection=self.conn)
+        if method == 'simple':
+
+            # First pull in the filterscope data to detect ELMs.
+            fs_obj = gadata(fs, shot=self.shot, connection=self.conn)
+
+            # Indices of ELMs.
+            abv_avg = fs_obj.zdata > fs_obj.zdata.mean() * avg_thresh
+
+            # Plot it just to show it makes sense.
+            if plot_it:
+                fig, ax = plt.subplots()
+                ax.plot(fs_obj.xdata[~abv_avg], fs_obj.zdata[~abv_avg], 'k')
+                ax.plot(fs_obj.xdata[abv_avg],  fs_obj.zdata[abv_avg],  'r')
+                ax.set_xlabel('Time (ms)')
+                ax.set_ylabel(fs)
+                fig.tight_layout()
+                fig.show()
+
+            # Create list of pairs of times, where anything between each pair is
+            # data to be filtered.
+            bad_times = []
+            in_bad = False
+            for i in range(0, len(abv_avg)):
+                if not in_bad:
+                    if abv_avg[i] == True:
+                        bad_start = fs_obj.xdata[i]
+                        in_bad = True
+                else:
+                    if abv_avg[i] == False:
+                        bad_end = fs_obj.xdata[i-1]
+                        in_bad = False
+                        bad_range = (bad_start, bad_end)
+                        bad_times.append(bad_range)
+
+            # Get the indices (or just True/False array) of rows in the
+            # temp_df/dens_df to filter out.
+            filter_times = np.full(len(self.temp_df.index), False)
+            filter_times_ref = []
+            for bt in bad_times:
+
+                # For the temp_df/dens_df.
+                elm_times = np.logical_and(self.temp_df.index > bt[0], self.temp_df.index < bt[1])
+                filter_times = np.logical_or(filter_times, elm_times)
+
+            # Index only the data that didn't fall in an ELM time range.
+            self.temp_df_filt = self.temp_df.iloc[~filter_times]
+            self.dens_df_filt = self.dens_df.iloc[~filter_times]
+
+        elif method == 'median':
+
+            # Get the median filter from scipy.
+            from scipy.signal import medfilt
+
+            # Identify all the nonzero points since we don't care about zeros.
+            te_nonzero = self.temp_df != 0
+            ne_nonzero = self.dens_df != 0
+
+            # Perform a median filter on the data.
+            te_filt = medfilt(self.temp_df[te_nonzero], med_bin)
+            ne_filt = medfilt(self.dens_df[ne_nonzero], med_bin)
+
+            # Plot all the chords if you want.
+            if plot_it:
+                num_col = 5
+                num_rows = int(np.ceil(len(self.temp_df.columns) / num_col))
+                for df, filt in [(self.temp_df, te_filt), (self.dens_df, ne_filt)]:
+                    fig, axs = plt.subplots(num_rows, num_col, sharex=True)
+                    axs = axs.flatten()
+                    for chord in df.columns:
+                        axs[chord].plot(df.index, df[chord], '-k.')
+                        axs[chord].plot(df.index, filt[:, chord], '-r.')
+                        if chord % num_col == 0:
+                            if df.equals(self.temp_df):
+                                axs[chord].set_ylabel('Te (eV)')
+                            elif df.equals(self.dens_df):
+                                axs[chord].set_ylabel('ne (m-3)')
+                        if (num_rows * num_col - chord) < num_col:
+                            axs[chord].set_xlabel('Time (ms)')
+                    fig.tight_layout()
+                    fig.show()
+
+            # Store the filtered data.
+            self.temp_df_filt = self.temp_df.replace(te_filt)
+            self.dens_df_filt = self.dens_df.replace(ne_filt)

@@ -10,8 +10,8 @@ plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
              'Flow Velocity (with T13) - Mach', 'Force - Net', 'Force - FF', 'Force - FiG',
              'Force - FE', 'Force - FeG', 'Impurity Density',
              'Impurity Density - Charge', 'Impurity Ionization', 'Density',
-             'Density - Divertor', 'Rings', 'S Coordinate', 'Temperature',
-             'Temperature - Divertor', 'Area of Cells']
+             'Rings', 'S Coordinate', 'Electron Temperature',
+             'Area of Cells', 'Ion Temperature']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 fake_opts = ['Mach', 'Te', 'ne', 'Velocity']
 
@@ -105,7 +105,7 @@ class Window(tk.Frame):
         tk.Label(self.netcdf_frame, text='Plot:', bg=cname).grid(row=row, column=0, sticky='E')
         self.current_option = tk.StringVar(self.netcdf_frame)
         self.current_option.set(plot_opts[0])
-        self.plot_option = tk.OptionMenu(self.netcdf_frame, self.current_option, *plot_opts)
+        self.plot_option = tk.OptionMenu(self.netcdf_frame, self.current_option, *sorted(plot_opts))
         self.plot_option.grid(row=row, column=1, sticky='WE', padx=padx, pady=pady)
         self.plot_button = tk.Button(self.netcdf_frame, text='Plot')
         self.plot_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
@@ -246,7 +246,13 @@ class Window(tk.Frame):
         """
         self.message_box.insert(tk.END, 'Loading...\n')
         root = tk.Tk(); root.withdraw()
-        netcdf_path = tk.filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
+
+        # Path to DIVIMP files on Shawn's computer.
+        try:
+            initialdir = '/mnt/c/Users/Shawn/Documents/d3d_work/DIVIMP Runs/'
+            netcdf_path = tk.filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),), initialdir=initialdir)
+        except:
+            netcdf_path = tk.filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
         self.netcdf_entry.delete(0, tk.END)
         self.netcdf_entry.insert(0, netcdf_path)
         self.op = oedge.OedgePlots(self.netcdf_entry.get())
@@ -273,6 +279,10 @@ class Window(tk.Frame):
             self.dat_path = dat_path
         except:
             pass
+
+        # Include a message saying what the first SOL ring is.
+        irsep = int(self.op.nc.variables['IRSEP'][:])
+        self.message_box.insert(tk.END, 'First SOL ring: {}\n'.format(irsep))
 
         # Add a generic name for the Thomson output file.
         ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'
@@ -368,6 +378,7 @@ class Window(tk.Frame):
         # Open a new window.
         self.opt_window = tk.Toplevel(self.master)
         self.opt_window.title("Plot Options")
+        self.opt_window.attributes('-topmost', 'true')
 
         row = 0
 
@@ -564,7 +575,8 @@ class Window(tk.Frame):
         self.message_box.insert(tk.END, 'Generating PDF...')
         ts_filename = self.ts_entry.get()
         #rings = np.append(np.arange(19, 49), np.arange(178, 190))
-        rings = np.arange(self.op.irsep, self.op.irsep + 30)  # Just do 30 rings out.
+        #rings = np.arange(self.op.irsep, self.op.irsep + 30)  # Just do 30 rings out.
+        rings = np.arange(self.op.irsep, self.op.irwall+1)
         self.op.compare_ts(ts_filename, rings, show_legend='short', output_file=self.ts_out_entry.get())
         self.message_box.insert(tk.END, ' Done.\n')
 
@@ -644,7 +656,7 @@ class Window(tk.Frame):
         plot_args['z_end']   = np.float(self.zend_entry.get())
 
         message = 'Plotting {} at constant {}.'.format(plot_args['data'], plot_args['plot'])
-        self.message_box.insert(tk.END, 'Plotting ')
+        self.message_box.insert(tk.END, message)
         self.op.fake_probe(**plot_args)
 
     def plot_command(self, plot_it=True):
@@ -653,10 +665,16 @@ class Window(tk.Frame):
         function.
         """
 
-        if self.current_option.get() == 'Temperature':
+        if self.current_option.get() == 'Electron Temperature':
             plot_args = {'dataname'  :'KTEBS',
                          'cmap'      :'inferno',
                          'cbar_label':'Te (eV)',
+                         'normtype'  :'log'}
+
+        elif self.current_option.get() == 'Ion Temperature':
+            plot_args = {'dataname'  :'KTIBS',
+                         'cmap'      :'inferno',
+                         'cbar_label':'Ti (eV)',
                          'normtype'  :'log'}
 
         elif self.current_option.get() == 'Density':
@@ -665,7 +683,7 @@ class Window(tk.Frame):
                          'cbar_label':'ne (m-3)',
                          'normtype'  :'log'}
 
-        if self.current_option.get() == 'Temperature - Divertor':
+        elif self.current_option.get() == 'Temperature - Divertor':
             plot_args = {'dataname'  :'KTEBS',
                          'cmap'      :'inferno',
                          'cbar_label':'Te (eV)',
@@ -724,7 +742,7 @@ class Window(tk.Frame):
 
         elif self.current_option.get() == 'Flow Velocity (with T13) - Mach':
             plot_args = {'dataname'  :'KVHSimp - Mach',
-                         'cbar_label':'Flow Velocity (m/s)',
+                         'cbar_label':'Mach Number',
                          'normtype'  :'symlin',
                          'vmin'      :-1,
                          'vmax'      :1}
@@ -753,6 +771,7 @@ class Window(tk.Frame):
                          'vmax'      :1e17,
                          'scaling'   :scaling,
                          'cmap'      :'nipy_spectral'}
+                         #'cmap'      :'gist_ncar'}
 
         elif self.current_option.get() == 'Impurity Density - Charge':
 
@@ -766,7 +785,8 @@ class Window(tk.Frame):
                          'vmin'      :1e13,
                          'vmax'      :1e17,
                          'scaling'   :scaling,
-                         'cmap'      :'nipy_spectral'}
+                         #'cmap'      :'nipy_spectral',
+                         'cmap'      :'jet'}
 
         elif self.current_option.get() == 'Impurity Ionization':
             charge = int(self.charge_entry.get())
@@ -781,7 +801,8 @@ class Window(tk.Frame):
                          'cbar_label':'S Parallel (Normalized)',
                          'normtype'  :'linear',
                          'lut'       :10,
-                         'cmap'      :'nipy_spectral'}
+                         #'cmap'      :'nipy_spectral',
+                         'cmap'      :'jet'}
 
         elif self.current_option.get() == 'Rings':
             plot_args = {'dataname'  :'Ring',
@@ -804,18 +825,6 @@ class Window(tk.Frame):
                          'vz_mult'   : vz_mult}
 
         elif self.current_option.get() == 'Force - FiG':
-
-            # FiG does not depend on charge state, so not used here. There are
-            # uncertainties here as to what exactly is included in KFIGS and
-            # what isn't.
-            #mu = self.op.crmi / (self.op.crmi + self.op.crmb)
-            #beta_i = 3 * (mu + 5 * np.sqrt(2) * self.op.cion**2 * (1.1 * mu**(5/2) - 0.35 * mu**(3/2)) - 1) / (2.6 - 2 * mu + 5.4 * mu**2)
-            #scaling = beta_i * self.op.qtim * self.op.qtim * self.op.emi / self.op.crmi
-            #plot_args = {'dataname'  :'KFIGS',
-            #             'cbar_label':'Ion Temp. Gradient Force (???)',
-            #             'normtype'  :'symlog',
-            #             'scaling'   :scaling}
-
             charge = int(self.charge_entry.get())
             plot_args = {'dataname'  : 'fig',
                          'charge'    : charge,
@@ -845,9 +854,10 @@ class Window(tk.Frame):
                          'normtype'  : 'symlog',
                          'vz_mult'   : vz_mult}
 
-        elif self.current_option.get() == 'Area of Bits':
+        elif self.current_option.get() == 'Area of Cells':
             charge = int(self.charge_entry.get())
-            plot_args = {'dataname'  : 'KAREAS'}
+            plot_args = {'dataname'  : 'KAREAS',
+                         'cbar_label': 'Area of Cells (m2?)'}
 
         else:
             self.message_box.insert(tk.END, 'Plot option not found.\n')

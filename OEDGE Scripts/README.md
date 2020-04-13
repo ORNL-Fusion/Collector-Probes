@@ -1,4 +1,4 @@
-# OEDGE GUI
+# OEDGE GUI - Ask Shawn to update if you are interested in what's below
 
 This is a GUI written by Shawn Zamperini to plot the results from a DIVIMP run. To run the GUI, simply run oedge_plots_gui from the command line:
 

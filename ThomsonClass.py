@@ -166,9 +166,9 @@ class ThomsonClass:
         # Filter the data from ELMs and just replace with the filtered dataframes.
         if filter:
             print("Filtering data...")
-            self.filter_elms(fs=fs, avg_thresh=avg_thresh, method=method, window_len=window_len)
             self.temp_df_unfiltered = self.temp_df
             self.dens_df_unfiltered = self.dens_df
+            self.filter_elms(fs=fs, avg_thresh=avg_thresh, method=method, window_len=window_len)
             self.temp_df = self.temp_df_filt
             self.dens_df = self.dens_df_filt
 
@@ -861,7 +861,7 @@ class ThomsonClass:
             raise ValueError("window_len must be an odd number.")
 
         if method == 'simple':
-
+            
             # First pull in the filterscope data to detect ELMs.
             fs_obj = gadata(fs, shot=self.shot, connection=self.conn)
 
@@ -908,6 +908,8 @@ class ThomsonClass:
             self.temp_df_filt = self.temp_df.iloc[~filter_times]
             self.dens_df_filt = self.dens_df.iloc[~filter_times]
 
+            return None
+
         elif method == 'median':
 
             # Get the median filter from scipy.
@@ -942,8 +944,8 @@ class ThomsonClass:
                     fig.show()
 
             # Store the filtered data.
-            self.temp_df_filt = self.temp_df.replace(te_filt)
-            self.dens_df_filt = self.dens_df.replace(ne_filt)
+            #self.temp_df_filt = self.temp_df.replace(te_filt)
+            #self.dens_df_filt = self.dens_df.replace(ne_filt)
 
         elif method in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
 
@@ -1053,12 +1055,12 @@ class ThomsonClass:
                 roll_avg_te = np.zeros(len(times))
                 roll_avg_ne = np.zeros(len(times))
                 for i in range(0, len(times)):
-                    if (i < window_len) or len(times) - i < window_len:
+                    if (i < window_len) or (len(times) - i < window_len):
                         te_point = self.temp_df[chord].values[i]
                         ne_point = self.dens_df[chord].values[i]
                     else:
-                        te_point = np.median(self.temp_df[chord].values[i-int(window_len/2):i+int(window_len/2)])
-                        ne_point = np.median(self.dens_df[chord].values[i-int(window_len/2):i+int(window_len/2)])
+                        te_point = np.median(self.temp_df[chord].values[i-int(window_len/2):i+int(window_len/2)+1])
+                        ne_point = np.median(self.dens_df[chord].values[i-int(window_len/2):i+int(window_len/2)+1])
 
                     # Put into array.
                     roll_avg_te[i] = te_point
@@ -1068,12 +1070,12 @@ class ThomsonClass:
                 roll_med_te = np.zeros(len(times))
                 roll_med_ne = np.zeros(len(times))
                 for i in range(0, len(times)):
-                    if (i < window_len) or len(times) - i < window_len:
+                    if (i < window_len) or (len(times) - i < window_len):
                         te_point = self.temp_df[chord].values[i]
                         ne_point = self.dens_df[chord].values[i]
                     else:
-                        te_point = np.average(roll_avg_te[i-int(window_len/2):i+int(window_len/2)])
-                        ne_point = np.average(roll_avg_ne[i-int(window_len/2):i+int(window_len/2)])
+                        te_point = np.average(roll_avg_te[i-int(window_len/2):i+int(window_len/2)+1])
+                        ne_point = np.average(roll_avg_ne[i-int(window_len/2):i+int(window_len/2)+1])
 
                     # Put into array.
                     roll_med_te[i] = te_point
@@ -1087,7 +1089,6 @@ class ThomsonClass:
             te_filt = te_filt.T
             ne_filt = ne_filt.T
 
-
         # Store the filtered data.
-        self.temp_df_filt = self.temp_df.replace(te_filt)
-        self.dens_df_filt = self.dens_df.replace(ne_filt)
+        self.temp_df_filt = pd.DataFrame(te_filt, columns=self.temp_df.columns, index=self.temp_df.index)
+        self.dens_df_filt = pd.DataFrame(ne_filt, columns=self.temp_df.columns, index=self.temp_df.index)

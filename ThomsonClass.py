@@ -43,7 +43,7 @@ class ThomsonClass:
                + "  System: " + str(self.system)
 
     def load_ts(self, verbal=True, times=None, tunnel=True, filter=False,
-                fs='FS04', avg_thresh=2, method='simple', med_bin=11):
+                fs='FS04', avg_thresh=2, method='simple', window_len=11):
         """
         Function to get all the data from the Thomson Scattering "BLESSED" tree
         on atlas. The data most people probably care about is the temperature (eV)
@@ -166,7 +166,7 @@ class ThomsonClass:
         # Filter the data from ELMs and just replace with the filtered dataframes.
         if filter:
             print("Filtering data...")
-            self.filter_elms(fs=fs, avg_thresh=avg_thresh, method=method)
+            self.filter_elms(fs=fs, avg_thresh=avg_thresh, method=method, window_len=window_len)
             self.temp_df_unfiltered = self.temp_df
             self.dens_df_unfiltered = self.dens_df
             self.temp_df = self.temp_df_filt
@@ -842,7 +842,7 @@ class ThomsonClass:
             print("Error: ref_time not one of the times in map_to_efit.")
 
     def filter_elms(self, method='simple', fs='FS04', avg_thresh=2, plot_it=True,
-                    med_bin=11):
+                    window_len=11):
         """
         Method to filter ELM data. Replace Te, ne data that was taken during an
         ELM with either exclude or with a linear fit between the value before the ELM
@@ -854,9 +854,11 @@ class ThomsonClass:
                       value * avg_thresh will be considered an ELM and data in
                       that time range will be filtered out of the Thomson data.
         plot_it    : Plot the filtered data.
-        med_bin    : Median method. Size of bins for the median filter (i.e. get
-                      the median of every med_bin data points). Must be odd.
+        window_len : Size of window for filtering/smoothing method. Must be odd.
         """
+
+        if window_len % 2 == 0:
+            raise ValueError("window_len must be an odd number.")
 
         if method == 'simple':
 
@@ -916,8 +918,8 @@ class ThomsonClass:
             ne_nonzero = self.dens_df != 0
 
             # Perform a median filter on the data.
-            te_filt = medfilt(self.temp_df[te_nonzero], med_bin)
-            ne_filt = medfilt(self.dens_df[ne_nonzero], med_bin)
+            te_filt = medfilt(self.temp_df[te_nonzero], window_len)
+            ne_filt = medfilt(self.dens_df[ne_nonzero], window_len)
 
             # Plot all the chords if you want.
             if plot_it:
@@ -942,3 +944,150 @@ class ThomsonClass:
             # Store the filtered data.
             self.temp_df_filt = self.temp_df.replace(te_filt)
             self.dens_df_filt = self.dens_df.replace(ne_filt)
+
+        elif method in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+
+            def smooth(x, window_len=11, window='hanning'):
+                """
+                This smoothing algorithm is taken form the scipy cookbook:
+                scipy-cookbook.readthedocs.io/items/SignalSmooth.html
+
+                See there for an explanation, but essentially it just smooths
+                the data.
+                """
+
+                if x.ndim != 1:
+                    raise ValueError("smooth only accepts 1 dimension arrays.")
+
+                if x.size < window_len:
+                    raise ValueError("Input vector needs to be bigger than window size.")
+
+                if window_len<3:
+                    return x
+
+                if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+                    raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+
+                s = np.r_[x[window_len-1:0:-1], x, x[-2:-window_len-1:-1]]
+                #print(len(s))
+                if window == 'flat': #moving average
+                    w = np.ones(window_len, 'd')
+                else:
+                    w = eval('np.' + window + '(window_len)')
+
+                y = np.convolve(w / w.sum(), s, mode='valid')
+                #return y
+                return y[int(window_len / 2):-int(window_len / 2)]
+
+            te_filt = np.zeros(self.temp_df.values.shape)
+            ne_filt = np.zeros(self.temp_df.values.shape)
+
+            for chord in range(0, len(self.temp_df.columns)):
+                chord_te_filt = smooth(self.temp_df[chord].values, window_len, method)
+                chord_ne_filt = smooth(self.dens_df[chord].values, window_len, method)
+                te_filt[:, chord] = chord_te_filt
+                ne_filt[:, chord] = chord_ne_filt
+
+        # This method applies a rolling average and then a rolling median to
+        # filter out ELMs (or just really smooth it).
+        elif method == 'average_median':
+
+            # Transpose just so each row is the time series data. Will transpose
+            # back at the end.
+            te_filt = np.zeros(self.temp_df.values.shape).T
+            ne_filt = np.zeros(self.temp_df.values.shape).T
+            times = self.temp_df.index.values
+
+            for chord in range(0, te_filt.shape[0]):
+
+                # First calculate the rolling average.
+                roll_avg_te = np.zeros(len(times))
+                roll_avg_ne = np.zeros(len(times))
+                for i in range(0, len(times)):
+                    if (i < window_len) or len(times) - i < window_len:
+                        te_point = self.temp_df[chord].values[i]
+                        ne_point = self.dens_df[chord].values[i]
+                    else:
+                        te_point = np.average(self.temp_df[chord].values[i-int(window_len/2):i+int(window_len/2)])
+                        ne_point = np.average(self.dens_df[chord].values[i-int(window_len/2):i+int(window_len/2)])
+
+                    # Put into array.
+                    roll_avg_te[i] = te_point
+                    roll_avg_ne[i] = ne_point
+
+                # Then same thing, just do median of the rolling average array.
+                roll_med_te = np.zeros(len(times))
+                roll_med_ne = np.zeros(len(times))
+                for i in range(0, len(times)):
+                    if (i < window_len) or len(times) - i < window_len:
+                        te_point = self.temp_df[chord].values[i]
+                        ne_point = self.dens_df[chord].values[i]
+                    else:
+                        te_point = np.median(roll_avg_te[i-int(window_len/2):i+int(window_len/2)])
+                        ne_point = np.median(roll_avg_ne[i-int(window_len/2):i+int(window_len/2)])
+
+                    # Put into array.
+                    roll_med_te[i] = te_point
+                    roll_med_ne[i] = ne_point
+
+                # Finally put the filtered data for this chord into the filtered array.
+                te_filt[chord] = roll_med_te
+                ne_filt[chord] = roll_med_ne
+
+            # Don't forget to transpose the data again.
+            te_filt = te_filt.T
+            ne_filt = ne_filt.T
+
+        elif method == 'median_average':
+
+            # Transpose just so each row is the time series data. Will transpose
+            # back at the end.
+            te_filt = np.zeros(self.temp_df.values.shape).T
+            ne_filt = np.zeros(self.temp_df.values.shape).T
+            times = self.temp_df.index.values
+
+            for chord in range(0, te_filt.shape[0]):
+
+                # First calculate the rolling average.
+                roll_avg_te = np.zeros(len(times))
+                roll_avg_ne = np.zeros(len(times))
+                for i in range(0, len(times)):
+                    if (i < window_len) or len(times) - i < window_len:
+                        te_point = self.temp_df[chord].values[i]
+                        ne_point = self.dens_df[chord].values[i]
+                    else:
+                        te_point = np.median(self.temp_df[chord].values[i-int(window_len/2):i+int(window_len/2)])
+                        ne_point = np.median(self.dens_df[chord].values[i-int(window_len/2):i+int(window_len/2)])
+
+                    # Put into array.
+                    roll_avg_te[i] = te_point
+                    roll_avg_ne[i] = ne_point
+
+                # Then same thing, just do median of the rolling average array.
+                roll_med_te = np.zeros(len(times))
+                roll_med_ne = np.zeros(len(times))
+                for i in range(0, len(times)):
+                    if (i < window_len) or len(times) - i < window_len:
+                        te_point = self.temp_df[chord].values[i]
+                        ne_point = self.dens_df[chord].values[i]
+                    else:
+                        te_point = np.average(roll_avg_te[i-int(window_len/2):i+int(window_len/2)])
+                        ne_point = np.average(roll_avg_ne[i-int(window_len/2):i+int(window_len/2)])
+
+                    # Put into array.
+                    roll_med_te[i] = te_point
+                    roll_med_ne[i] = ne_point
+
+                # Finally put the filtered data for this chord into the filtered array.
+                te_filt[chord] = roll_med_te
+                ne_filt[chord] = roll_med_ne
+
+            # Don't forget to transpose the data again.
+            te_filt = te_filt.T
+            ne_filt = ne_filt.T
+
+
+        # Store the filtered data.
+        self.temp_df_filt = self.temp_df.replace(te_filt)
+        self.dens_df_filt = self.dens_df.replace(ne_filt)

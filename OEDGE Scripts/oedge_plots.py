@@ -876,7 +876,7 @@ class OedgePlots:
         pass
 
     def create_ts(self, shots, times, ref_time, filename=None, load_all_ts=False,
-                  filter=False, method='median', med_bin=11):
+                  filter=False, method='hanning', window_len=11):
         """
         Function to create a Thomson scattering file in the correct format for
         comparing to OEDGE results. Outputs an Excel file with the data in a
@@ -897,10 +897,8 @@ class OedgePlots:
                          load, but should only need to be used once per
                          output file.
         filter        : Choose whether to filter ELMs or not.
-        method        : Method of filtering. Right now 'median' is the only
-                         one worth choosing.
-        med_bin       : Bin size for median filtering (i.e. get the median of
-                         every med_bin data points). 
+        method        : Method of filtering. Options are: simple, median, hanning
+        window_len    : Window size for whatever filtering/smoothing method.
 
         Output
         filename : The filename you input.
@@ -929,9 +927,9 @@ class OedgePlots:
             # Load in TS data, then map it to a reference EFIT time (i.e. the time
             # that the OEDGE grid used).
             self.ts_div = ThomsonClass(shot, 'divertor')
-            self.ts_div.load_ts(verbal=False, filter=filter, method=method, med_bin=med_bin)
+            self.ts_div.load_ts(verbal=False, filter=filter, method=method, window_len=window_len)
             self.ts_core = ThomsonClass(shot, 'core')
-            self.ts_core.load_ts(verbal=False, filter=filter, method=method, med_bin=med_bin)
+            self.ts_core.load_ts(verbal=False, filter=filter, method=method, window_len=window_len)
 
             # If load_all_ts is True, use ALL the times TS data is available for.
             # This could take a REALLY long time though, so give a warning.

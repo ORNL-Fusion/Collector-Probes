@@ -1,3 +1,13 @@
+---
+New Documentation
+---
+
+To-do.
+
+---
+Old Documentation - Ask Shawn to update if you need him to
+---
+
 # Collector-Probes
 
 Scripts related to accessing and analyzing collector probe data from the 2016 Metal Rings Campaign. What follows is an example session  to pull the data into an Excel file, written in python3. Note that this reqiures the following packages: numpy, pandas, openpyxl, scipy and MDSplus.

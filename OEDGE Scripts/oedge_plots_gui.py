@@ -11,7 +11,7 @@ plot_opts = ['B Ratio', 'E Radial', 'E Poloidal', 'ExB Poloidal', 'ExB Radial',
              'Force - FE', 'Force - FeG', 'Impurity Density',
              'Impurity Density - Charge', 'Impurity Ionization', 'Density',
              'Rings', 'S Coordinate', 'Electron Temperature',
-             'Area of Cells', 'Ion Temperature']
+             'Area of Cells', 'Ion Temperature', 'Psin']
 plot_opts_cp = ['R-Rsep OMP vs. Flux - Midplane', 'R-Rsep OMP vs. Flux - Crown']
 fake_opts = ['Mach', 'Te', 'ne', 'Velocity']
 
@@ -282,7 +282,18 @@ class Window(tk.Frame):
 
         # Include a message saying what the first SOL ring is.
         irsep = int(self.op.nc.variables['IRSEP'][:])
-        self.message_box.insert(tk.END, 'First SOL ring: {}\n'.format(irsep))
+        irwall = int(self.op.nc.variables['IRWALL'][:])
+        self.message_box.insert(tk.END, 'First, last SOL ring: {}, {}\n'.format(irsep, irwall))
+
+        # Print out how long the run took.
+        time = self.op.cpu_time
+        if time <= 60:
+            time_str = '{} seconds'.format(time)
+        elif time > 60 and time <= 3600:
+            time_str = '{:.1f} minutes'.format(time / 60)
+        elif time > 3600:
+            time_str = '{:.1f} hours'.format(time / 3600)
+        self.message_box.insert(tk.END, 'Run took {}.\n'.format(time_str))
 
         # Add a generic name for the Thomson output file.
         ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'
@@ -858,6 +869,12 @@ class Window(tk.Frame):
             charge = int(self.charge_entry.get())
             plot_args = {'dataname'  : 'KAREAS',
                          'cbar_label': 'Area of Cells (m2?)'}
+
+        elif self.current_option.get() == 'Psin':
+            plot_args = {'dataname'  : 'PSIFL',
+                         'cbar_label': 'Psin',
+                         'vmin'      : 1.0,
+                         'lut'       : 10}
 
         else:
             self.message_box.insert(tk.END, 'Plot option not found.\n')

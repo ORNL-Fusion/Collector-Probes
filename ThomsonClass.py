@@ -844,6 +844,8 @@ class ThomsonClass:
     def filter_elms(self, method='simple', fs='FS04', avg_thresh=2, plot_it=True,
                     window_len=11):
         """
+        NOTE: You probably should just use create_omfit_excel.py instead of
+               this, since OMFITprofiles is superior to filtering ELMs and such.
         Method to filter ELM data. Replace Te, ne data that was taken during an
         ELM with either exclude or with a linear fit between the value before the ELM
         and the value at the end.
@@ -856,12 +858,15 @@ class ThomsonClass:
         plot_it    : Plot the filtered data.
         window_len : Size of window for filtering/smoothing method. Must be odd.
         """
+        print("Warning: Are you sure you want to use this? Consider using " + \
+              "the workflow via create_omfit_excel.py. It is way better at " + \
+              "getting ELM filtered data. Check there or the GitHub for more info.")
 
         if window_len % 2 == 0:
             raise ValueError("window_len must be an odd number.")
 
         if method == 'simple':
-            
+
             # First pull in the filterscope data to detect ELMs.
             fs_obj = gadata(fs, shot=self.shot, connection=self.conn)
 
@@ -916,12 +921,14 @@ class ThomsonClass:
             from scipy.signal import medfilt
 
             # Identify all the nonzero points since we don't care about zeros.
-            te_nonzero = self.temp_df != 0
-            ne_nonzero = self.dens_df != 0
+            #te_nonzero = self.temp_df != 0
+            #ne_nonzero = self.dens_df != 0
 
             # Perform a median filter on the data.
-            te_filt = medfilt(self.temp_df[te_nonzero], window_len)
-            ne_filt = medfilt(self.dens_df[ne_nonzero], window_len)
+            #te_filt = medfilt(self.temp_df[te_nonzero], window_len)
+            #ne_filt = medfilt(self.dens_df[ne_nonzero], window_len)
+            te_filt = medfilt(self.temp_df, window_len)
+            ne_filt = medfilt(self.dens_df, window_len)
 
             # Plot all the chords if you want.
             if plot_it:
@@ -1092,3 +1099,28 @@ class ThomsonClass:
         # Store the filtered data.
         self.temp_df_filt = pd.DataFrame(te_filt, columns=self.temp_df.columns, index=self.temp_df.index)
         self.dens_df_filt = pd.DataFrame(ne_filt, columns=self.temp_df.columns, index=self.temp_df.index)
+
+        # Plot the data to see how it matches.
+        if plot_it:
+            if self.system == 'core':
+                fig, axs = plt.subplots(4, 5, sharex=True, figsize=(15, 10))
+                for i in range(0, 20):
+                    ax = axs.flatten()[i]
+                    ax.plot(self.temp_df_unfiltered.index, self.temp_df_unfiltered[i], 'k-')
+                    ax.plot(self.temp_df_filt.index, self.temp_df_filt[i], 'r-')
+                    ax.set_xlim([0, 6000])
+                    ax.set_ylim([0, 120])
+                    ax.annotate(str(i), (0.9, 0.9), xycoords='axes fraction')
+                fig.tight_layout()
+                fig.show()
+            elif self.system == 'divertor':
+                fig, axs = plt.subplots(2, 4, sharex=True, figsize=(12, 5))
+                for i in range(0, 8):
+                    ax = axs.flatten()[i]
+                    ax.plot(self.temp_df_unfiltered.index, self.temp_df_unfiltered[i], 'k-')
+                    ax.plot(self.temp_df_filt.index, self.temp_df_filt[i], 'r-')
+                    ax.set_xlim([0, 6000])
+                    ax.set_ylim([0, 120])
+                    ax.annotate(str(i), (0.9, 0.9), xycoords='axes fraction')
+                fig.tight_layout()
+                fig.show()

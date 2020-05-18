@@ -250,9 +250,12 @@ class OedgePlots:
             for ik in range(self.nks[ir]):
                 if self.area[ir, ik] != 0.0:
 
-                    # Just make the data the ring number.
+                    # Just make the data the ring number (+1 because they aren't
+                    # named starting at zero, but 1).
                     if scaling == 'Ring':
-                        data[count] = ir
+                        data[count] = ir + 1
+                    elif scaling == 'Knot':
+                        data[count] = ik + 1
                     else:
 
                         # If charge is specifed, this will be the first dimension,
@@ -592,6 +595,8 @@ class OedgePlots:
             # Special option to plot the ring numbers.
             elif dataname == 'Ring':
                 data = self.read_data_2d('KTEBS', scaling='Ring', no_core=no_core)
+            elif dataname == 'Knot':
+                data = self.read_data_2d('KTEBS', scaling='Knot', no_core=no_core)
 
             # Divide the background velocity by the sounds speed to get the Mach number.
             elif dataname == 'KVHSimp - Mach':
@@ -1836,7 +1841,6 @@ class OedgePlots:
                 probe = s
                 ylabel = 'L OTF (m)'
 
-
             output_df['(R, Z)'][i] = (rs[i], zs[i])
             output_df[data][i]   = probe
 
@@ -1844,13 +1848,15 @@ class OedgePlots:
         if plot is not None:
 
             # Get correct X and Y arrays for plotting.
-            if plot in ['R', 'r']:
+            if plot.ower() in ['r', 'rminrsep']:
                 x = [output_df['(R, Z)'][i][0] for i in range(0, len(output_df.index))]
                 xlabel = 'R (m)'
-            elif plot in ['Z', 'z']:
+                if plot.lower() == 'rminrsep':
+                    pass
+            elif plot.lower() == 'z':
                 x = [output_df['(R, Z)'][i][1] for i in range(0, len(output_df.index))]
                 xlabel = 'Z (m)'
-            elif plot in ['psin', 'Psin']:
+            elif plot.lower() == 'psin':
                 x = output_df['Psin'].values
                 xlabel = 'Psin'
             y = output_df[data].values
@@ -1869,6 +1875,7 @@ class OedgePlots:
                 #elif plot == 'R':
                 #    ax.set_xlim([z_start, z_end])
 
+                fig.tight_layout()
                 fig.show()
 
         #return output_df
@@ -2109,6 +2116,33 @@ class OedgePlots:
             fig.show()
 
         return x, y
+
+    def input_for_midpoint_shift(self, knot):
+        """
+        This function will print out data that you can input into the DIVIMP
+        input file for the shifted midpoint option G55. Knot is what knot you
+        want the midpoint to be shifted to. Can rerun this function multiple
+        times to see the knot until you find one you're happy with.
+
+        knot : Knot you want the midpoint shifted to for each ring in just
+                the main SOL.
+        """
+
+        # First plot the knot to make sure it's the one you want the midpoint
+        # to be at.
+        self.plot_contour_polygon('Knot', vmin=knot-1, vmax=knot+1, lut=3)
+
+        # Load the Snorm data in 2D format.
+        snorm = self.nc['KSB'][:] / self.ksmaxs[:, None]
+        snorm = np.abs(snorm + snorm / 1.0 - 1.0)
+
+        print("Lines for input: {}".format(self.irwall-self.irsep+1))
+        print("Copy/paste under option G55 in input file:")
+        # Print out the offset for each ring one at a time.
+        for ring in range(self.irsep, self.irwall+1):
+            soffset = snorm[ring-1][knot-1] / 2.0
+            print("{:8}{:8}{:8}{:10.6f}".format(1, ring, ring, soffset))
+
 
 # ------------------------
 # End of OedgePlots class.

@@ -26,11 +26,13 @@ pady = 4
 
 #Width of columns
 col1_width = 10
-col2_width = 30
-col3_width = 7
+col2_width = 20
+col3_width = 3
 
 #plot options
-plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles', 'Temperature Contour', 'Plasma Density', 'Impurity Velocity', 'Impurity Contour']
+plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles',
+           'Temperature Contour', 'Plasma Density', 'Impurity Velocity',
+           'Impurity Contour']
 
 class Window(tk.Frame):
 
@@ -40,7 +42,7 @@ class Window(tk.Frame):
         # something. All the examples have it at least.
         super().__init__(master)
         self.master = master
-        self.master.title('3dlim plotting GUI')
+        self.master.title('3DLIM Plotting GUI')
         self.master.rowconfigure(0, weight=1)
         self.master.columnconfigure(0, weight=1)
         self.netcdf_loaded = False
@@ -63,16 +65,8 @@ class Window(tk.Frame):
         # Variable to keep track of row number so we don't have to!
         row = 0
 
-        # Color name to indicate background color of section.
-
-
-        #Width of columns
-        col1_width = 10
-        col2_width = 30
-        col3_width = 7
-
-        #Add a message box
-        self.message_box = tk.Text(self.master, height = 7, width=65)
+        # Add a message box
+        self.message_box = tk.Text(self.master, height = 7, width=50)
         self.message_box.grid(row=0, column=4, rowspan=5, padx=padx, sticky='NS', )
         self.message_box.insert(tk.END, "Click 'Browse...' to load path to netCDF file.\n")
 

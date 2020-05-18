@@ -5,7 +5,7 @@ import sys
 
 # Variables for plots.
 probe_width    = 0.015
-rad_cutoff     = 0.05
+rad_cutoff     = 0.02
 sep_vel_plot   = False
 sep_force_plot = False
 mult_runs      = False
@@ -23,8 +23,10 @@ if len(sys.argv) > 1:
 else:
     root = Tk(); root.withdraw()
     netcdf_path = filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
-    dat_path    = filedialog.askopenfilename(filetypes=(('.dat files',   '*.dat'),))
-    lim_path    = filedialog.askopenfilename(filetypes=(('.lim files',   '*.lim'),))
+    #dat_path    = filedialog.askopenfilename(filetypes=(('.dat files',   '*.dat'),))
+    #lim_path    = filedialog.askopenfilename(filetypes=(('.lim files',   '*.lim'),))
+    dat_path = netcdf_path.split('.nc')[0] + '.dat'
+    lim_path = netcdf_path.split('.nc')[0] + '.lim'
 
     # Option if dat file not included.
     if dat_path == ():
@@ -75,12 +77,14 @@ except:
     print('Error: Impurity contour plot.')
 
 try:
-    grid.force_plots(7, separate_plot=sep_force_plot, rad_loc=-0.05)
+    #grid.force_plots(7, separate_plot=sep_force_plot, rad_loc=-0.05)
+    grid.force_plots(7, separate_plot=sep_force_plot, rad_loc=0.0)
 except:
     print('Error: Force plots.')
 
 try:
     grid.vel_plots(8, vp='vp2', separate_plot=sep_vel_plot)
+    #grid.vel_plots(8, vp='vp1', separate_plot=sep_vel_plot)
 except:
     print('Error: VP2 plot.')
 

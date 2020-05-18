@@ -135,7 +135,7 @@ class LimPlots:
         return self.dep_arr
 
 
-    def centerline(self, log=False, fit_exp=False, plotnum=0):
+    def centerline(self, log=False, fit_exp=False, plotnum=0, show_plot=True):
 
         """
         Plot the ITF and OTF deposition along the centerlines on the same plot.
@@ -171,24 +171,27 @@ class LimPlots:
 
         # Plotting commands.
         if plotnum == 0:
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
+            if show_plot:
+                fig = plt.figure()
+                ax = fig.add_subplot(111)
         else:
             ax = self.master_fig.axes[plotnum-1]
 
         # Option for a log axis.
-        if log:
-            ax.semilogy(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
-            ax.semilogy(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
-        else:
-            ax.plot(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
-            ax.plot(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
+        if show_plot:
+            if log:
+                ax.semilogy(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
+                ax.semilogy(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
+            else:
+                ax.plot(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
+                ax.plot(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
 
-        ax.legend(fontsize=fontsize)
-        ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
-        ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
-        ax.set_xlim([0, 10])
-        ax.set_ylim([0,None])
+        if show_plot:
+            ax.legend(fontsize=fontsize)
+            ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
+            ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
+            ax.set_xlim([0, 10])
+            ax.set_ylim([0,None])
 
         # Option to perform an exponential fit to the data.
         if fit_exp:
@@ -202,24 +205,29 @@ class LimPlots:
             fity_itf = exp_fit(fitx, *popt_itf)
             fity_otf = exp_fit(fitx, *popt_otf)
 
-            if log:
-                ax.semilogy(fitx*100, fity_itf, '--', ms=ms, color=tableau20[6])
-                ax.semilogy(fitx*100, fity_otf, '--', ms=ms, color=tableau20[8])
-            else:
-                ax.plot(fitx*100, fity_itf, '--', ms=ms, color=tableau20[6])
-                ax.plot(fitx*100, fity_otf, '--', ms=ms, color=tableau20[8])
+            if show_plot:
+                if log:
+                    ax.semilogy(fitx*100, fity_itf, '--', ms=ms, color=tableau20[6])
+                    ax.semilogy(fitx*100, fity_otf, '--', ms=ms, color=tableau20[8])
+                else:
+                    ax.plot(fitx*100, fity_itf, '--', ms=ms, color=tableau20[6])
+                    ax.plot(fitx*100, fity_otf, '--', ms=ms, color=tableau20[8])
 
             print("Lambdas")
             print("  ITF = {:.2f}".format(1/popt_itf[1]*100))
             print("  OTF = {:.2f}".format(1/popt_otf[1]*100))
 
         if plotnum ==0:
-            fig.tight_layout()
-            fig.show()
+            if show_plot:
+                fig.tight_layout()
+                fig.show()
 
         print("Center ITF/OTF: {:.2f}".format(itf_y.sum()/otf_y.sum()))
 
-    def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.05, plotnum=0):
+        return {'itf_x':itf_x, 'itf_y':itf_y, 'otf_x':otf_x, 'otf_y':otf_y}
+
+    def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.05,
+                           plotnum=0, vmax=None):
 
         """
         Plot the 2D tungsten distribution across the face.
@@ -268,10 +276,13 @@ class LimPlots:
         Z_otf = dep_arr[:, idx][:, ::-1]
 
         # Make the levels for the contour plot out of whichever side has the max deposition.
-        if Z_itf.max() > Z_otf.max():
-            levels = np.linspace(0, Z_itf.max(), 15)
+        if vmax == None:
+            if Z_itf.max() > Z_otf.max():
+                levels = np.linspace(0, Z_itf.max(), 15)
+            else:
+                levels = np.linspace(0, Z_otf.max(), 15)
         else:
-            levels = np.linspace(0, Z_otf.max(), 15)
+            levels = np.linspace(0, vmax, 15)
 
         # Plotting commands.
         if side == 'ITF':
@@ -366,7 +377,8 @@ class LimPlots:
         # Print and then return the message for the GUI to use.
         message = "OTF/ITF Peaking Ratio: {:.2f}".format(otf_peak/itf_peak)
         print(message)
-        return message
+        #return message
+        return {'pol_locs':pol_locs, 'avg_pol_itf':avg_pol_itf, 'avg_pol_otf':avg_pol_otf}
 
     def te_contour(self, plotnum=0):
         """
@@ -389,6 +401,10 @@ class LimPlots:
 
         # 2D grid of the temperature data.
         Z = self.nc.variables['CTEMBS'][:].data
+
+        # Trim leading and trailing zeros in the data.
+        #x = x[:len(x)-np.argmin(x[::-1]==0)]
+        #y = y[np.argmin(y==0):len(y)-np.argmin(y[::-1]==0)]
 
         # Trim the zeros from the edges of the x and y arrays, and the associated
         # data points as well. This is done to stop this data from messing up
@@ -734,15 +750,18 @@ class LimPlots:
 
         if show_steps:
 
-            # Swap x and y bc that's how it plotted.
-            y = self.nc.variables['xabsorb1a_step'][:].data
-            x = self.nc.variables['yabsorb1a_step'][:].data
-            rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
-            ax.add_patch(rect)
-            y = self.nc.variables['xabsorb2a_step'][:].data
-            x = self.nc.variables['yabsorb2a_step'][:].data
-            rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
-            ax.add_patch(rect)
+            try:
+                # Swap x and y bc that's how it plotted.
+                y = self.nc.variables['xabsorb1a_step'][:].data
+                x = self.nc.variables['yabsorb1a_step'][:].data
+                rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                ax.add_patch(rect)
+                y = self.nc.variables['xabsorb2a_step'][:].data
+                x = self.nc.variables['yabsorb2a_step'][:].data
+                rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                ax.add_patch(rect)
+            except:
+                pass
 
         ax.text(0.6, 0.05, textstr, fontsize=fontsize, bbox=props, transform=ax.transAxes)
 
@@ -893,8 +912,8 @@ class LimPlots:
                     fig.show()
 
 
-    def vel_plots(self, vp, plotnum=0, cl=10.0, separate_plot=False, vmin1=None, vmax1=None, vmin2=None, vmax2=None,
-                  clip=False, show_steps=True):
+    def vel_plots(self, vp, plotnum=0, cl=10.0, separate_plot=False, vmin1=None,
+                  vmax1=None, vmin2=None, vmax2=None, clip=False, show_steps=True):
         """
         TODO
 
@@ -974,8 +993,6 @@ class LimPlots:
             cont2 = ax2.contourf(X, Y, Z2, vmin=vmin2, vmax=vmax2, cmap='coolwarm', levels=bounds2)
             cbar1 = fig.colorbar(cont1, ax=ax1, ticks=bounds1, boundaries=bounds1)
             cbar2 = fig.colorbar(cont2, ax=ax2, ticks=bounds2, boundaries=bounds2)
-            ax1.set_xlim([-cl, cl])
-            ax2.set_xlim([-cl, cl])
             ax1.set_xlabel('Parallel (m)', fontsize=fontsize)
             ax2.set_xlabel('Parallel (m)', fontsize=fontsize)
             ax1.set_ylabel('Radial (m)', fontsize=fontsize)
@@ -999,6 +1016,10 @@ class LimPlots:
                 ax1.add_patch(rect1)
                 ax2.add_patch(rect2)
 
+            ax1.set_xlim([-cl, cl])
+            ax2.set_xlim([-cl, cl])
+            ax1.set_ylim([Y.min(), Y.max()])
+            ax2.set_ylim([Y.min(), Y.max()])
             fig.tight_layout()
             fig.show()
 

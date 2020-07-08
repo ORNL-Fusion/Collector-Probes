@@ -2098,7 +2098,7 @@ class OedgePlots:
                 y = np.array(self.nc[dataname][:][charge-1][ring].data, dtype=np.float64)
 
         # Remove any (0, 0) data points that may occur due to fortran being fortran.
-        drop_idx = np.array([])
+        drop_idx = np.array([], dtype=np.int)
         for i in range(0, len(x)):
              #print("{}: {} {}".format(i, x[i]==0.0, y[i]==0.0))
              if x[i] == 0.0 and y[i] == 0.0:

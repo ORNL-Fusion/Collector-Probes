@@ -83,6 +83,9 @@ import pandas            as pd
 from collections         import OrderedDict
 from matplotlib.backends.backend_pdf import PdfPages
 
+# Seems we may need to use a specific backend, potentially because of using
+# Ubuntu on Windows.
+mpl.use("TkAgg")
 
 # A nice looking font.
 #plt.rcParams['font.family'] = 'serif'

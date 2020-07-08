@@ -15,7 +15,7 @@ are as follows.
     Can check plots in the Select tab.
 7. Once you are happy with the filtered data, copy and paste the below script
     into the Command box back on the main OMFIT window and press Execute. A
-    file called "omfit_excel_file.xlsx" will now be in your home directory.
+    file called "omfit_excel_file.csv" will now be in your home directory.
 8. Copy this file to your computer (WinSCP does well), and perform further
     filtering by hand. Rather simple to just delete the rows with unrealistic
     spikes in the data.

@@ -40,11 +40,20 @@ class LimPlots:
     Class object to store data and plotting routines for a 3DLIM run.
     """
 
-    def __init__(self, ncpath):
+    def __init__(self, ncpath, combine_repeat_runs=True):
         """
         Just intialize with the netCDF file. Will assume the lim and dat file
         are in the same folder.
+
+        ncpath: Path to the NetCDF file.
+        combine_repeat_runs: Combine the NERODS3 arrays from multiple repeat
+          runs together for improved statistics. This assumes the following
+          naming convention: ncfile, ncfile2, ncfile3, ...
         """
+
+        # Save the repeat runs flags for later.
+        self.combine_repeat_runs = combine_repeat_runs
+        self.ncpath = ncpath
 
         # Just a default file for testing.
         if ncpath == 'test':
@@ -125,8 +134,35 @@ class LimPlots:
         # Not defined, so load it.
         except AttributeError:
 
-            # Create the deposition array for the initial file.
-            dep_arr = np.array(self.nc.variables['NERODS3'][0] * -1)
+            if self.combine_repeat_runs:
+
+                # Try and get the dep_arr from the base case. If it doesn't exist,
+                # that means nothing landed on the probe and 3DLIM won't save
+                # and array of all zeros apparently. So just create the dep_arr
+                # of all zeros.
+                try:
+                    dep_arr = np.array(self.nc.variables['NERODS3'][0] * -1)
+                except:
+                    dep_arr = np.zeros((6, 2*self.nc.variables['MAXNPS'][:]+1, self.nc.variables['MAXOS'][:]))
+                    print("  No NERODS3.")
+
+                # Add on contributions from repeat runs.
+                for i in range(1, 11):
+                    try:
+                        #print('Loading {}...'.format(i))
+                        ncpath_add = self.ncpath.split('.nc')[0] + str(i) + '.nc'
+                        nc = netCDF4.Dataset(ncpath_add)
+                        print("Found additional run: {}".format(ncpath_add))
+                        try:
+                            dep_arr = dep_arr + np.array(nc.variables['NERODS3'][0] * -1)
+                        except KeyError:
+                            print("  No NERODS3.")
+                    except:
+                        pass
+            else:
+
+                # Create the deposition array for the initial file.
+                dep_arr = np.array(self.nc.variables['NERODS3'][0] * -1)
 
             # Define dep_arr so next time you won't have to choose all the file
             # locations.
@@ -191,7 +227,7 @@ class LimPlots:
             ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
             ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
             ax.set_xlim([0, 10])
-            ax.set_ylim([0,None])
+            #ax.set_ylim([0, None])
 
         # Option to perform an exponential fit to the data.
         if fit_exp:
@@ -227,7 +263,7 @@ class LimPlots:
         return {'itf_x':itf_x, 'itf_y':itf_y, 'otf_x':otf_x, 'otf_y':otf_y}
 
     def deposition_contour(self, side, probe_width=0.015, rad_cutoff=0.05,
-                           plotnum=0, vmax=None):
+                           plotnum=0, vmax=None, print_ratio=True):
 
         """
         Plot the 2D tungsten distribution across the face.
@@ -307,7 +343,8 @@ class LimPlots:
             fig.tight_layout()
             fig.show()
 
-        print('Total ITF/OTF (0-{} cm): {:.2f}'.format(rad_cutoff*100, Z_itf.sum()/Z_otf.sum()))
+        if print_ratio:
+            print('Total ITF/OTF (0-{} cm): {:.2f}'.format(rad_cutoff*100, Z_itf.sum()/Z_otf.sum()))
 
     def avg_pol_profiles(self, probe_width=0.015, rad_cutoff=0.5, plotnum=0):
 
@@ -605,7 +642,8 @@ class LimPlots:
         ax.set_xlim([-cl, cl])
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
         ax.set_ylabel('Poloidal (m)', fontsize=fontsize)
-        cp = patches.Rectangle((-0.2, -0.015), width=0.4, height=0.03, color='k')
+        #cp = patches.Rectangle((-0.2, -0.015), width=0.4, height=0.03, color='k')
+        cp = patches.Rectangle((0, 0), width=0.4, height=0.03, color='k')
         ax.add_patch(cp)
         textstr = r'Integration region:' + \
                   r'\n$\mathrm{R_min}$ = ' + str(rmin) + \
@@ -730,13 +768,15 @@ class LimPlots:
             b = int(b)
             return r'${} \times 10^{{{}}}$'.format(a, b)
 
-        cont = ax.contourf(X, Y, Z.T)
+        Z_low = sorted(np.unique(Z))[1]
+        cont = ax.contourf(X, Y, Z.T, norm=colors.LogNorm(vmin=Z_low, vmax=Z.max()))
         if plotnum == 0:
             cbar = fig.colorbar(cont, ax=ax, format='%.2e')
         else:
             cbar = self.master_fig.colorbar(cont, ax=ax, format='%.2e')
         cl = float(self.nc['CL'][:].data)
         ax.set_xlim([-cl, cl])
+        ax.set_ylim([rad_locs.min(), rad_locs.max()])
         fontsize=16
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
         ax.set_ylabel('Radial (m)', fontsize=fontsize)
@@ -763,7 +803,8 @@ class LimPlots:
             except:
                 pass
 
-        ax.text(0.6, 0.05, textstr, fontsize=fontsize, bbox=props, transform=ax.transAxes)
+        #ax.text(0.6, 0.05, textstr, fontsize=fontsize, bbox=props, transform=ax.transAxes)
+        ax.text(0.1, 0.1, textstr, fontsize=10, bbox=props, transform=ax.transAxes)
 
         if plotnum==0:
             fig.tight_layout()
@@ -895,17 +936,21 @@ class LimPlots:
                 # Show where the step in the absorbing boundary occurs.
                 if show_steps:
 
-                    # Left step.
-                    if rad_loc < self.nc.variables['xabsorb1a_step'][:].data:
-                        #ax.axvline(self.nc.variables['yabsorb1a_step'][:].data, color='k', linestyle='--')
-                        rect = patches.Rectangle((self.nc.variables['yabsorb1a_step'][:].data, 999), 9999, 9999, color='grey', angle=180, alpha=0.6)
-                        ax.add_patch(rect)
+                    try:
+                        # Left step.
+                        if rad_loc < self.nc.variables['xabsorb1a_step'][:].data:
+                            #ax.axvline(self.nc.variables['yabsorb1a_step'][:].data, color='k', linestyle='--')
+                            rect = patches.Rectangle((self.nc.variables['yabsorb1a_step'][:].data, 999), 9999, 9999, color='grey', angle=180, alpha=0.6)
+                            ax.add_patch(rect)
 
-                    # Right step.
-                    if rad_loc < self.nc.variables['xabsorb2a_step'][:].data:
-                        #ax.axvline(self.nc.variables['yabsorb2a_step'][:].data, color='k', linestyle='--')
-                        rect = patches.Rectangle((self.nc.variables['yabsorb2a_step'][:].data, -999), 9999, 9999, color='grey', alpha=0.6)
-                        ax.add_patch(rect)
+                        # Right step.
+                        if rad_loc < self.nc.variables['xabsorb2a_step'][:].data:
+                            #ax.axvline(self.nc.variables['yabsorb2a_step'][:].data, color='k', linestyle='--')
+                            rect = patches.Rectangle((self.nc.variables['yabsorb2a_step'][:].data, -999), 9999, 9999, color='grey', alpha=0.6)
+                            ax.add_patch(rect)
+                    except KeyError:
+                        # Using an old file or just one without the step data.
+                        pass
 
                 if plotnum == 0:
                     fig.tight_layout()
@@ -1002,19 +1047,23 @@ class LimPlots:
 
             if show_steps:
 
-                # Swap x and y bc that's how it plotted.
-                y = self.nc.variables['xabsorb1a_step'][:].data
-                x = self.nc.variables['yabsorb1a_step'][:].data
-                rect1 = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
-                rect2 = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
-                ax1.add_patch(rect1)
-                ax2.add_patch(rect2)
-                y = self.nc.variables['xabsorb2a_step'][:].data
-                x = self.nc.variables['yabsorb2a_step'][:].data
-                rect1 = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
-                rect2 = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
-                ax1.add_patch(rect1)
-                ax2.add_patch(rect2)
+                try:
+                    # Swap x and y bc that's how it plotted.
+                    y = self.nc.variables['xabsorb1a_step'][:].data
+                    x = self.nc.variables['yabsorb1a_step'][:].data
+                    rect1 = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                    rect2 = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                    ax1.add_patch(rect1)
+                    ax2.add_patch(rect2)
+                    y = self.nc.variables['xabsorb2a_step'][:].data
+                    x = self.nc.variables['yabsorb2a_step'][:].data
+                    rect1 = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                    rect2 = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                    ax1.add_patch(rect1)
+                    ax2.add_patch(rect2)
+                except KeyError:
+                    # Step info not in output file.
+                    pass
 
             ax1.set_xlim([-cl, cl])
             ax2.set_xlim([-cl, cl])
@@ -1041,15 +1090,19 @@ class LimPlots:
 
             if show_steps:
 
-                # Swap x and y bc that's how it plotted.
-                y = self.nc.variables['xabsorb1a_step'][:].data
-                x = self.nc.variables['yabsorb1a_step'][:].data
-                rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
-                ax.add_patch(rect)
-                y = self.nc.variables['xabsorb2a_step'][:].data
-                x = self.nc.variables['yabsorb2a_step'][:].data
-                rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
-                ax.add_patch(rect)
+                try:
+                    # Swap x and y bc that's how it plotted.
+                    y = self.nc.variables['xabsorb1a_step'][:].data
+                    x = self.nc.variables['yabsorb1a_step'][:].data
+                    rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+                    ax.add_patch(rect)
+                    y = self.nc.variables['xabsorb2a_step'][:].data
+                    x = self.nc.variables['yabsorb2a_step'][:].data
+                    rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+                    ax.add_patch(rect)
+                except KeyError:
+                    # Step info not in putput file.
+                    pass
 
             if plotnum==0:
                 fig.tight_layout()
@@ -1156,7 +1209,7 @@ class LimPlots:
 
         self.centerline(plotnum=1, log=True)
         self.deposition_contour(side='ITF', plotnum=2)
-        self.deposition_contour(side='OTF', plotnum=3)
+        self.deposition_contour(side='OTF', plotnum=3, print_ratio=False)
         self.te_contour(plotnum=4)
         self.ne_contour(plotnum=5)
         self.avg_pol_profiles(plotnum=6)

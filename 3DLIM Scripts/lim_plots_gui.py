@@ -26,8 +26,8 @@ pady = 4
 
 #Width of columns
 col1_width = 10
-col2_width = 20
-col3_width = 3
+col2_width = 17
+col3_width = 7
 
 #plot options
 plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles',
@@ -85,6 +85,13 @@ class Window(tk.Frame):
         self.netcdf_button = tk.Button(self.netcdf_frame, text='Browse...',width=col3_width)
         self.netcdf_button.grid(row=row, column=2, padx=padx, pady=pady, sticky='WE')
         self.netcdf_button['command'] = self.browse_netcdf
+
+        # Checkbox to allow combining repeat runs' NERODS3 together.
+        self.repeat = tk.IntVar()
+        self.repeat.set(0)
+        self.repeat_selector = tk.Checkbutton(self.netcdf_frame, variable=self.repeat, bg=cname2, text='Repeat Runs?')
+        self.repeat_selector.grid(row=row, column=3, padx=padx, pady=pady)
+        self.repeat_selector['command'] = self.repeat_command
 
         row += 1
 
@@ -148,7 +155,7 @@ class Window(tk.Frame):
         self.render = ImageTk.PhotoImage(image=self.image)
         self.img = tk.Label(self.sel_frame, image=self.render)
         self.img.image = self.render
-        self.img.grid(row=row, column=2, padx=padx, pady=pady)
+        self.img.grid(row=row-1, column=4, padx=padx, pady=pady, sticky='we', rowspan=3)
 
         row += 1
 
@@ -163,13 +170,13 @@ class Window(tk.Frame):
 
         #Plot button to plot the selected plot
         self.plot_button = tk.Button(self.sel_frame, text='Plot', width=col3_width)
-        self.plot_button.grid(row=row, column=2, padx=padx, pady=pady)
+        self.plot_button.grid(row=row, column=1, padx=padx, pady=pady)
         self.plot_button['command'] = self.plot_action
 
         row += 1
 
         self.quit_button = tk.Button(self.master, text='Quit', width=col1_width)
-        self.quit_button.grid(row=row, column=1, padx=padx, pady=pady)
+        self.quit_button.grid(row=row, column=0, padx=padx, pady=pady, rowspan=2)
         self.quit_button['command'] = self.quit_command
 
     def overview(self):
@@ -325,16 +332,16 @@ class Window(tk.Frame):
             self.opt_centline.grid(row=5, column=4, columnspan=4, padx=padx, pady=pady, sticky='NSWE')
 
             #Adds log options checkbox
-            tk.Label(self.opt_centline, text='Log plot: ', bg=cname, width=10, anchor='e').grid(row=1, column=1)
+            tk.Label(self.opt_centline, text='Log plot', bg=cname, width=10, anchor='w').grid(row=1, column=2)
             self.log_option = tk.IntVar()
             self.centline_log = tk.Checkbutton(self.opt_centline, variable=self.log_option, onvalue=1, offvalue=0, bg=cname)
-            self.centline_log.grid(row=1, column=2)
+            self.centline_log.grid(row=1, column=1)
 
             #Adds exp options checkbox
-            tk.Label(self.opt_centline, text='Exponential fit: ', bg=cname, anchor='e').grid(row=1, column=3)
+            tk.Label(self.opt_centline, text='Exponential fit', bg=cname, anchor='w').grid(row=2, column=2)
             self.exp_option = tk.IntVar()
             self.centline_exp = tk.Checkbutton(self.opt_centline, variable=self.exp_option, onvalue=1, offvalue=0, bg=cname)
-            self.centline_exp.grid(row=1, column=4)
+            self.centline_exp.grid(row=2, column=1)
 
             #Centers checkboxes in frame
             self.opt_centline.grid_rowconfigure(0, weight=1)
@@ -578,6 +585,13 @@ class Window(tk.Frame):
             self.plot7_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=0, padx=padx, pady=pady)
             self.plot8_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=1, padx=padx, pady=pady)
             self.plot9_label = tk.Label(self.mul_frame, text='N/A').grid(row=row, column=2, padx=padx, pady=pady)
+
+    def repeat_command(self):
+
+        if self.repeat.get() == 0:
+            combine_repeat_runs = False
+        elif self.repeat.get() == 1:
+            combine_repeat_funs = True
 
     def plot1_command(self):
 

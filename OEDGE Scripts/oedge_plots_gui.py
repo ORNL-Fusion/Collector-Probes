@@ -40,6 +40,15 @@ class Window(tk.Frame):
         self.vzmult_entry.insert(0, 0)
         self.create_widgets()
 
+    def add_message(self, text):
+        """
+        Just a small helper function to add text to the message box and scroll
+        to the bottom.
+        """
+
+        self.message_box.insert(tk.END, text)
+        self.message_box.see("end")
+
     def create_widgets(self):
         """
         Create all the buttons, message box, etc. and lay them all out.
@@ -61,7 +70,7 @@ class Window(tk.Frame):
         #self.message_box = tk.Text(self.master, height=33, width=55)
         self.message_box = tk.Text(self.master, height=7, width=65)
         self.message_box.grid(row=0, column=3, rowspan=5, padx=padx, sticky='NS', )
-        self.message_box.insert(tk.END, "Click 'Browse...' to load path to netCDF file.\n")
+        self.add_message("Click 'Browse...' to load path to netCDF file.\n")
 
         # Add scrollbar to message box.
         self.scroll = tk.Scrollbar(self.master)
@@ -256,7 +265,7 @@ class Window(tk.Frame):
         self.netcdf_entry.delete(0, tk.END)
         self.netcdf_entry.insert(0, netcdf_path)
         self.op = oedge.OedgePlots(self.netcdf_entry.get())
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(netcdf_path.split('/')[-1]))
+        self.add_message('Loaded file: {}\n'.format(netcdf_path.split('/')[-1]))
 
         # Try and grab the collector_probe file while we're at it since it's probably
         # the same name. Dat file too.
@@ -265,7 +274,7 @@ class Window(tk.Frame):
             f = open(cp_path, 'r')
             self.cp_entry.delete(0, tk.END)
             self.cp_entry.insert(0, cp_path)
-            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(cp_path.split('/')[-1]))
+            self.add_message('Loaded file: {}\n'.format(cp_path.split('/')[-1]))
             self.cp_path = cp_path
         except:
             pass
@@ -275,7 +284,7 @@ class Window(tk.Frame):
             self.dat_entry.delete(0, tk.END)
             self.dat_entry.insert(0, dat_path)
             self.op.add_dat_file(dat_path)
-            self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(dat_path.split('/')[-1]))
+            self.add_message('Loaded file: {}\n'.format(dat_path.split('/')[-1]))
             self.dat_path = dat_path
         except:
             pass
@@ -283,7 +292,7 @@ class Window(tk.Frame):
         # Include a message saying what the first SOL ring is.
         irsep = int(self.op.nc.variables['IRSEP'][:])
         irwall = int(self.op.nc.variables['IRWALL'][:])
-        self.message_box.insert(tk.END, 'First, last SOL ring: {}, {}\n'.format(irsep, irwall))
+        self.add_message('First, last SOL ring: {}, {}\n'.format(irsep, irwall))
 
         # Print out how long the run took.
         time = self.op.cpu_time
@@ -293,7 +302,7 @@ class Window(tk.Frame):
             time_str = '{:.1f} minutes'.format(time / 60)
         elif time > 3600:
             time_str = '{:.1f} hours'.format(time / 3600)
-        self.message_box.insert(tk.END, 'Run took {}.\n'.format(time_str))
+        self.add_message('Run took {}.\n'.format(time_str))
 
         # Add a generic name for the Thomson output file.
         ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'
@@ -480,7 +489,7 @@ class Window(tk.Frame):
         self.dat_entry.delete(0, tk.END)
         self.dat_entry.insert(0, self.dat_path)
         self.op.add_dat_file(self.dat_path)
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.dat_path.split('/')[-1]))
+        self.add_message('Loaded file: {}\n'.format(self.dat_path.split('/')[-1]))
 
     def browse_cp(self):
         """
@@ -491,8 +500,7 @@ class Window(tk.Frame):
         self.cp_path = tk.filedialog.askopenfilename(filetypes=(('Collector Probe files', '*.collector_probe'),))
         self.cp_entry.delete(0, tk.END)
         self.cp_entry.insert(0, self.cp_path)
-        #self.op = oedge.OedgePlots(self.netcdf_entry.get())
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.cp_path.split('/')[-1]))
+        self.add_message('Loaded file: {}\n'.format(self.cp_path.split('/')[-1]))
 
     def browse_ts(self):
         """
@@ -503,8 +511,7 @@ class Window(tk.Frame):
         self.ts_path = tk.filedialog.askopenfilename(filetypes=(('Excel files', '*.xlsx'),))
         self.ts_entry.delete(0, tk.END)
         self.ts_entry.insert(0, self.ts_path)
-        #self.op = oedge.OedgePlots(self.netcdf_entry.get())
-        self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(self.ts_path.split('/')[-1]))
+        self.add_message('Loaded file: {}\n'.format(self.ts_path.split('/')[-1]))
 
     def create_ts(self):
 
@@ -555,7 +562,7 @@ class Window(tk.Frame):
     def create_ts_command(self):
 
         # Printout to message box.
-        self.message_box.insert(tk.END, 'Creating Thomson scattering data file... ')
+        self.add_message('Creating Thomson scattering data file... ')
 
         # Convert the shots input to a list.
         shots = self.shot_entry.get()
@@ -576,20 +583,20 @@ class Window(tk.Frame):
                                   load_all_ts=load_all_ts)
 
         self.ts_entry.insert(0, fname)
-        self.message_box.insert(tk.END, 'Done.\n')
+        self.add_message('Done.\n')
 
     def compare_ts_command(self):
         """
         Generate the pdf of Thomson comparisons.
         """
 
-        self.message_box.insert(tk.END, 'Generating PDF...')
+        self.add_message('Generating PDF...')
         ts_filename = self.ts_entry.get()
         #rings = np.append(np.arange(19, 49), np.arange(178, 190))
         #rings = np.arange(self.op.irsep, self.op.irsep + 30)  # Just do 30 rings out.
         rings = np.arange(self.op.irsep, self.op.irwall+1)
         self.op.compare_ts(ts_filename, rings, show_legend='short', output_file=self.ts_out_entry.get())
-        self.message_box.insert(tk.END, ' Done.\n')
+        self.add_message(' Done.\n')
 
     def plot_command_cp(self):
         """
@@ -603,7 +610,7 @@ class Window(tk.Frame):
             plot_args = {'cp_path':self.cp_path, 'xaxis':'ROMP', 'yaxis':'IMPFLUX', 'cp_num':2, 'log':True}
 
         else:
-            self.message_box.insert(tk.END, 'Plot option not found.')
+            self.add_message('Plot option not found.')
 
         self.op.cp_plots(**plot_args)
 
@@ -616,7 +623,7 @@ class Window(tk.Frame):
         ring = int(self.along_ring_entry.get())
 
         message = "Plotting " + self.current_option.get() + " along ring " + str(ring) + ".\n"
-        self.message_box.insert(tk.END, message)
+        self.add_message(message)
 
         # Can grab the relevant plot arguments from the main plot command function.
         try:
@@ -624,7 +631,7 @@ class Window(tk.Frame):
         except AttributeError as e:
             err_msg = "Error: {}. Was DIVIMP ran, and not only OSM?\n".format(e)
             print(err_msg)
-            self.message_box.insert(tk.END, err_msg)
+            self.add_message(err_msg)
             return None
 
         if 'charge' in plot_args.keys():
@@ -667,7 +674,7 @@ class Window(tk.Frame):
         plot_args['z_end']   = np.float(self.zend_entry.get())
 
         message = 'Plotting {} at constant {}.'.format(plot_args['data'], plot_args['plot'])
-        self.message_box.insert(tk.END, message)
+        self.add_message(message)
         self.op.fake_probe(**plot_args)
 
     def plot_command(self, plot_it=True):
@@ -877,7 +884,7 @@ class Window(tk.Frame):
                          'lut'       : 10}
 
         else:
-            self.message_box.insert(tk.END, 'Plot option not found.\n')
+            self.add_message('Plot option not found.\n')
 
         # Options for including collector probes or metal rings. Add into
         # dictionary if we want them.
@@ -931,7 +938,7 @@ class Window(tk.Frame):
 
         if plot_it:
             message = "Plotting " + self.current_option.get() + ".\n"
-            self.message_box.insert(tk.END, message)
+            self.add_message(message)
             fig = self.op.plot_contour_polygon(**plot_args)
 
         return plot_args

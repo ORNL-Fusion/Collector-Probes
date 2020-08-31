@@ -521,8 +521,8 @@ class OedgePlots:
             return ff + fpg + feg + fig + fe
 
     def plot_contour_polygon(self, dataname, charge=None, scaling=1.0,
-                             normtype='linear', cmap='plasma', xlim=[0.9, 2.5],
-                             ylim = [-1.5, 1.5], plot_sep=True, levels=None,
+                             normtype='linear', cmap='plasma', xlim=[0.9, 2.4],
+                             ylim = [-1.4, 1.4], plot_sep=True, levels=None,
                              cbar_label=None, fontsize=16, lut=21,
                              smooth_cmap=False, vmin=None, vmax=None,
                              show_cp=None, ptip=None, show_mr=False,
@@ -766,8 +766,6 @@ class OedgePlots:
                                                height=tile_height,
                                                facecolor=facecolor,
                                                edgecolor=edgecolor)
-
-
             shelf_rect  = mpl.patches.Rectangle(shelf_xy, width = shelf_width,
                                                height=tile_height,
                                                facecolor=facecolor,
@@ -1058,7 +1056,7 @@ class OedgePlots:
                         Though nothing is stopping you from running this multiple
                         times and just copy/pasting the two Excel files together,
                         one for each shot.
-        omfit_path   : Path the Excel file created from create_omfit_excel.
+        omfit_path   : Path to the Excel file created from create_omfit_excel.
         output_path  : Name of the Excel file that is output, and ready to be
                         used in compare_ts.Leaving as None will generate a
                         generic filename for you.
@@ -1851,7 +1849,7 @@ class OedgePlots:
         if plot is not None:
 
             # Get correct X and Y arrays for plotting.
-            if plot.ower() in ['r', 'rminrsep']:
+            if plot.lower() in ['r', 'rminrsep']:
                 x = [output_df['(R, Z)'][i][0] for i in range(0, len(output_df.index))]
                 xlabel = 'R (m)'
                 if plot.lower() == 'rminrsep':

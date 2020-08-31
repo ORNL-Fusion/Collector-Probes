@@ -1,5 +1,5 @@
 """
-Plug this script into an OMFIT session Command box. The step for this workflow
+Plug this script into an OMFIT session Command box. The steps for this workflow
 are as follows.
 
 1. Log onto iris. Type "module load omfit" and then "omfit" to bring up an

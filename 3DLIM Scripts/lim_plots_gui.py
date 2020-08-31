@@ -26,8 +26,8 @@ pady = 4
 
 #Width of columns
 col1_width = 10
-col2_width = 17
-col3_width = 7
+col2_width = 10
+col3_width = 5
 
 #plot options
 plot_op = ['Please Select Option', 'Center Line', 'Contour', 'Poloidal Profiles',
@@ -99,7 +99,7 @@ class Window(tk.Frame):
         self.netcdf_entry = tk.Entry(self.netcdf_frame, width=col2_width)
         self.netcdf_entry.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
 
-        tk.Label(self.netcdf_frame, text='.nc', bg=cname, width=col1_width, anchor='w').grid(row=row, column=4)
+        tk.Label(self.netcdf_frame, text='.nc', bg=cname, width=col3_width, anchor='w').grid(row=row, column=4)
 
         row += 1
 
@@ -107,7 +107,7 @@ class Window(tk.Frame):
         self.dat_entry = tk.Entry(self.netcdf_frame, width=col2_width)
         self.dat_entry.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
 
-        tk.Label(self.netcdf_frame, text='.dat', bg=cname, width=col1_width, anchor='w').grid(row=row, column=4)
+        tk.Label(self.netcdf_frame, text='.dat', bg=cname, width=col3_width, anchor='w').grid(row=row, column=4)
 
         row += 1
 
@@ -115,7 +115,7 @@ class Window(tk.Frame):
         self.lim_entry = tk.Entry(self.netcdf_frame, width=col2_width)
         self.lim_entry.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
 
-        tk.Label(self.netcdf_frame, text='.lim', bg=cname, width=col1_width, anchor='w').grid(row=row, column=4)
+        tk.Label(self.netcdf_frame, text='.lim', bg=cname, width=col3_width, anchor='w').grid(row=row, column=4)
 
         row += 1
 
@@ -128,7 +128,7 @@ class Window(tk.Frame):
 
         #Make a new frame for plot selection
         self.sel_frame = tk.Frame(self.master, bg=cname2)
-        self.sel_frame.grid(row=row, column=0, columnspan=4, padx=padx, pady=pady, sticky='WE')
+        self.sel_frame.grid(row=row, column=0, padx=padx, pady=pady, sticky='WE')
         tk.Label(self.sel_frame, text='Plot Selection:', bg=cname2).grid(row=row, column=1)
 
         #Make a new frame for plot options
@@ -140,22 +140,22 @@ class Window(tk.Frame):
         self.opt_frame.grid_columnconfigure(0, weight=1)
         self.opt_frame.grid_columnconfigure(2, weight=1)
 
-        row += 1
+        #row += 1
 
         #Option Menu for different plots
         self.current_option = tk.StringVar(self.sel_frame)
         self.current_option.set(plot_op[0])
         self.plot_options = tk.OptionMenu(self.sel_frame, self.current_option, *plot_op)
-        self.plot_options.grid(row=row, column=1, padx=padx, pady=pady)
+        self.plot_options.grid(row=row, column=2, padx=padx, pady=pady)
         self.current_option.trace('w', self.option_selection)
 
         #Power T image
-        self.image = Image.open("PowerTimage.png")
-        self.image = self.image.resize((100,100))
-        self.render = ImageTk.PhotoImage(image=self.image)
-        self.img = tk.Label(self.sel_frame, image=self.render)
-        self.img.image = self.render
-        self.img.grid(row=row-1, column=4, padx=padx, pady=pady, sticky='we', rowspan=3)
+        #self.image = Image.open("PowerTimage.png")
+        #self.image = self.image.resize((100,100))
+        #self.render = ImageTk.PhotoImage(image=self.image)
+        #self.img = tk.Label(self.sel_frame, image=self.render)
+        #self.img.image = self.render
+        #self.img.grid(row=row-1, column=4, padx=padx, pady=pady, sticky='e', rowspan=3)
 
         row += 1
 

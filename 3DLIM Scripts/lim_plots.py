@@ -147,10 +147,10 @@ class LimPlots:
                     print("  No NERODS3.")
 
                 # Add on contributions from repeat runs.
-                for i in range(1, 11):
+                for i in range(1, 99):
                     try:
-                        #print('Loading {}...'.format(i))
                         ncpath_add = self.ncpath.split('.nc')[0] + str(i) + '.nc'
+                        #print('Looking for {}...'.format(ncpath_add))
                         nc = netCDF4.Dataset(ncpath_add)
                         print("Found additional run: {}".format(ncpath_add))
                         try:
@@ -461,11 +461,11 @@ class LimPlots:
 
         # Replace zeros in Z with just the smallest density value. Again to
         # stop all these zeros from messing up the contour levels.
-        try:
-            Zmin = np.partition(np.unique(Z), 1)[1]
-            Z = np.clip(Z, Zmin, None)
-        except:
-            pass
+        #try:
+        #    Zmin = np.partition(np.unique(Z), 1)[1]
+        #    Z = np.clip(Z, Zmin, None)
+        #except:
+        #    pass
 
         # Create grid for plotting. Note we swap definitions for x and y since
         # we want the x-axis in the plot to be the parallel direction (it just
@@ -473,7 +473,7 @@ class LimPlots:
         Y, X = np.meshgrid(x, y)
 
         # Plotting commands.
-        if plotnum ==0:
+        if plotnum == 0:
             fig = plt.figure()
             ax = fig.add_subplot(111)
         else:
@@ -482,7 +482,7 @@ class LimPlots:
         cont = ax.contourf(X, Y, Z, cmap='magma', levels=10)
         ax.set_xlim([-cl, cl])
         # ax.set_ylim([None, ca])
-        ax.set_ylim([None, 0.01])  # Contour weird near edge.
+        #ax.set_ylim([None, 0.01])  # Contour weird near edge.
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
         ax.set_ylabel('Radial (m)', fontsize=fontsize)
         if plotnum == 0:
@@ -490,7 +490,6 @@ class LimPlots:
         else:
             cbar = self.master_fig.colorbar(cont, ax=ax)
         cbar.set_label('Background Te (eV)')
-
         if plotnum==0:
             fig.tight_layout()
             fig.show()
@@ -671,7 +670,8 @@ class LimPlots:
             fig.tight_layout()
             fig.show()
 
-    def imp_contour_plot_radial(self, plotnum=0, pmin=-0.005, pmax=0, iz_state=10, show_steps=True, vmax=None):
+    def imp_contour_plot_radial(self, plotnum=0, pmin=-0.005, pmax=0,
+                                iz_state=10, show_steps=True, vmax=None):
         """
         Create a plot of the impurity density in the (parallel, radial) plane.
 
@@ -777,7 +777,6 @@ class LimPlots:
         cl = float(self.nc['CL'][:].data)
         ax.set_xlim([-cl, cl])
         ax.set_ylim([rad_locs.min(), rad_locs.max()])
-        fontsize=16
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
         ax.set_ylabel('Radial (m)', fontsize=fontsize)
         cbar.set_label('Imp. Density W{}+'.format(iz_state))
@@ -1201,7 +1200,7 @@ class LimPlots:
             rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
             ax.add_patch(rect)
 
-    def overviewplot(self):
+    def overviewplot(self, iz_state=5):
 
         self.master_fig = plt.figure(figsize=(15,10))
         for x in range(1, 10):
@@ -1213,7 +1212,7 @@ class LimPlots:
         self.te_contour(plotnum=4)
         self.ne_contour(plotnum=5)
         self.avg_pol_profiles(plotnum=6)
-        self.imp_contour_plot_radial(plotnum=7)
+        self.imp_contour_plot_radial(plotnum=7, iz_state=iz_state)
         self.force_plots(plotnum=8)
         self.vel_plots(vp='vp2', plotnum=9)
 

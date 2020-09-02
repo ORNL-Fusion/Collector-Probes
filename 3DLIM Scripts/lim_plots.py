@@ -222,12 +222,15 @@ class LimPlots:
                 ax.plot(itf_x*100, itf_y, '-', label='ITF', ms=ms, color=tableau20[6])
                 ax.plot(otf_x*100, otf_y, '-', label='OTF', ms=ms, color=tableau20[8])
 
-        if show_plot:
+            # The tips of the probes can have spuriously high data points, so set the
+            # may for the ylim just the second highest number in the datasets.
+            ymax = sorted(np.concatenate((otf_y, itf_y)))[-2]
+
             ax.legend(fontsize=fontsize)
             ax.set_xlabel('Distance along probe (cm)', fontsize=fontsize)
             ax.set_ylabel('Deposition (arbitrary units)', fontsize=fontsize)
-            ax.set_xlim([0, 10])
-            #ax.set_ylim([0, None])
+            #ax.set_xlim([0, 10])
+            ax.set_ylim([0, ymax])
 
         # Option to perform an exponential fit to the data.
         if fit_exp:
@@ -431,6 +434,7 @@ class LimPlots:
 
         # Same with the location of the plasma center (the top of the box).
         ca = float(self.nc['CA'][:].data)
+        caw = float(self.nc['CAW'][:].data)
 
         # Get the X and Y grid data.
         x = self.nc.variables['XOUTS'][:].data
@@ -480,7 +484,28 @@ class LimPlots:
             ax = self.master_fig.axes[plotnum-1]
 
         cont = ax.contourf(X, Y, Z, cmap='magma', levels=10)
-        ax.set_xlim([-cl, cl])
+
+        # Add a grey box to show any possible step in the boundary.
+        # Swap x and y bc that's how it plotted.
+        if 'xabsorb1a_step' in self.nc.variables.keys():
+            y = self.nc.variables['xabsorb1a_step'][:].data
+            x = self.nc.variables['yabsorb1a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+            ax.add_patch(rect)
+            y = self.nc.variables['xabsorb2a_step'][:].data
+            x = self.nc.variables['yabsorb2a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+            ax.add_patch(rect)
+
+        # Set the limits. Some older runs won't have the absorbing boundaries
+        # in the netcdf file, so in those cases use the connection length (which
+        # isn't actually the connection length but it's something).
+        if 'yabsorb1a' in self.nc.variables.keys():
+            ax.set_xlim([self.nc.variables['yabsorb2a'][:], self.nc.variables['yabsorb1a'][:]])
+        else:
+            ax.set_xlim([-cl, cl])
+
+        ax.set_ylim([caw, ca])
         # ax.set_ylim([None, ca])
         #ax.set_ylim([None, 0.01])  # Contour weird near edge.
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
@@ -504,8 +529,10 @@ class LimPlots:
         """
         # Get the connection length to restrict the plot between the two absorbing surfaces.
         cl = float(self.nc['CL'][:].data)
+
         # Same with the location of the plasma center (the top of the box)
-        ca = float(self.nc['CA'][:].data)
+        ca  = float(self.nc['CA'][:].data)
+        caw = float(self.nc['CAW'][:].data)
 
         # Get the X and Y grid data.
         x = self.nc.variables['XOUTS'][:].data
@@ -551,9 +578,28 @@ class LimPlots:
         levs = np.power(10, lev_exp)
 
         cont = ax.contourf(X, Y, Z, cmap='magma', levels=levs, norm=colors.LogNorm())
-        ax.set_xlim([-cl, cl])
-        # ax.set_ylim([None, ca])
-        ax.set_ylim([None, 0.01])  # Contour weird near edge.
+
+        # Add a grey box to show any possible step in the boundary.
+        # Swap x and y bc that's how it plotted.
+        if 'xabsorb1a_step' in self.nc.variables.keys():
+            y = self.nc.variables['xabsorb1a_step'][:].data
+            x = self.nc.variables['yabsorb1a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=180, color='grey')
+            ax.add_patch(rect)
+            y = self.nc.variables['xabsorb2a_step'][:].data
+            x = self.nc.variables['yabsorb2a_step'][:].data
+            rect = patches.Rectangle((x, y), 999, 999, angle=270, color='grey')
+            ax.add_patch(rect)
+
+        # Set the limits. Some older runs won't have the absorbing boundaries
+        # in the netcdf file, so in those cases use the connection length (which
+        # isn't actually the connection length but it's something).
+        if 'yabsorb1a' in self.nc.variables.keys():
+            ax.set_xlim([self.nc.variables['yabsorb2a'][:], self.nc.variables['yabsorb1a'][:]])
+        else:
+            ax.set_xlim([-cl, cl])
+
+        ax.set_ylim([caw, ca])  # Contour weird near edge.
         ax.set_xlabel('Parallel (m)', fontsize=fontsize)
         ax.set_ylabel('Radial (m)', fontsize=fontsize)
         if plotnum == 0:
@@ -762,7 +808,6 @@ class LimPlots:
         else:
             ax = self.master_fig.axes[plotnum - 1]
 
-
         def fmt(x, pos):
             a, b = '{:.2e}'.format(x).split('e')
             b = int(b)
@@ -896,6 +941,14 @@ class LimPlots:
             ax.set_xlabel('Parallel (m)')
             ax.set_ylabel('Force (N?)')
 
+            # Set the limits. Some older runs won't have the absorbing boundaries
+            # in the netcdf file, so in those cases use the connection length (which
+            # isn't actually the connection length but it's something).
+            if 'yabsorb1a' in self.nc.variables.keys():
+                ax.set_xlim([self.nc.variables['yabsorb2a'][:], self.nc.variables['yabsorb1a'][:]])
+            else:
+                ax.set_xlim([-cl, cl])
+
             # Show where the step in the absorbing boundary occurs.
             if show_steps:
 
@@ -932,6 +985,14 @@ class LimPlots:
                 ax.legend(fontsize=fontsize)
                 ax.axhline(0, linestyle='--', color='k')
 
+                # Set the limits. Some older runs won't have the absorbing boundaries
+                # in the netcdf file, so in those cases use the connection length (which
+                # isn't actually the connection length but it's something).
+                if 'yabsorb1a' in self.nc.variables.keys():
+                    ax.set_xlim([self.nc.variables['yabsorb2a'][:], self.nc.variables['yabsorb1a'][:]])
+                else:
+                    ax.set_xlim([-cl, cl])
+
                 # Show where the step in the absorbing boundary occurs.
                 if show_steps:
 
@@ -963,6 +1024,13 @@ class LimPlots:
 
         vp: Either 'vp1' (background plasma) or 'vp2' (disturbed plasma from CP).
         """
+
+        # Get the connection length to restrict the plot between the two absorbing surfaces.
+        cl = float(self.nc['CL'][:].data)
+
+        # Same with the location of the plasma center (the top of the box)
+        ca  = float(self.nc['CA'][:].data)
+        caw = float(self.nc['CAW'][:].data)
 
         # These lines are copied from the above force_plots. See them for comments.
         lim_sfs = self.lim.split('Static forces')[1:]
@@ -1086,6 +1154,16 @@ class LimPlots:
             ax.set_xlabel('Parallel (m)', fontsize=fontsize)
             ax.set_ylabel('Radial (m)', fontsize=fontsize)
             cbar.set_label(vp.upper() + ' (m/s)')
+
+            # Set the limits. Some older runs won't have the absorbing boundaries
+            # in the netcdf file, so in those cases use the connection length (which
+            # isn't actually the connection length but it's something).
+            if 'yabsorb1a' in self.nc.variables.keys():
+                ax.set_xlim([self.nc.variables['yabsorb2a'][:], self.nc.variables['yabsorb1a'][:]])
+            else:
+                ax.set_xlim([-cl, cl])
+
+            ax.set_ylim([caw, ca])
 
             if show_steps:
 
@@ -1212,7 +1290,7 @@ class LimPlots:
         self.te_contour(plotnum=4)
         self.ne_contour(plotnum=5)
         self.avg_pol_profiles(plotnum=6)
-        self.imp_contour_plot_radial(plotnum=7, iz_state=iz_state)
+        #self.imp_contour_plot_radial(plotnum=7, iz_state=iz_state)
         self.force_plots(plotnum=8)
         self.vel_plots(vp='vp2', plotnum=9)
 

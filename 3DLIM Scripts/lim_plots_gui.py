@@ -87,9 +87,9 @@ class Window(tk.Frame):
         self.netcdf_button['command'] = self.browse_netcdf
 
         # Checkbox to allow combining repeat runs' NERODS3 together.
-        self.repeat = tk.IntVar()
-        self.repeat.set(0)
-        self.repeat_selector = tk.Checkbutton(self.netcdf_frame, variable=self.repeat, bg=cname2, text='Repeat Runs?')
+        self.repeat = tk.BooleanVar()
+        self.repeat.set(False)
+        self.repeat_selector = tk.Checkbutton(self.netcdf_frame, variable=self.repeat, bg=cname2, text='Repeat Runs?', onvalue=True, offvalue=False)
         self.repeat_selector.grid(row=row, column=3, padx=padx, pady=pady)
         self.repeat_selector['command'] = self.repeat_command
 
@@ -621,7 +621,7 @@ class Window(tk.Frame):
         netcdf_path = tk.filedialog.askopenfilename(filetypes=(('NetCDF files', '*.nc'),))
         self.netcdf_entry.delete(0, tk.END)
         self.netcdf_entry.insert(0, netcdf_path)
-        self.dl = limpt.LimPlots(self.netcdf_entry.get())
+        self.dl = limpt.LimPlots(self.netcdf_entry.get(), combine_repeat_runs=self.repeat.get())
         self.message_box.insert(tk.END, 'Loaded file: {}\n'.format(netcdf_path.split('/')[-1]))
 
         cp_path = netcdf_path.split('.nc')[0] + '.collector_probe'

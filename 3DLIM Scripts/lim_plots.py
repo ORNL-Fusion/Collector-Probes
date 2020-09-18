@@ -147,7 +147,7 @@ class LimPlots:
                     print("  No NERODS3.")
 
                 # Add on contributions from repeat runs.
-                for i in range(1, 99):
+                for i in range(1, 199):
                     try:
                         ncpath_add = self.ncpath.split('.nc')[0] + str(i) + '.nc'
                         #print('Looking for {}...'.format(ncpath_add))

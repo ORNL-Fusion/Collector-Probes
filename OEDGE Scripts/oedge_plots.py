@@ -527,7 +527,7 @@ class OedgePlots:
                              smooth_cmap=False, vmin=None, vmax=None,
                              show_cp=None, ptip=None, show_mr=False,
                              fix_fill=False, own_data=None, no_core=False,
-                             vz_mult=0.0):
+                             vz_mult=0.0, wall_data=None):
 
         """
         Create a standalone figure using the PolyCollection object of matplotlib.
@@ -570,6 +570,9 @@ class OedgePlots:
         no_core:     Don't include data in the core region.
         vz_mult:     An optional input for if you're plotting the friction force.
                        See calculate_forces for more info.
+        wall_data:   Can supply your own R, Z wall coordinates, say if you need
+                       modify it to remove part of a limiter or something. Format
+                       is a tuple (Rcoords, Zcoords) in meters.
 
         Output
         fig : The plotted Figure object.
@@ -695,7 +698,20 @@ class OedgePlots:
 
         # Add the PolyCollection to the Axes object.
         ax.add_collection(coll)
-        ax.plot(self.rvesm, self.zvesm, color='k', linewidth=1)
+
+        # Plot the wall.
+        if wall_data is None:
+
+            # Drop all the (0, 0)'s and append the first point on the end so it
+            # doesn't leave a gap in the plot.
+            keep_idx = np.where(np.logical_and(self.rvesm[0] != 0, self.zvesm[0] != 0))
+            rvesm = np.append(self.rvesm[0][keep_idx], self.rvesm[0][keep_idx][0])
+            zvesm = np.append(self.zvesm[0][keep_idx], self.zvesm[0][keep_idx][0])
+            #ax.plot(self.rvesm[0][keep_idx], self.zvesm[0][keep_idx], color='k', linewidth=1)
+        else:
+            rvesm = wall_data[0]
+            zvesm = wall_data[1]
+        ax.plot(rvesm, zvesm, color='k', linewidth=1)
 
         # Get the separatrix coordinates as a collection of lines and plot.
         if plot_sep:

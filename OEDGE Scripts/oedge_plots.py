@@ -89,7 +89,7 @@ mpl.use("TkAgg")
 
 # A nice looking font.
 #plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.family'] = 'DejaVu Sans'
+#plt.rcParams['font.family'] = 'DejaVu Sans'
 
 # These are the "Tableau 20" colors as RGB.
 tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),

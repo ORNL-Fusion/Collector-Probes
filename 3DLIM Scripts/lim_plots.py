@@ -118,7 +118,7 @@ class LimPlots:
             print("* {:15}{:<{pad}} *".format(key, val, pad=pad))
         print("*" * num_stars)
 
-    def get_dep_array(self):
+    def get_dep_array(self, num_runs=399):
         """
         Load the deposition arrays for the collector probes.
 
@@ -147,7 +147,7 @@ class LimPlots:
                     print("  No NERODS3.")
 
                 # Add on contributions from repeat runs.
-                for i in range(1, 199):
+                for i in range(1, num_runs):
                     try:
                         ncpath_add = self.ncpath.split('.nc')[0] + str(i) + '.nc'
                         #print('Looking for {}...'.format(ncpath_add))

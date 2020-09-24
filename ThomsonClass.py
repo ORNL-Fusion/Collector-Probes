@@ -139,7 +139,8 @@ class ThomsonClass:
                                 print("  Node has no data.")
 
             # This error is returned if the node is empty. Catch it.
-            except (mds.MdsIpException, mds.TreeNODATA, mds.MdsException):
+            #except (mds.MdsIpException, mds.TreeNODATA, mds.MdsException):
+            except (mds.TreeNODATA, mds.MdsException):
                 if verbal:
                     print("  Node has no data.")
 

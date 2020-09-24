@@ -140,14 +140,18 @@ class ThomsonClass:
 
             # This error is returned if the node is empty. Catch it.
             #except (mds.MdsIpException, mds.TreeNODATA, mds.MdsException):
-            except (mds.MdsException):
-                if verbal:
-                    print("  Node has no data.")
+            #except (mds.MdsException):
+            #    if verbal:
+            #        print("  Node has no data.")
 
             # For compatablity with some of the older shots.
-            except mds.TreeNNF:
+            #except mds.TreeNNF:
+            #    if verbal:
+            #        print("  Node not found.")
+
+            except:
                 if verbal:
-                    print("  Node not found.")
+                    print("  Node not found/no data.")
 
         # Pull these into DataFrames, a logical and easy way to represent the
         # data. Initially the rows are each a TS chord, and the columns are at

@@ -19,7 +19,7 @@ from matplotlib     import ticker
 
 # Some plot properties to make them a bit nicer.
 plt.ion()
-plt.rcParams['font.family'] = 'serif'
+#plt.rcParams['font.family'] = 'serif'
 fontsize = 12
 ms = 2
 lw = 5

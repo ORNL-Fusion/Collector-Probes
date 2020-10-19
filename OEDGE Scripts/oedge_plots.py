@@ -190,6 +190,13 @@ class OedgePlots:
         self.num_cells = num_cells
         self.mesh = mesh
 
+        # Add the .dat file with initialization as well.
+        #try:
+        dat_path = netcdf_path.split(".nc")[0] + ".dat"
+        self.add_dat_file(dat_path)
+        #except:
+        #    print("Error: Can't locate .dat file.")
+
     def __repr__(self):
         message = 'OedgePlots Object\n' + \
                   '  Title:       ' + self.nc['TITLE'][:].data.tostring().decode('utf-8') + '\n' + \
@@ -213,8 +220,11 @@ class OedgePlots:
         with open(dat_path) as f:
             self.dat_file = f.read()
 
-        self.cpu_time = int(self.dat_file.split('TOTAL CPU TIME USED' + \
-                         '     (S)')[1].split('\n')[0])
+        try:
+            self.cpu_time = int(self.dat_file.split('TOTAL CPU TIME USED' + \
+                             '     (S)')[1].split('\n')[0])
+        except:
+            pass
 
     def read_data_2d(self, dataname, charge=None, scaling=1.0, fix_fill=False, no_core=False):
         """
@@ -1945,7 +1955,7 @@ class OedgePlots:
                 if pol_opt == 0.0:
                     print('Poloidal drift option T13 was OFF.')
 
-                elif pol_opt == 1.0:
+                elif pol_opt in [1.0, 2.0, 3.0]:
                     print('Poloidal drift option T13 was ON.')
 
                     # Get the relevant table for the extra drifts out of the .dat file.

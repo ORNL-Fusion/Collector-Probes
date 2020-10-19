@@ -295,14 +295,17 @@ class Window(tk.Frame):
         self.add_message('First, last SOL ring: {}, {}\n'.format(irsep, irwall))
 
         # Print out how long the run took.
-        time = self.op.cpu_time
-        if time <= 60:
-            time_str = '{} seconds'.format(time)
-        elif time > 60 and time <= 3600:
-            time_str = '{:.1f} minutes'.format(time / 60)
-        elif time > 3600:
-            time_str = '{:.1f} hours'.format(time / 3600)
-        self.add_message('Run took {}.\n'.format(time_str))
+        try:
+            time = self.op.cpu_time
+            if time <= 60:
+                time_str = '{} seconds'.format(time)
+            elif time > 60 and time <= 3600:
+                time_str = '{:.1f} minutes'.format(time / 60)
+            elif time > 3600:
+                time_str = '{:.1f} hours'.format(time / 3600)
+            self.add_message('Run took {}.\n'.format(time_str))
+        except:
+            pass
 
         # Add a generic name for the Thomson output file.
         ts_out = netcdf_path.split('.nc')[0] + '_ts.pdf'

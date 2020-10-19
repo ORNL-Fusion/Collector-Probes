@@ -115,6 +115,10 @@ def get_mds_lp_data(shot, mds_index, tunnel=True):
     lp_data["heatflux"]   = conn.get(pname + ":HEATFLUX").data()
     lp_data["pnum"]       = conn.get(pname + ":PNUM").data()
 
+    # Include an estimate of the ground or SOL current.
+    with np.errstate(all='ignore'):
+        lp_data["ground_j"]   = lp_data["jsat"] * (1 - np.exp(-lp_data["pot"]/lp_data["temp"]))
+
     #print "Data stored for probe " + str(lp_data["pnum"]) + " (MDS index " + str(mds_index) + ")."
 
     return lp_data
@@ -154,6 +158,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     all_ne       = np.array([])
     all_jsat     = np.array([])
     all_x        = np.array([])
+    all_ground   = np.array([])
 
     # Output arrays.
     pnames_filt   = np.array([])
@@ -164,6 +169,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     heatflux_filt = np.array([])
     r_filt        = np.array([])
     z_filt        = np.array([])
+    ground_filt   = np.array([])
 
     # Go through one probe at a time to get data for plotting.
     for key in lps.keys():
@@ -178,6 +184,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
         ne       = lps[key]['dens'][idx]
         jsat     = lps[key]['jsat'][idx]
         heatflux = lps[key]['heatflux'][idx]
+        ground   = lps[key]['ground_j'][idx]
 
         if xtype == 'rminrsep':
             x = lps[key]['delrsepout'][idx]
@@ -189,7 +196,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
             print("Error in xtype entry. Must be either rminrsep or psin.")
 
         # Put into one array so we can sort them all by rminrsep, low -> high.
-        probe_data = np.array((x, te, ne, jsat, heatflux))
+        probe_data = np.array((x, te, ne, jsat, heatflux, ground))
         probe_data = probe_data[:, np.argsort(probe_data[0])]
 
         # Divide the data up into the number of 'bins', then take the filter of each bin.
@@ -203,12 +210,15 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
             tmp_ne       = probe_data[2][bin_size*bin:bin_size*(bin+1)]
             tmp_jsat     = probe_data[3][bin_size*bin:bin_size*(bin+1)]
             tmp_heatflux = probe_data[4][bin_size*bin:bin_size*(bin+1)]
+            tmp_ground   = probe_data[5][bin_size*bin:bin_size*(bin+1)]
 
             # Apply the preferred filter.
             if filter == 'median':
-                filter = np.median
+                #filter = np.median
+                filter = np.nanmedian
             elif filter == 'average':
                 filter = np.mean
+                #filter = np.nanmean
 
             # Filter and add to the output arrays to be plotted.
             x_filt        = np.append(x_filt,        filter(tmp_x))
@@ -216,6 +226,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
             ne_filt       = np.append(ne_filt,       filter(tmp_ne))
             jsat_filt     = np.append(jsat_filt,     filter(tmp_jsat))
             heatflux_filt = np.append(heatflux_filt, filter(tmp_heatflux))
+            ground_filt   = np.append(ground_filt,   filter(tmp_ground))
 
             # Assign probe names so we can identify these data points later.
             pnames_filt   = np.append(pnames_filt, key)
@@ -293,4 +304,4 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
 
     return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt,
            'jsat (A/cm2)':jsat_filt, 'heatflux (W/cm2)':heatflux_filt,
-           'pnames':pnames_filt, 'R':r_filt, 'Z':z_filt}
+           'ground_filt':ground_filt, 'pnames':pnames_filt, 'R':r_filt, 'Z':z_filt}

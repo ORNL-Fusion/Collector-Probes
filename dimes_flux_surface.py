@@ -5,7 +5,7 @@ from scipy import interpolate
 from matplotlib.lines import Line2D
 
 
-# Only things you need to change are here.
+# Only things you need to change are here. This script has only been tested on 178351.
 shot = 178351
 time = 1700  # 1580, 1740, 1880, 3000
 cm_flux = 4  # Which cm flux surface to plot.
@@ -38,34 +38,42 @@ z_idx = np.where(np.abs(gfile["Z"]-z_probe)==np.abs(gfile["Z"]-z_probe).min())[0
 # functions on the grid supplied from the gfile. Limited to the right half of the
 # plasma otherwise the interpolations get wonky from trying to interpolate
 # too much.
-Rs_trunc = R > R_axis
+#Rs_trunc = R > R_axis
+Rs_trunc = R > 1.30
 Rs_right_side = R > 1.2
 f_psin = interpolate.Rbf(R[Rs_right_side], Z[Rs_right_side], psin[Rs_right_side])
 f_Rs   = interpolate.interp1d(Zes, Res, assume_sorted=False)
+f_Zs   = interpolate.interp1d(Res[Zes<Z_axis], Zes[Zes<Z_axis], assume_sorted=False)
 psin_probe = f_psin(r_probe, z_probe)
 print("Probe on psin = {:.3f}.".format(psin_probe))
 f_R_right = interpolate.Rbf(gfile['psiRZn'][Rs_trunc], Z[Rs_trunc], R[Rs_trunc], epsilon=0.00001)
 rsep_omp = f_Rs(Z_axis)
+zsep_bot = f_Zs(r_probe)
 cm_flux_surf = f_psin(rsep_omp + cm_flux / 100, Z_axis)
-rsep_mimes = f_Rs(-0.118)
-r_mimes = f_R_right(psin_probe, -0.118)
+rsep_mimes = f_Rs(-0.188)
+r_mimes = f_R_right(psin_probe, -0.188)
 rminrsep_omp_dimes = f_R_right(psin_probe, Z_axis) - rsep_omp
 
 # Print some info.
+print("MiMES inserted to (R, Z) = ({:.3f}, {:.3f})".format(-0.188, r_mimes))
 print("First MiMES contact at is {:.3f} m, or {:.3f} cm from separatrix".format(r_mimes, (r_mimes-rsep_mimes)*100))
 print("DiMES tip is on the {:.2f} cm flux surface.".format(rminrsep_omp_dimes * 100))
+print("GAPBOT = {:.2f} cm".format((zsep_bot - (-1.250))*100))
 
 # Plotting commands.
 fig, ax = plt.subplots(figsize=(4,7))
 cont = ax.contour(R, Z, psin, levels=[psin_probe], colors='r')
 cont2 = ax.contour(R, Z, psin, levels=[cm_flux_surf], colors='b')
+
+# A line from the floor to show GAPBOT.
+ax.plot((r_probe, r_probe), (-1.250, zsep_bot), 'r-')
+
 ax.plot(r_probe, z_probe, 'k.', ms=5)
 ax.plot([r_probe, r_probe], [z_probe, -1.25], 'k')
 ax.plot(r_mimes, -0.118, 'k.', ms=5)
-ax.plot([r_mimes, 2.35], [-0.118, -0.118], 'k')
+ax.plot([r_mimes, 2.35], [-0.188, -0.188], 'k')
 ax.plot(gfile['lcfs'][:,0], gfile['lcfs'][:,1], 'k')
 ax.plot(gfile['wall'][:,0], gfile['wall'][:,1], 'k')
-#ax.text(0.5, 0.5, r"$\mathrm{R_{MiMES}}$" + " = {:.3f}\n({:.1f}cm from LCFS)".format(r_mimes, (r_mimes-rsep_mimes)*100), transform=ax.transAxes, horizontalalignment="center", fontsize=12)
 ax.text(0.5, 0.5, "DiMES on {:.2f} cm\n flux surface".format(rminrsep_omp_dimes * 100), transform=ax.transAxes, horizontalalignment="center", fontsize=12)
 ax.axis("equal")
 ax.set_title("{} {}ms".format(shot, time))

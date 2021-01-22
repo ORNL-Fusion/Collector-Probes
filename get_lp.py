@@ -5,13 +5,15 @@
 # Author: Shawn Zamperini
 import MDSplus as mds
 import numpy   as np
+import pandas  as pd
 import matplotlib.pyplot as plt
 
 
 def get_mds_active_probes(shot, tunnel=True):
     """
     Get the probes that were active during the shot. Used in main function.
-        shot: the shot you want
+
+    shot: the shot you want
     """
 
     # MDSplus connection to atlas where the data is store on the "LANGMUIR" tree.
@@ -69,9 +71,10 @@ def get_mds_active_probes(shot, tunnel=True):
 def get_mds_lp_data(shot, mds_index, tunnel=True):
     """
     Get LP data for a single probe. Used in main function.
-        shot: the shot you want
-        mds_index: a number 1-85 that corresponds to the mds node. These do not
-            match the probe number (which is PNUM).
+
+    shot: the shot you want
+    mds_index: a number 1-85 that corresponds to the mds node. These do not
+      match the probe number (which is PNUM).
     """
 
     # MDS connection required through atlas tunnel.
@@ -148,7 +151,25 @@ def get_dict_of_lps(shot, tunnel=True):
 
     return lps
 
-def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bins=5, tunnel=True):
+def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
+             bins=5, tunnel=True, csv_path=None):
+    """
+    Plot LP data, with optional filtering applied.
+
+    shot (int): Shot you want data for.
+    tmin (float): Start time for data.
+    tmax (float): End time for data.
+    xtype (str): X-axis for plot. One of "rminrsep", "psin" or "time".
+    xlim ([list, float]): X limits for the plot. Entered as list or tuple,
+      e.g. (-0.99, 1.4).
+    filter (str): One of "median" or "average". How to treat the binned LP data.
+    bins (int): Number of bins to divide the LP data up into. Divides an LP
+      signal in time up into number of bins and ten performs the filtering on
+      each one.
+    tunnel (bool): Whether to tunnel through atlas or not. If True, require ssh
+      linking atlas ot localhost.
+    csv_path (str): Optional path to save data to as a csv file.
+    """
 
     # Load lp data.
     lps = get_dict_of_lps(shot, tunnel)
@@ -302,6 +323,12 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median', bin
     fig.tight_layout()
     fig.show()
 
-    return {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt,
+    lp_dict = {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt,
            'jsat (A/cm2)':jsat_filt, 'heatflux (W/cm2)':heatflux_filt,
            'ground_filt':ground_filt, 'pnames':pnames_filt, 'R':r_filt, 'Z':z_filt}
+
+    if csv_path != None:
+        df = pd.DataFrame(lp_dict)
+        df.to_csv(csv_path)
+
+    return lp_dict

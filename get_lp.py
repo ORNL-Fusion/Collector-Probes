@@ -7,6 +7,8 @@ import MDSplus as mds
 import numpy   as np
 import pandas  as pd
 import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+from scipy.special import erfc
 
 
 def get_mds_active_probes(shot, tunnel=True):
@@ -164,7 +166,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
       e.g. (-0.99, 1.4).
     filter (str): One of "median" or "average". How to treat the binned LP data.
     bins (int): Number of bins to divide the LP data up into. Divides an LP
-      signal in time up into number of bins and ten performs the filtering on
+      signal in time up into number of bins and then performs the filtering on
       each one.
     tunnel (bool): Whether to tunnel through atlas or not. If True, require ssh
       linking atlas ot localhost.
@@ -174,25 +176,19 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
     # Load lp data.
     lps = get_dict_of_lps(shot, tunnel)
 
-    # Arrays to hold final values for plotting.
-    all_te       = np.array([])
-    all_ne       = np.array([])
-    all_jsat     = np.array([])
-    all_x        = np.array([])
-    all_ground   = np.array([])
-
-    # Output arrays.
-    pnames_filt   = np.array([])
-    x_filt        = np.array([])
-    te_filt       = np.array([])
-    ne_filt       = np.array([])
-    jsat_filt     = np.array([])
-    heatflux_filt = np.array([])
-    r_filt        = np.array([])
-    z_filt        = np.array([])
-    ground_filt   = np.array([])
+    # Output lists.
+    pnames_filt   = []
+    x_filt        = []
+    te_filt       = []
+    ne_filt       = []
+    jsat_filt     = []
+    heatflux_filt = []
+    r_filt        = []
+    z_filt        = []
+    ground_filt   = []
 
     # Go through one probe at a time to get data for plotting.
+    print("\nBinning and filtering data...")
     for key in lps.keys():
 
         # Get times and restrict to given time range.
@@ -220,6 +216,12 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
         probe_data = np.array((x, te, ne, jsat, heatflux, ground))
         probe_data = probe_data[:, np.argsort(probe_data[0])]
 
+        # If one simply wants all the data (probably messy but maybe for
+        # testing reasons), you can enter a massive number and it will just
+        # default to a data point per bin.
+        if bins >= len(times):
+            bins = len(times)
+
         # Divide the data up into the number of 'bins', then take the filter of each bin.
         bin_size = len(probe_data[0]) / bins
         #print("Bin size = {:.2f} --> Using integer = {}".format(bin_size, int(bin_size)))
@@ -241,19 +243,18 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
                 filter = np.mean
                 #filter = np.nanmean
 
-            # Filter and add to the output arrays to be plotted.
-            x_filt        = np.append(x_filt,        filter(tmp_x))
-            te_filt       = np.append(te_filt,       filter(tmp_te))
-            ne_filt       = np.append(ne_filt,       filter(tmp_ne))
-            jsat_filt     = np.append(jsat_filt,     filter(tmp_jsat))
-            heatflux_filt = np.append(heatflux_filt, filter(tmp_heatflux))
-            ground_filt   = np.append(ground_filt,   filter(tmp_ground))
+            # Filter and add to the output lists to be plotted.
+            x_filt.append(filter(tmp_x))
+            te_filt.append(filter(tmp_te))
+            ne_filt.append(filter(tmp_ne))
+            jsat_filt.append(filter(tmp_jsat))
+            heatflux_filt.append(filter(tmp_heatflux))
+            ground_filt.append(filter(tmp_ground))
 
             # Assign probe names so we can identify these data points later.
-            pnames_filt   = np.append(pnames_filt, key)
-            r_filt        = np.append(r_filt, lps[key]['rprobe'])
-            z_filt        = np.append(z_filt, lps[key]['zprobe'])
-
+            pnames_filt.append(key)
+            r_filt.append(lps[key]['rprobe'])
+            z_filt.append(lps[key]['zprobe'])
 
     # Enumerate the pnames so they can be used for color selection.
     pnames_enum = np.array(list(enumerate(np.unique(pnames_filt))))
@@ -266,7 +267,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
                  (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
 
     # A nice looking font.
-    plt.rcParams['font.family'] = 'serif'
+    #plt.rcParams['font.family'] = 'serif'
 
     # Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
     for i in range(len(tableau20)):
@@ -304,6 +305,7 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
                     newHandles.append(handle)
                 ax.legend(newHandles, newLabels, framealpha=0.5)
 
+    # Assign plot limits, if specified.
     if xtype == 'rminrsep':
         xlabel = 'R-Rsep (m)'
         if xlim is None:
@@ -315,20 +317,135 @@ def plot_lps(shot, tmin, tmax, xtype='rminrsep', xlim=None, filter='median',
     elif xtype == 'time':
         xlabel = 'Time (ms)'
 
-
     plot_ax(fig, x_filt, te_filt, 'Te (eV)', 131, 50, xlabel, xlim, legend=True)
     plot_ax(fig, x_filt, ne_filt, 'ne (cm-3)', 132, 10e13, xlabel, xlim)
     plot_ax(fig, x_filt, jsat_filt, 'jsat (A/cm2)', 133, 100, xlabel, xlim)
-
     fig.tight_layout()
     fig.show()
 
+    # Organize into dictionary for output.
     lp_dict = {xtype:x_filt, 'Te (eV)':te_filt, 'ne (cm-3)':ne_filt,
            'jsat (A/cm2)':jsat_filt, 'heatflux (W/cm2)':heatflux_filt,
            'ground_filt':ground_filt, 'pnames':pnames_filt, 'R':r_filt, 'Z':z_filt}
 
+    # Output to a csv file.
     if csv_path != None:
         df = pd.DataFrame(lp_dict)
         df.to_csv(csv_path)
 
     return lp_dict
+
+def fit_conv_gauss(lp_xl_path, lp_xl_sheet="Data Fixed", lp_xl_ydata="jsat fixed (A/cm2)",
+    gauss_range=[1.0, 1.04], ylabel=None):
+    """
+    To get to the point where you would want to use this function probably
+    requires a little manual labor. Supply here an Excel file where you have
+    already manipulated the data to make it all agree (perhaps you needed to
+    multiply some probes by constants to bring them into agreement with the
+    other probes for example).
+
+    Is this function flawproof? Absolutely not! But hopefully you can mess with
+    it enough to get a good fit, which you can afterwards do oe more round of
+    manual tickering on where the exponential and gaussian fits don't overlap.
+
+    lp_xl_path (str): Path to Excel file where you have manually organized
+      the LP data to make sure it looks good for fitting.
+    lp_xl_sheet (str): The sheet in the Excel file with your data you want to
+      fit.
+    lp_xl_ydata (str): The column name of either your jsat or Te data to be
+      fitted in the Excel file.
+    gauss_range (list, float): Between these psin values fit to a convoluted
+      gaussian. Outside, fit to exponentials.
+    ylabel (str): ylabel for the plot.
+    """
+
+    # The fitting functions.
+    def exp_fit_left(x, a, b, c):
+        return a * np.exp(b * (x - c))
+
+    def exp_fit_right(x, a, b, c):
+        return a * np.exp(-b * (x - c))
+
+    def gauss_conv_exp_fit(s, width, lambda_n, n0, n_bg, s0):
+        fx = 5
+        return n0 / 2.0 * np.exp((width/(2*lambda_n*fx))**2 - (s-s0)/(lambda_n *
+          fx)) * erfc(width/(2*lambda_n*fx) - (s-s0)/width)
+
+    # Load Excel file and pull out the data for the fitting.
+    df = pd.read_excel(lp_xl_path, sheet_name=lp_xl_sheet)
+    psin = df["psin"].values
+    y = df[lp_xl_ydata].values
+
+    # Sort the data.
+    sidx = np.argsort(psin)
+    psin = psin[sidx]
+    y    = y[sidx]
+
+    # Get rid of nans if some slip in.
+    kidx = ~np.isnan(y)
+    psin = psin[kidx]
+    y    = y[kidx]
+
+    # Divide the data up into our three regions, i.e. the region with the
+    # guassian fit (center) and the two exponential fits to the "left" and
+    # "right" that surround it.
+    left   = np.where(psin < gauss_range[0])[0]
+    right  = np.where(psin > gauss_range[1])[0]
+    center = np.where(np.logical_and(psin >= gauss_range[0], psin <= gauss_range[1]))[0]
+
+    # Do the exponential fits first.
+    if len(psin[left]) > 0:
+        left_popt, left_pcov = curve_fit(exp_fit_left, psin[left], y[left],
+          p0=(1, 10, 1), maxfev=5000)
+
+    # If you want the gaussian fit to just go all the way and don't include any
+    # data beyond it for an exponential.
+    if len(psin[right]) > 0:
+        right_popt, right_pcov = curve_fit(exp_fit_right, psin[right], y[right],
+          p0=(1, 10, 1), maxfev=5000)
+
+    # Now the convoluted gaussian fit.
+    guess = (0.05, 0.02, y.max(), 0.0, 1.0)
+    center_popt, center_pcov = curve_fit(gauss_conv_exp_fit, psin[center],
+      y[center], p0=guess, maxfev=5000)
+
+    # Plotting to see how it all looks.
+    lw = 4
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(psin, y, "k.")
+
+    if len(psin[left]) > 0:
+        ax.plot(psin[left], exp_fit_left(psin[left], *left_popt), "-", color="springgreen", lw=lw)
+
+    if len(psin[right]) > 0:
+        ax.plot(psin[right], exp_fit_right(psin[right], *right_popt), "-", color="deepskyblue", lw=lw)
+
+    ax.plot(psin[center], gauss_conv_exp_fit(psin[center], *center_popt), "-", color="crimson", lw=lw)
+
+    ax.set_xlabel("Psin", fontsize=16)
+    if ylabel == None:
+        ylabel = lp_xl_ydata
+    ax.set_ylabel(ylabel, fontsize=16)
+    ax.grid()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    fig.show()
+
+    # Just return the results of the fit with points 0.0005 psin apart..
+    psin_fit = np.array([])
+    y_fit = np.array([])
+    if len(psin[left]) > 0:
+        psin_fit_left = np.arange(psin[left].min(), psin[left].max(), 0.0005)
+        psin_fit = np.append(psin_fit, psin_fit_left)
+        y_fit = np.append(y_fit, exp_fit_left(psin_fit_left, *left_popt))
+    if len(psin[right]) > 0:
+        psin_fit_right = np.arange(psin[right].min(), psin[right].max(), 0.0005)
+        psin_fit = np.append(psin_fit, psin_fit_right)
+        y_fit = np.append(y_fit, exp_fit_right(psin_fit_right, *right_popt))
+
+    psin_fit_center = np.arange(psin[center].min(), psin[center].max(), 0.0005)
+    psin_fit = np.append(psin_fit, psin_fit_center)
+    y_fit = np.append(y_fit, gauss_conv_exp_fit(psin_fit_center, *center_popt))
+
+    return psin_fit, y_fit
